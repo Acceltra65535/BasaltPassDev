@@ -546,7 +546,7 @@ export default function AppUserManagement() {
       {/*  */}
       {showActionModal && selectedUser && (
         <div className="fixed inset-0 !m-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
-          <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               {t('tenantAppUserManagement.modal.userActionTitle', { action: getActionText(actionType) })}
             </h3>
@@ -609,7 +609,7 @@ export default function AppUserManagement() {
       {/*  */}
       {showPermissionModal && selectedUser && (
         <div className="fixed inset-0 !m-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto w-full max-w-6xl rounded-2xl border bg-white p-5 shadow-xl">
+          <div className="relative top-10 mx-auto w-full max-w-6xl rounded-2xl border bg-white p-5 shadow">
             <div className="mt-3">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-medium text-gray-900">

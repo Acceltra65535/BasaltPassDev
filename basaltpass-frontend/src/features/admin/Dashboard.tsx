@@ -364,11 +364,11 @@ export default function AdminDashboard() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                  <p className="text-xs font-medium uppercase tracking-wide text-indigo-100/90">{t('adminDashboard.stats.totalRevenue')}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/70">{t('adminDashboard.stats.totalRevenue')}</p>
                   <p className="mt-2 text-xl font-semibold text-white">{formatCurrency(stats.totalRevenue)}</p>
                 </div>
                 <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                  <p className="text-xs font-medium uppercase tracking-wide text-indigo-100/90">{t('adminDashboard.stats.todayRevenue')}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/70">{t('adminDashboard.stats.todayRevenue')}</p>
                   <p className="mt-2 text-xl font-semibold text-white">{formatCurrency(stats.todayRevenue)}</p>
                 </div>
               </div>

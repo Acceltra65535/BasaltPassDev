@@ -199,7 +199,7 @@ export default function CreateOAuthClientModal({
 
   return (
     <div className="fixed inset-0 !m-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center pt-8">
-      <div className="relative w-full max-w-6xl mx-2 bg-white shadow-xl rounded-xl border border-gray-100">
+      <div className="relative w-full max-w-6xl mx-2 bg-white shadow rounded-xl border border-gray-100">
         <div className="bg-white px-6 py-5 border-b border-gray-200 rounded-t-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center">

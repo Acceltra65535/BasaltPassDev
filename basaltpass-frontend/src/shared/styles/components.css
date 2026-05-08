@@ -18,9 +18,9 @@
   --bp-border: rgb(17 24 39 / 0.14);
   --bp-border-strong: rgb(17 24 39 / 0.24);
 
-  --bp-shadow-sm: 0 1px 2px rgb(17 24 39 / 0.06);
-  --bp-shadow-md: 0 8px 24px rgb(17 24 39 / 0.08);
-  --bp-shadow-lg: 0 18px 40px rgb(17 24 39 / 0.12);
+  --bp-shadow-sm: 0 1px 2px rgb(17 24 39 / 0.04);
+  --bp-shadow-md: 0 3px 8px rgb(17 24 39 / 0.06);
+  --bp-shadow-lg: 0 4px 12px rgb(17 24 39 / 0.08);
 
   --bp-radius-sm: 0.625rem;
   --bp-radius-md: 0.875rem;

@@ -115,7 +115,7 @@ const UserTooltip: React.FC<UserTooltipProps> = ({
       </span>
 
       {open && typeof document !== 'undefined' && createPortal(
-        <div className="pointer-events-none rounded-xl border border-gray-200 bg-white p-4 text-sm shadow-2xl" style={tooltipStyle}>
+        <div className="pointer-events-none rounded-xl border border-gray-200 bg-white p-4 text-sm shadow" style={tooltipStyle}>
           <div className="flex items-start gap-3">
             {user?.avatar_url ? (
               <img

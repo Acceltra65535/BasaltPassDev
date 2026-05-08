@@ -190,7 +190,7 @@ export default function SubscriptionIndex() {
       {/*  */}
       {showCancelModal && cancelTarget && (
         <div className="fixed inset-0 !m-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto w-96 rounded-2xl border bg-white p-5 shadow-xl">
+          <div className="relative top-20 mx-auto w-96 rounded-2xl border bg-white p-5 shadow">
             <div className="mt-3 text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                 <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />

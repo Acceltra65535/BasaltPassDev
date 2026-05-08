@@ -770,7 +770,7 @@ const InviteUserModal: React.FC<{
   const { t } = useI18n()
   return (
     <div className="fixed inset-0 !m-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto w-full max-w-md rounded-2xl border bg-white p-5 shadow-xl">
+      <div className="relative top-10 mx-auto w-full max-w-md rounded-2xl border bg-white p-5 shadow">
         <div className="mt-3">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-medium text-gray-900">{t('tenantUserManagement.modalInvite.title')}</h3>
@@ -849,7 +849,7 @@ const EditUserModal: React.FC<{
   const { t } = useI18n()
   return (
     <div className="fixed inset-0 !m-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto w-full max-w-md rounded-2xl border bg-white p-5 shadow-xl">
+      <div className="relative top-10 mx-auto w-full max-w-md rounded-2xl border bg-white p-5 shadow">
         <div className="mt-3">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-medium text-gray-900">{t('tenantUserManagement.modalEdit.title', { user: user.nickname })}</h3>

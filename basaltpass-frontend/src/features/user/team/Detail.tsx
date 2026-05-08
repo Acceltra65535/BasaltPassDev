@@ -302,7 +302,7 @@ const TeamDetail: React.FC = () => {
       {/*  -  space-y-6  */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 !m-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <div className="relative mx-auto w-96 rounded-2xl border bg-white p-5 shadow-xl">
+          <div className="relative mx-auto w-96 rounded-2xl border bg-white p-5 shadow">
             <div className="mt-3 text-center">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 {team.user_role === 'owner' ? t('pages.teamDetail.confirm.titleDelete') : t('pages.teamDetail.confirm.titleLeave')}

@@ -30,7 +30,7 @@ function fallbackModal(options: { message: string; title: string; type: DialogTy
     overlay.style.cssText = `position:fixed;inset:0;background:rgba(${blackRgb},.45);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;`
 
     const panel = document.createElement('div')
-    panel.style.cssText = `width:min(92vw,460px);background:#ffffff;border-radius:16px;box-shadow:0 20px 50px rgba(${blackRgb},.18);overflow:hidden;`
+    panel.style.cssText = `width:min(92vw,460px);background:#ffffff;border-radius:16px;box-shadow:0 4px 12px rgba(${blackRgb},.08);overflow:hidden;`
 
     const header = document.createElement('div')
     header.style.cssText = `padding:16px 20px;border-bottom:1px solid rgba(${blackRgb},.12);font-weight:600;color:#111827;`

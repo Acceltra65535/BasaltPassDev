@@ -226,7 +226,7 @@ const EntitySearchSelect: React.FC<EntitySearchSelectProps> = ({
 
     return (
       <div
-        className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-2xl"
+        className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow"
       >
         {loading ? (
           <div className="px-4 py-4 text-center text-gray-500">

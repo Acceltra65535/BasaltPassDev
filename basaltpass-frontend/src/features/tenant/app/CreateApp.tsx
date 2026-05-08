@@ -429,7 +429,7 @@ export default function CreateApp() {
 
       {createdCredentials && (
         <div className="fixed inset-0 !m-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow">
             <div className="flex items-center mb-4">
               <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
                 <CheckIcon className="h-6 w-6 text-green-600" />
