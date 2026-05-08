@@ -235,7 +235,11 @@ func ConsoleAuthorizeHandler(c *fiber.Ctx) error {
 	claims["exp"] = exp
 	claims["jti"] = jti
 
-	code, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(common.MustJWTSecret())
+	secret, err := common.JWTSecret()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "jwt secret not configured"})
+	}
+	code, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to sign code"})
 	}
@@ -257,11 +261,15 @@ func ConsoleExchangeHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "missing code"})
 	}
 
+	secret, err := common.JWTSecret()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "jwt secret not configured"})
+	}
 	tok, err := jwt.Parse(req.Code, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrTokenSignatureInvalid
 		}
-		return common.MustJWTSecret(), nil
+		return secret, nil
 	})
 	if err != nil || !tok.Valid {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid code"})

@@ -8,6 +8,7 @@ import (
 	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/model"
 	emailservice "basaltpass-backend/internal/service/email"
+	"basaltpass-backend/internal/utils"
 
 	"context"
 	"crypto/rand"
@@ -223,8 +224,6 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 			}
 		}
 	}
-
-	// 统计用户数量
 	var total int64
 	if err := base.Count(&total).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -940,13 +939,7 @@ func InviteTenantUserHandler(c *fiber.Ctx) error {
 		inviterUserID := inviterID
 
 		// 异步发送邮件
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("[tenant_user] invitation email goroutine panic recovered: %v", r)
-				}
-			}()
-
+		utils.GoSafe("tenant_invitation_email", func() {
 			cfg := config.Get()
 			emailSvc, err := emailservice.NewServiceFromConfig(cfg)
 			if err == nil && emailSvc != nil {
@@ -1021,7 +1014,7 @@ func InviteTenantUserHandler(c *fiber.Ctx) error {
 			} else {
 				log.Printf("[tenant_user] init email service failed: %v", err)
 			}
-		}()
+		})
 
 		return c.JSON(fiber.Map{
 			"message": "邀请已发送，用户可以通过邮件中的链接接受邀请",

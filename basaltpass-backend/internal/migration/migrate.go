@@ -109,11 +109,14 @@ func ensureUserOptionalContactsNullableOnMySQL() {
 
 // 迁移数据库，自动迁移数据库表结构
 // RunMigrations performs GORM auto migration for all models.
-func RunMigrations() {
+func RunMigrations() error {
 	// 首先创建 currencies 表
 	db := common.DB()
+	if db == nil {
+		return fmt.Errorf("database not ready: %v", common.DBErr())
+	}
 	if err := db.AutoMigrate(&model.Currency{}); err != nil {
-		log.Fatalf("[Error] Failed to create currencies table: %v", err)
+		return fmt.Errorf("[Error] Failed to create currencies table: %w", err)
 	}
 
 	// 然后初始化默认货币
@@ -246,7 +249,7 @@ func RunMigrations() {
 		&model.TokenExchangeLog{},
 	)
 	if err != nil {
-		log.Fatalf("[Error][RunMigrations] auto migration failed: %v", err)
+		return fmt.Errorf("[Error][RunMigrations] auto migration failed: %w", err)
 	}
 
 	// 回填钱包 tenant_id（兼容历史数据）
@@ -288,6 +291,7 @@ func RunMigrations() {
 	} else {
 		log.Printf("[Migration] Credit wallets backfilled for users (created=%d)", createdWallets)
 	}
+	return nil
 } // handleSpecialMigrations 处理特殊的迁移情况
 
 func handleSpecialMigrations() {

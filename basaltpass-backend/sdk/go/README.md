@@ -17,25 +17,25 @@ func main() {
     client := s2s.New("http://localhost:8101", "your_client_id", "your_client_secret")
 
     user, err := client.GetUser(context.Background(), 123)
-    if err != nil { panic(err) }
+    if err != nil { fmt.Println(err); return }
     fmt.Println(user)
 
     roles, err := client.GetUserRoles(context.Background(), 123, nil)
-    if err != nil { panic(err) }
+    if err != nil { fmt.Println(err); return }
     fmt.Println(roles)
 
     codes, err := client.GetUserRoleCodes(context.Background(), 123, nil)
-    if err != nil { panic(err) }
+    if err != nil { fmt.Println(err); return }
     fmt.Println(codes)
 
     limit := 10
     wallet, err := client.GetUserWallet(context.Background(), 123, "CNY", &limit)
-    if err != nil { panic(err) }
+    if err != nil { fmt.Println(err); return }
     fmt.Println(wallet)
 
     reference := "billing:order_1001"
     adjusted, err := client.AdjustUserWallet(context.Background(), 123, "decrease", 299, "CNY", &reference)
-    if err != nil { panic(err) }
+    if err != nil { fmt.Println(err); return }
     fmt.Println(adjusted)
 }
 ```
