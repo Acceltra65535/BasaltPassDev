@@ -11,13 +11,15 @@ import (
 func main() {
 	_, err := config.Load("C:/Users/Administrator/Desktop/WorkPlace/BasaltPass/basaltpass-backend/config/config.yaml")
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("load config failed: %v", err)
+		return
 	}
 
 	var client model.OAuthClient
 	err = common.DB().Where("id = ?", 19).First(&client).Error
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("load client failed: %v", err)
+		return
 	}
 
 	fmt.Printf("CLIENT_ID=%s\n", client.ClientID)

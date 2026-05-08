@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
@@ -20,7 +21,8 @@ func main() {
 	err := db.Where("code = ?", tenantCode).First(&tenant).Error
 	if err != nil {
 		if err := db.Order("id asc").First(&tenant).Error; err != nil {
-			panic(fmt.Errorf("failed to resolve tenant: %w", err))
+			log.Printf("failed to resolve tenant: %v", err)
+			return
 		}
 		fmt.Printf("tenant code '%s' not found, fallback to tenant '%s' (id=%d)\n", tenantCode, tenant.Code, tenant.ID)
 	}
@@ -36,7 +38,8 @@ func main() {
 		IsActive:    true,
 	}
 	if err := db.Where("tenant_id = ? AND code = ?", tenantID, product.Code).FirstOrCreate(&product).Error; err != nil {
-		panic(fmt.Errorf("failed to create/find product: %w", err))
+		log.Printf("failed to create/find product: %v", err)
+		return
 	}
 
 	plan := model.Plan{
@@ -47,7 +50,8 @@ func main() {
 		PlanVersion: 1,
 	}
 	if err := db.Where("tenant_id = ? AND code = ?", tenantID, plan.Code).FirstOrCreate(&plan).Error; err != nil {
-		panic(fmt.Errorf("failed to create/find plan: %w", err))
+		log.Printf("failed to create/find plan: %v", err)
+		return
 	}
 
 	price := model.Price{
@@ -62,7 +66,8 @@ func main() {
 	if err := db.Where("tenant_id = ? AND plan_id = ? AND currency = ? AND amount_cents = ? AND billing_period = ? AND billing_interval = ? AND usage_type = ?",
 		tenantID, plan.ID, price.Currency, price.AmountCents, price.BillingPeriod, price.BillingInterval, price.UsageType,
 	).FirstOrCreate(&price).Error; err != nil {
-		panic(fmt.Errorf("failed to create/find price: %w", err))
+		log.Printf("failed to create/find price: %v", err)
+		return
 	}
 
 	fmt.Println("test subscription resources ready")

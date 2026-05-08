@@ -19,7 +19,8 @@ func mustGetEnv(key string) string {
 		if os.Getenv("BASALTPASS_DYNO_MODE") == "test" {
 			return "test-secret" // Allow test mode
 		}
-		panic("environment variable " + key + " is required")
+		log.Printf("[auth][error] environment variable %s is required", key)
+		return ""
 	}
 	return v
 }
@@ -97,7 +98,12 @@ func GenerateTokenPairWithTenantAndScope(userID uint, tenantID uint, scope strin
 		"typ": TokenTypeAccess,
 		"exp": time.Now().Add(15 * time.Minute).Unix(),
 	}
-	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).SignedString(common.MustJWTSecret())
+	secret, err := common.JWTSecret()
+	if err != nil {
+		log.Printf("[auth][error] JWT secret unavailable: %v", err)
+		return TokenPair{}, err
+	}
+	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).SignedString(secret)
 	if err != nil {
 		log.Printf("[auth][error] Failed to sign access token for userID=%d, tenantID=%d, scope=%s: %v", userID, tenantID, scope, err)
 		return TokenPair{}, err
@@ -110,7 +116,7 @@ func GenerateTokenPairWithTenantAndScope(userID uint, tenantID uint, scope strin
 		"exp": time.Now().Add(7 * 24 * time.Hour).Unix(),
 		"typ": TokenTypeRefresh,
 	}
-	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString(common.MustJWTSecret())
+	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString(secret)
 	if err != nil {
 		log.Printf("[auth][error] Failed to sign refresh token for userID=%d, tenantID=%d, scope=%s: %v", userID, tenantID, scope, err)
 		return TokenPair{}, err
@@ -157,11 +163,15 @@ func resolveTokenTenantID(userID uint, claimedTenantID uint, scope string) (uint
 
 // ParseToken validates a JWT and returns claims.
 func ParseToken(tokenStr string) (*jwt.Token, error) {
+	secret, err := common.JWTSecret()
+	if err != nil {
+		return nil, err
+	}
 	return jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrTokenSignatureInvalid
 		}
-		return common.MustJWTSecret(), nil
+		return secret, nil
 	})
 }
 
@@ -204,17 +214,25 @@ func GeneratePreAuthToken(userID uint, tenantID uint) (string, error) {
 		"typ": TokenTypePreAuth,
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
 	}
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(common.MustJWTSecret())
+	secret, err := common.JWTSecret()
+	if err != nil {
+		return "", err
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
 }
 
 // ParsePreAuthToken validates a pre_auth token and extracts the embedded user / tenant IDs.
 // Returns an error if the token is expired, tampered with, or not of type "pre_auth".
 func ParsePreAuthToken(tokenStr string) (userID uint, tenantID uint, err error) {
+	secret, secretErr := common.JWTSecret()
+	if secretErr != nil {
+		return 0, 0, secretErr
+	}
 	token, parseErr := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrTokenSignatureInvalid
 		}
-		return common.MustJWTSecret(), nil
+		return secret, nil
 	})
 	if parseErr != nil || token == nil || !token.Valid {
 		return 0, 0, errors.New("invalid or expired 2FA session token")

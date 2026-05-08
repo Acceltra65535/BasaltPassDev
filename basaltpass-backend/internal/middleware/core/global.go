@@ -2,6 +2,7 @@ package core
 
 import (
 	"basaltpass-backend/internal/config"
+	"basaltpass-backend/internal/middleware/ops"
 	"basaltpass-backend/internal/middleware/transport"
 	"errors"
 	"log"
@@ -74,4 +75,5 @@ func RegisterMiddlewares(app *fiber.App) {
 	}
 
 	app.Use(cors.New(corsCfg))
+	app.Use(ops.DBGuardMiddleware())
 }

@@ -35,7 +35,7 @@ func main() {
 	// Load configuration (config file optional; env vars supported)
 	cfgPath := os.Getenv("BASALTPASS_CONFIG")
 	if _, err := config.Load(cfgPath); err != nil {
-		log.Fatalf("[main][error] Failed to load config: %v", err)
+		log.Printf("[main][error] Failed to load config: %v", err)
 	}
 
 	// Print current environment
@@ -54,7 +54,9 @@ func main() {
 	middleware.RegisterMiddlewares(app)
 
 	// Run DB migrations
-	migration.RunMigrations()
+	if err := migration.RunMigrations(); err != nil {
+		log.Printf("[main][error] Migration failed: %v", err)
+	}
 
 	// Register API routes
 	v1.RegisterRoutes(app)
@@ -77,5 +79,7 @@ func main() {
 
 	addr := config.Get().Server.Address
 	log.Printf("[main][info] Starting server on %s", addr)
-	log.Fatal(app.Listen(addr))
+	if err := app.Listen(addr); err != nil {
+		log.Printf("[main][error] Failed to start server: %v", err)
+	}
 }

@@ -23,22 +23,27 @@ func main() {
 	flag.Parse()
 
 	if *dir == "" {
-		log.Fatal("--dir is required")
+		log.Printf("--dir is required")
+		return
 	}
 	if *tenantID == 0 {
-		log.Fatal("--tenant-id is required")
+		log.Printf("--tenant-id is required")
+		return
 	}
 	if *userID == 0 {
-		log.Fatal("--user-id is required")
+		log.Printf("--user-id is required")
+		return
 	}
 
 	if _, err := config.Load(*configPath); err != nil {
-		log.Fatalf("load config: %v", err)
+		log.Printf("load config: %v", err)
+		return
 	}
 
 	bundle, err := basaltimport.LoadBundleFromDir(*dir)
 	if err != nil {
-		log.Fatalf("load bundle: %v", err)
+		log.Printf("load bundle: %v", err)
+		return
 	}
 
 	report, err := basaltimport.ImportBundle(common.DB(), bundle, basaltimport.Options{
@@ -47,13 +52,15 @@ func main() {
 		DryRun:   *dryRun,
 	})
 	if err != nil {
-		log.Fatalf("import bundle: %v", err)
+		log.Printf("import bundle: %v", err)
+		return
 	}
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(report); err != nil {
-		log.Fatalf("encode report: %v", err)
+		log.Printf("encode report: %v", err)
+		return
 	}
 
 	if *dryRun {

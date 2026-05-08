@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -39,7 +40,8 @@ func JWTSecret() ([]byte, error) {
 func MustJWTSecret() []byte {
 	secret, err := JWTSecret()
 	if err != nil {
-		panic(err.Error())
+		log.Printf("[jwt][error] %v", err)
+		return []byte{}
 	}
 	return secret
 }

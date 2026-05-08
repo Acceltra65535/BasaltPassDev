@@ -6,6 +6,7 @@ import (
 	security "basaltpass-backend/internal/handler/user/security"
 	"basaltpass-backend/internal/model"
 	auth2 "basaltpass-backend/internal/service/auth"
+	"basaltpass-backend/internal/utils"
 	"errors"
 	"log"
 	"strings"
@@ -203,11 +204,11 @@ func LoginHandler(c *fiber.Ctx) error {
 	userID := result.UserID
 	clientIP := c.IP()
 	userAgent := c.Get("User-Agent")
-	go func() {
+	utils.GoSafe("record_login_success", func() {
 		if err := security.RecordLoginSuccess(userID, clientIP, userAgent); err != nil {
 			log.Printf("failed to record login history: %v", err)
 		}
-	}()
+	})
 
 	return c.JSON(fiber.Map{
 		"access_token": result.TokenPair.AccessToken,
@@ -270,11 +271,11 @@ func Verify2FAHandler(c *fiber.Ctx) error {
 
 	clientIP := c.IP()
 	userAgent := c.Get("User-Agent")
-	go func() {
+	utils.GoSafe("record_login_success", func() {
 		if err := security.RecordLoginSuccess(userID, clientIP, userAgent); err != nil {
 			log.Printf("failed to record login history: %v", err)
 		}
-	}()
+	})
 	return c.JSON(fiber.Map{
 		"access_token": tokens.AccessToken,
 		"data": fiber.Map{

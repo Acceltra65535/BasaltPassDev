@@ -38,7 +38,11 @@ func ParseJWTToken(tokenStr string, ignoreClaimsValidation bool) (*jwt.Token, jw
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrTokenSignatureInvalid
 		}
-		return common.MustJWTSecret(), nil
+		secret, secretErr := common.JWTSecret()
+		if secretErr != nil {
+			return nil, secretErr
+		}
+		return secret, nil
 	})
 	if err != nil {
 		return nil, nil, err

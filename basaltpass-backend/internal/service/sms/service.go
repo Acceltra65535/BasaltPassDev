@@ -47,7 +47,7 @@ func New() *Service {
 		// in production so mis-configuration is caught early.
 		env := strings.ToLower(strings.TrimSpace(os.Getenv("BASALTPASS_ENV")))
 		if env == "production" || env == "prod" {
-			log.Fatalf("[sms] unknown SMS_PROVIDER=%q in production — aborting", p)
+			log.Printf("[sms] unknown SMS_PROVIDER=%q in production — falling back to log provider", p)
 		}
 		log.Printf("[sms] unknown SMS_PROVIDER=%q, falling back to log provider", p)
 		provider = &logProvider{}
