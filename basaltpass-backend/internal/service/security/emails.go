@@ -1,6 +1,7 @@
 package security
 
 import (
+	"basaltpass-backend/internal/config"
 	emailservice "basaltpass-backend/internal/service/email"
 	settingssvc "basaltpass-backend/internal/service/settings"
 	"context"
@@ -9,9 +10,12 @@ import (
 )
 
 func getSiteURL() string {
-	url := strings.TrimSpace(settingssvc.GetString("general.site_url", "http://localhost:8101"))
+	url := strings.TrimSpace(config.Get().UI.BaseURL)
 	if url == "" {
-		url = "http://localhost:8101"
+		url = strings.TrimSpace(settingssvc.GetString("general.site_url", "http://localhost:5101"))
+	}
+	if url == "" {
+		url = "http://localhost:5101"
 	}
 	return strings.TrimRight(url, "/")
 }
