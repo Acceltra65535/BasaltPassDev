@@ -466,7 +466,12 @@ func (s *OAuthServerService) RefreshAccessToken(refreshToken string, clientID st
 // ValidateAccessToken 验证访问令牌
 func (s *OAuthServerService) ValidateAccessToken(token string) (*model.OAuthAccessToken, error) {
 	var oauthToken model.OAuthAccessToken
-	if err := s.db.Preload("User").Preload("Client").Where("token = ?", token).First(&oauthToken).Error; err != nil {
+	if err := s.db.
+		Preload("User").
+		Preload("Client").
+		Preload("Tenant").
+		Where("token = ?", token).
+		First(&oauthToken).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("invalid_token")
 		}

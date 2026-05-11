@@ -463,6 +463,17 @@ func IntrospectHandler(c *fiber.Ctx) error {
 		"iat":       oauthToken.CreatedAt.Unix(),
 		"sub":       oauthToken.UserID,
 	}
+	if oauthToken.TenantID > 0 {
+		resp["tenant_id"] = strconv.FormatUint(uint64(oauthToken.TenantID), 10)
+	}
+	if strings.TrimSpace(oauthToken.Tenant.Code) != "" {
+		resp["tenant_code"] = oauthToken.Tenant.Code
+		resp["tenant"] = fiber.Map{
+			"id":   oauthToken.TenantID,
+			"code": oauthToken.Tenant.Code,
+			"name": oauthToken.Tenant.Name,
+		}
+	}
 
 	// RFC 8693 §4.1 — include actor information for exchanged tokens
 	if oauthToken.IsExchanged && oauthToken.ActorClientID != "" {
