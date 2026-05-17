@@ -24,6 +24,7 @@ import (
 type OneTapAuthRequest struct {
 	ClientID     string `json:"client_id" validate:"required"`
 	Scope        string `json:"scope,omitempty"`
+	Nonce        string `json:"nonce,omitempty"`
 	State        string `json:"state,omitempty"`
 	RedirectURI  string `json:"redirect_uri,omitempty"`
 	ResponseType string `json:"response_type,omitempty"` // must be "code" when provided
@@ -89,6 +90,7 @@ func OneTapLoginHandler(c *fiber.Ctx) error {
 		RedirectURI:  req.RedirectURI,
 		ResponseType: "code",
 		Scope:        scope,
+		Nonce:        req.Nonce,
 		State:        req.State,
 	}
 	validatedClient, err := oauthServerService.ValidateAuthorizeRequest(authReq)
@@ -147,6 +149,7 @@ func SilentAuthHandler(c *fiber.Ctx) error {
 	redirectURI := c.Query("redirect_uri")
 	state := c.Query("state")
 	scope := c.Query("scope")
+	nonce := c.Query("nonce")
 
 	if prompt != "none" {
 		return renderSilentAuthError(c, fiber.StatusBadRequest, clientID, redirectURI, state, "invalid_request")
@@ -172,6 +175,7 @@ func SilentAuthHandler(c *fiber.Ctx) error {
 		RedirectURI:  redirectURI,
 		ResponseType: "code",
 		Scope:        normalizeRequestedScope(scope, client),
+		Nonce:        nonce,
 		State:        state,
 	}
 	validatedClient, err := oauthServerService.ValidateAuthorizeRequest(authReq)

@@ -13,6 +13,11 @@ server:
   # 监听地址（host:port 或 :port）
   address: ":8101"
 
+oidc:
+  # 对外公开的 OIDC issuer，必须和 discovery / id_token / introspection 的 iss 完全一致
+  # 生产环境建议设置为公网 API 地址，例如 "https://auth.example.com/api/v1"
+  issuer: "http://localhost:8101/api/v1"
+
 database:
   # 开发编排默认使用 MySQL；也支持 sqlite
   driver: "mysql"

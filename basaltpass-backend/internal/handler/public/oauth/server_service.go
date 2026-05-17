@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"basaltpass-backend/internal/common"
-	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/model"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -50,15 +50,21 @@ type AuthorizeRequest struct {
 	CodeChallenge       string `form:"code_challenge"`        // PKCE
 	CodeChallengeMethod string `form:"code_challenge_method"` // PKCE
 	Nonce               string `form:"nonce"`                 // OIDC
+	Prompt              string `form:"prompt"`                // OIDC prompt: none/login/consent
+	MaxAge              string `form:"max_age"`               // OIDC max_age seconds
+	LoginHint           string `form:"login_hint"`            // OIDC login_hint
+	Claims              string `form:"claims"`                // OIDC claims parameter
+	ACRValues           string `form:"acr_values"`            // OIDC requested ACR values
 }
 
 // TokenRequest 令牌请求结构
 type TokenRequest struct {
-	GrantType    string `form:"grant_type" binding:"required"`
-	Code         string `form:"code"`
-	RedirectURI  string `form:"redirect_uri"`
-	ClientID     string `form:"client_id"`
-	CodeVerifier string `form:"code_verifier"` // PKCE
+	GrantType           string `form:"grant_type" binding:"required"`
+	Code                string `form:"code"`
+	RedirectURI         string `form:"redirect_uri"`
+	ClientID            string `form:"client_id"`
+	CodeVerifier        string `form:"code_verifier"` // PKCE
+	ClientAuthenticated bool   `json:"-"`
 }
 
 // TokenResponse 令牌响应结构
@@ -77,11 +83,20 @@ type AuthorizeResponse struct {
 	State string `json:"state,omitempty"`
 }
 
+type OIDCAuthContext struct {
+	AuthTime time.Time
+	ACR      string
+	AMR      []string
+}
+
 // ValidateAuthorizeRequest 验证授权请求
 func (s *OAuthServerService) ValidateAuthorizeRequest(req *AuthorizeRequest) (*model.OAuthClient, error) {
 	// 1. 验证response_type
 	if req.ResponseType != "code" {
 		return nil, errors.New("unsupported_response_type")
+	}
+	if err := validateOIDCAuthorizeParameters(req); err != nil {
+		return nil, err
 	}
 
 	// 2. 查找并验证客户端（预加载App信息以显示应用详情）
@@ -103,10 +118,6 @@ func (s *OAuthServerService) ValidateAuthorizeRequest(req *AuthorizeRequest) (*m
 
 	// 4. 验证scope（可选）
 	if req.Scope != "" {
-		if hasScope(req.Scope, "openid") && strings.TrimSpace(req.Nonce) == "" {
-			return nil, errors.New("invalid_request")
-		}
-
 		requestedScopes := strings.Split(req.Scope, " ")
 		allowedScopes := client.GetScopeList()
 
@@ -124,7 +135,56 @@ func (s *OAuthServerService) ValidateAuthorizeRequest(req *AuthorizeRequest) (*m
 		}
 	}
 
+	if strings.TrimSpace(req.CodeChallengeMethod) != "" && req.CodeChallengeMethod != "S256" {
+		return nil, errors.New("invalid_request")
+	}
+	if client.GetTokenEndpointAuthMethod() == model.OAuthTokenEndpointAuthNone {
+		if strings.TrimSpace(req.CodeChallenge) == "" || req.CodeChallengeMethod != "S256" {
+			return nil, errors.New("invalid_request")
+		}
+	}
+
 	return &client, nil
+}
+
+func validateOIDCAuthorizeParameters(req *AuthorizeRequest) error {
+	for _, prompt := range strings.Fields(req.Prompt) {
+		switch prompt {
+		case "none", "login", "consent", "select_account":
+		default:
+			return errors.New("invalid_request")
+		}
+	}
+	if hasPrompt(req.Prompt, "none") && len(strings.Fields(req.Prompt)) > 1 {
+		return errors.New("invalid_request")
+	}
+	if strings.TrimSpace(req.MaxAge) != "" {
+		maxAge, err := strconv.Atoi(strings.TrimSpace(req.MaxAge))
+		if err != nil || maxAge < 0 {
+			return errors.New("invalid_request")
+		}
+	}
+	return nil
+}
+
+func hasPrompt(promptText string, target string) bool {
+	for _, prompt := range strings.Fields(promptText) {
+		if prompt == target {
+			return true
+		}
+	}
+	return false
+}
+
+func maxAgeDuration(req *AuthorizeRequest) (time.Duration, bool) {
+	if strings.TrimSpace(req.MaxAge) == "" {
+		return 0, false
+	}
+	maxAge, err := strconv.Atoi(strings.TrimSpace(req.MaxAge))
+	if err != nil || maxAge < 0 {
+		return 0, false
+	}
+	return time.Duration(maxAge) * time.Second, true
 }
 
 // ValidateClientCredentials verifies OAuth client_id/client_secret.
@@ -195,16 +255,21 @@ func (s *OAuthServerService) resolveClientTenantID(client *model.OAuthClient) ui
 }
 
 // GenerateAuthorizationCode 生成授权码
-func (s *OAuthServerService) GenerateAuthorizationCode(userID uint, req *AuthorizeRequest, client *model.OAuthClient) (string, error) {
+func (s *OAuthServerService) GenerateAuthorizationCode(userID uint, req *AuthorizeRequest, client *model.OAuthClient, authContexts ...OIDCAuthContext) (string, error) {
 	// 生成授权码
 	codeBytes := make([]byte, 32)
 	if _, err := rand.Read(codeBytes); err != nil {
 		return "", err
 	}
 	code := hex.EncodeToString(codeBytes)
+	authContext := normalizeOIDCAuthContext(time.Now(), firstOIDCAuthContext(authContexts))
+	if acr := firstRequestedACR(req.ACRValues); acr != "" {
+		authContext.ACR = acr
+	}
 
 	// 获取租户ID（支持历史脏数据的兜底恢复）
 	tenantID := s.resolveClientTenantID(client)
+	maxAge := maxAgePointer(req)
 
 	// 创建授权码记录（包含AppID和TenantID）
 	authCode := &model.OAuthAuthorizationCode{
@@ -215,8 +280,17 @@ func (s *OAuthServerService) GenerateAuthorizationCode(userID uint, req *Authori
 		AppID:               client.AppID,
 		RedirectURI:         req.RedirectURI,
 		Scopes:              req.Scope,
+		Claims:              strings.TrimSpace(req.Claims),
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,
+		Nonce:               strings.TrimSpace(req.Nonce),
+		ACRValues:           strings.TrimSpace(req.ACRValues),
+		Prompt:              strings.TrimSpace(req.Prompt),
+		MaxAge:              maxAge,
+		LoginHint:           strings.TrimSpace(req.LoginHint),
+		AuthTime:            authContext.AuthTime,
+		ACR:                 authContext.ACR,
+		AMR:                 strings.Join(authContext.AMR, " "),
 		ExpiresAt:           time.Now().Add(10 * time.Minute), // 授权码10分钟有效期
 		Used:                false,
 	}
@@ -226,6 +300,79 @@ func (s *OAuthServerService) GenerateAuthorizationCode(userID uint, req *Authori
 	}
 
 	return code, nil
+}
+
+func firstOIDCAuthContext(authContexts []OIDCAuthContext) OIDCAuthContext {
+	if len(authContexts) == 0 {
+		return OIDCAuthContext{}
+	}
+	return authContexts[0]
+}
+
+func normalizeOIDCAuthContext(fallback time.Time, ctx OIDCAuthContext) OIDCAuthContext {
+	if ctx.AuthTime.IsZero() {
+		ctx.AuthTime = fallback
+	}
+	ctx.AMR = normalizeOIDCAMR(ctx.AMR)
+	if strings.TrimSpace(ctx.ACR) == "" {
+		ctx.ACR = acrForOIDCAMR(ctx.AMR)
+	}
+	return ctx
+}
+
+func normalizeOIDCAMR(methods []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(methods))
+	for _, method := range methods {
+		method = strings.TrimSpace(method)
+		if method == "" {
+			continue
+		}
+		if _, exists := seen[method]; exists {
+			continue
+		}
+		seen[method] = struct{}{}
+		out = append(out, method)
+	}
+	if len(out) == 0 {
+		return []string{"pwd"}
+	}
+	return out
+}
+
+func acrForOIDCAMR(methods []string) string {
+	if len(methods) > 1 {
+		return "urn:basaltpass:acr:mfa"
+	}
+	for _, method := range methods {
+		switch method {
+		case "webauthn":
+			return "urn:basaltpass:acr:webauthn"
+		case "otp":
+			return "urn:basaltpass:acr:mfa"
+		}
+	}
+	return "urn:basaltpass:acr:password"
+}
+
+func maxAgePointer(req *AuthorizeRequest) *int {
+	if strings.TrimSpace(req.MaxAge) == "" {
+		return nil
+	}
+	maxAge, err := strconv.Atoi(strings.TrimSpace(req.MaxAge))
+	if err != nil || maxAge < 0 {
+		return nil
+	}
+	return &maxAge
+}
+
+func firstRequestedACR(acrValues string) string {
+	for _, value := range strings.Fields(acrValues) {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // HasAppUserAuthorization checks whether a user has already authorized an app.
@@ -253,19 +400,58 @@ func hasScope(scopeText string, target string) bool {
 	return false
 }
 
-func (s *OAuthServerService) buildIDToken(clientID string, userID uint, nonce string, issuedAt time.Time) (string, error) {
+func clientAllowsGrant(client model.OAuthClient, grantType string) bool {
+	for _, grant := range client.GetGrantTypeList() {
+		if strings.TrimSpace(grant) == grantType {
+			return true
+		}
+	}
+	return false
+}
+
+func isJWTClientAuthMethod(method string) bool {
+	return method == model.OAuthTokenEndpointAuthClientSecretJWT || method == model.OAuthTokenEndpointAuthPrivateKeyJWT
+}
+
+func (s *OAuthServerService) oidcSubject(clientID string, userID uint) string {
+	var client model.OAuthClient
+	if err := s.db.Select("client_id", "subject_type", "sector_identifier_uri").Where("client_id = ?", clientID).First(&client).Error; err != nil {
+		return strconv.FormatUint(uint64(userID), 10)
+	}
+	return oidcSubjectForClient(client, userID)
+}
+
+func oidcSubjectForClient(client model.OAuthClient, userID uint) string {
+	publicSub := strconv.FormatUint(uint64(userID), 10)
+	if client.GetSubjectType() != model.OAuthSubjectTypePairwise {
+		return publicSub
+	}
+	sector := strings.TrimSpace(client.SectorIdentifierURI)
+	if sector == "" {
+		sector = strings.TrimSpace(client.ClientID)
+	}
+	sum := sha256.Sum256([]byte(oidcIssuer() + "|" + sector + "|" + publicSub))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
+}
+
+func (s *OAuthServerService) buildIDToken(clientID string, userID uint, nonce string, scopes string, issuedAt time.Time, authContexts ...OIDCAuthContext) (string, error) {
 	privateKey, err := GetPrivateKey()
 	if err != nil {
 		return "", err
 	}
+	authContext := normalizeOIDCAuthContext(issuedAt, firstOIDCAuthContext(authContexts))
 
+	sub := s.oidcSubject(clientID, userID)
 	claims := jwt.MapClaims{
-		"iss":       config.Get().Server.Address + "/api/v1",
-		"sub":       strconv.FormatUint(uint64(userID), 10),
+		"iss":       oidcIssuer(),
+		"sub":       sub,
 		"aud":       clientID,
+		"azp":       clientID,
 		"exp":       issuedAt.Add(time.Hour).Unix(),
 		"iat":       issuedAt.Unix(),
-		"auth_time": issuedAt.Unix(),
+		"auth_time": authContext.AuthTime.Unix(),
+		"acr":       authContext.ACR,
+		"amr":       authContext.AMR,
 	}
 	if nonce != "" {
 		claims["nonce"] = nonce
@@ -274,6 +460,64 @@ func (s *OAuthServerService) buildIDToken(clientID string, userID uint, nonce st
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = GetKeyID()
 	return token.SignedString(privateKey)
+}
+
+func oidcDisplayName(user model.User, sub string) string {
+	if name := strings.TrimSpace(user.Nickname); name != "" {
+		return name
+	}
+	parts := make([]string, 0, 3)
+	for _, part := range []string{user.GivenName, user.MiddleName, user.FamilyName} {
+		if part = strings.TrimSpace(part); part != "" {
+			parts = append(parts, part)
+		}
+	}
+	if len(parts) > 0 {
+		return strings.Join(parts, " ")
+	}
+	if email := strings.TrimSpace(user.Email); email != "" {
+		if at := strings.Index(email, "@"); at > 0 {
+			return email[:at]
+		}
+		return email
+	}
+	return sub
+}
+
+func oidcNickname(user model.User, fallback string) string {
+	if nickname := strings.TrimSpace(user.Nickname); nickname != "" {
+		return nickname
+	}
+	return fallback
+}
+
+func oidcNameParts(user model.User, displayName string) (string, string, string) {
+	givenName := strings.TrimSpace(user.GivenName)
+	familyName := strings.TrimSpace(user.FamilyName)
+	middleName := strings.TrimSpace(user.MiddleName)
+	if givenName != "" || familyName != "" || middleName != "" {
+		if givenName == "" {
+			givenName = oidcNickname(user, displayName)
+		}
+		if familyName == "" {
+			familyName = givenName
+		}
+		return givenName, familyName, middleName
+	}
+
+	parts := strings.Fields(displayName)
+	if len(parts) >= 2 {
+		givenName = parts[0]
+		familyName = parts[len(parts)-1]
+		if len(parts) > 2 {
+			middleName = strings.Join(parts[1:len(parts)-1], " ")
+		}
+		return givenName, familyName, middleName
+	}
+	if displayName == "" {
+		return "", "", ""
+	}
+	return displayName, displayName, ""
 }
 
 // ExchangeCodeForToken 用授权码换取访问令牌
@@ -287,6 +531,7 @@ func (s *OAuthServerService) ExchangeCodeForToken(req *TokenRequest, clientID st
 	var authCode model.OAuthAuthorizationCode
 	if err := s.db.Where("code = ? AND used = ?", req.Code, false).First(&authCode).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s.revokeTokensForReusedAuthorizationCode(req.Code, clientID)
 			return nil, errors.New("invalid_grant")
 		}
 		return nil, err
@@ -304,12 +549,20 @@ func (s *OAuthServerService) ExchangeCodeForToken(req *TokenRequest, clientID st
 
 	// 5. 查找并验证客户端
 	var client model.OAuthClient
-	if err := s.db.Where("client_id = ?", clientID).First(&client).Error; err != nil {
+	if err := s.db.Where("client_id = ? AND is_active = ?", clientID, true).First(&client).Error; err != nil {
 		return nil, errors.New("invalid_client")
 	}
 
-	// 6. 验证客户端密钥
-	if !client.VerifyClientSecret(clientSecret) {
+	// 6. 验证客户端认证方式。公共客户端必须使用 S256 PKCE，不能靠缺省 plain。
+	if client.GetTokenEndpointAuthMethod() == model.OAuthTokenEndpointAuthNone {
+		if clientSecret != "" || authCode.CodeChallenge == "" || authCode.CodeChallengeMethod != "S256" {
+			return nil, errors.New("invalid_client")
+		}
+	} else if isJWTClientAuthMethod(client.GetTokenEndpointAuthMethod()) {
+		if !req.ClientAuthenticated {
+			return nil, errors.New("invalid_client")
+		}
+	} else if clientSecret == "" || !client.VerifyClientSecret(clientSecret) {
 		return nil, errors.New("invalid_client")
 	}
 
@@ -330,8 +583,6 @@ func (s *OAuthServerService) ExchangeCodeForToken(req *TokenRequest, clientID st
 			// RFC 7636 §4.2: code_challenge = BASE64URL(SHA256(ASCII(code_verifier)))
 			hash := sha256.Sum256([]byte(req.CodeVerifier))
 			challenge = base64.RawURLEncoding.EncodeToString(hash[:])
-		case "plain":
-			challenge = req.CodeVerifier
 		default:
 			return nil, errors.New("invalid_request")
 		}
@@ -348,41 +599,20 @@ func (s *OAuthServerService) ExchangeCodeForToken(req *TokenRequest, clientID st
 	}
 	accessToken := hex.EncodeToString(tokenBytes)
 
-	// 10. 生成刷新令牌
-	refreshTokenBytes := make([]byte, 32)
-	if _, err := rand.Read(refreshTokenBytes); err != nil {
-		return nil, err
-	}
-	refreshToken := hex.EncodeToString(refreshTokenBytes)
-
 	// 11. 保存访问令牌
 	oauthToken := &model.OAuthAccessToken{
-		Token:     accessToken,
-		ClientID:  authCode.ClientID,
-		UserID:    authCode.UserID,
-		TenantID:  authCode.TenantID,
-		AppID:     authCode.AppID,
-		Scopes:    authCode.Scopes,
-		ExpiresAt: time.Now().Add(1 * time.Hour), // 访问令牌1小时有效期
+		Token:      accessToken,
+		ClientID:   authCode.ClientID,
+		UserID:     authCode.UserID,
+		TenantID:   authCode.TenantID,
+		AppID:      authCode.AppID,
+		Scopes:     authCode.Scopes,
+		Claims:     authCode.Claims,
+		ExpiresAt:  time.Now().Add(1 * time.Hour), // 访问令牌1小时有效期
+		AuthCodeID: &authCode.ID,
 	}
 
 	if err := s.db.Create(oauthToken).Error; err != nil {
-		return nil, err
-	}
-
-	// 11.1 保存刷新令牌
-	refreshTokenModel := &model.OAuthRefreshToken{
-		Token:         refreshToken,
-		ClientID:      authCode.ClientID,
-		UserID:        authCode.UserID,
-		TenantID:      authCode.TenantID,
-		AppID:         authCode.AppID,
-		Scopes:        authCode.Scopes,
-		ExpiresAt:     time.Now().Add(7 * 24 * time.Hour), // 刷新令牌7天有效期
-		AccessTokenID: &oauthToken.ID,
-	}
-
-	if err := s.db.Create(refreshTokenModel).Error; err != nil {
 		return nil, err
 	}
 
@@ -407,14 +637,43 @@ func (s *OAuthServerService) ExchangeCodeForToken(req *TokenRequest, clientID st
 
 	issuedAt := time.Now()
 	resp := &TokenResponse{
-		AccessToken:  accessToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    3600, // 1小时
-		RefreshToken: refreshToken,
-		Scope:        authCode.Scopes,
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+		ExpiresIn:   3600, // 1小时
+		Scope:       authCode.Scopes,
+	}
+	authContext := normalizeOIDCAuthContext(issuedAt, OIDCAuthContext{
+		AuthTime: authCode.AuthTime,
+		ACR:      authCode.ACR,
+		AMR:      strings.Fields(authCode.AMR),
+	})
+	if hasScope(authCode.Scopes, "offline_access") && clientAllowsGrant(client, "refresh_token") {
+		refreshTokenBytes := make([]byte, 32)
+		if _, err := rand.Read(refreshTokenBytes); err != nil {
+			return nil, err
+		}
+		refreshToken := hex.EncodeToString(refreshTokenBytes)
+		refreshTokenModel := &model.OAuthRefreshToken{
+			Token:         refreshToken,
+			ClientID:      authCode.ClientID,
+			UserID:        authCode.UserID,
+			TenantID:      authCode.TenantID,
+			AppID:         authCode.AppID,
+			Scopes:        authCode.Scopes,
+			Nonce:         authCode.Nonce,
+			AuthTime:      authContext.AuthTime,
+			ACR:           authContext.ACR,
+			AMR:           strings.Join(authContext.AMR, " "),
+			ExpiresAt:     time.Now().Add(7 * 24 * time.Hour),
+			AccessTokenID: &oauthToken.ID,
+		}
+		if err := s.db.Create(refreshTokenModel).Error; err != nil {
+			return nil, err
+		}
+		resp.RefreshToken = refreshToken
 	}
 	if hasScope(authCode.Scopes, "openid") {
-		idToken, err := s.buildIDToken(authCode.ClientID, authCode.UserID, authCode.Nonce, issuedAt)
+		idToken, err := s.buildIDToken(authCode.ClientID, authCode.UserID, authCode.Nonce, authCode.Scopes, issuedAt, authContext)
 		if err != nil {
 			return nil, err
 		}
@@ -423,8 +682,24 @@ func (s *OAuthServerService) ExchangeCodeForToken(req *TokenRequest, clientID st
 	return resp, nil
 }
 
+func (s *OAuthServerService) revokeTokensForReusedAuthorizationCode(code string, clientID string) {
+	code = strings.TrimSpace(code)
+	clientID = strings.TrimSpace(clientID)
+	if code == "" || clientID == "" {
+		return
+	}
+	var authCode model.OAuthAuthorizationCode
+	if err := s.db.Select("id", "client_id", "used").Where("code = ?", code).First(&authCode).Error; err != nil {
+		return
+	}
+	if !authCode.Used || authCode.ClientID != clientID {
+		return
+	}
+	_ = s.db.Where("auth_code_id = ?", authCode.ID).Delete(&model.OAuthAccessToken{}).Error
+}
+
 // RefreshAccessToken 刷新访问令牌
-func (s *OAuthServerService) RefreshAccessToken(refreshToken string, clientID string, clientSecret string) (*TokenResponse, error) {
+func (s *OAuthServerService) RefreshAccessToken(refreshToken string, clientID string, clientSecret string, authenticated ...bool) (*TokenResponse, error) {
 	// 1. 查找刷新令牌
 	var refreshTokenModel model.OAuthRefreshToken
 	if err := s.db.Where("token = ? AND client_id = ?", refreshToken, clientID).First(&refreshTokenModel).Error; err != nil {
@@ -441,11 +716,19 @@ func (s *OAuthServerService) RefreshAccessToken(refreshToken string, clientID st
 
 	// 2. 验证客户端
 	var client model.OAuthClient
-	if err := s.db.Where("client_id = ?", clientID).First(&client).Error; err != nil {
+	if err := s.db.Where("client_id = ? AND is_active = ?", clientID, true).First(&client).Error; err != nil {
 		return nil, errors.New("invalid_client")
 	}
 
-	if !client.VerifyClientSecret(clientSecret) {
+	if client.GetTokenEndpointAuthMethod() == model.OAuthTokenEndpointAuthNone {
+		if clientSecret != "" {
+			return nil, errors.New("invalid_client")
+		}
+	} else if isJWTClientAuthMethod(client.GetTokenEndpointAuthMethod()) {
+		if len(authenticated) == 0 || !authenticated[0] {
+			return nil, errors.New("invalid_client")
+		}
+	} else if clientSecret == "" || !client.VerifyClientSecret(clientSecret) {
 		return nil, errors.New("invalid_client")
 	}
 
@@ -491,26 +774,44 @@ func (s *OAuthServerService) RefreshAccessToken(refreshToken string, clientID st
 
 	// 8. 创建新的刷新令牌
 	newRefreshTokenModel := model.OAuthRefreshToken{
-		Token:     newRefreshTokenStr,
-		ClientID:  clientID,
-		UserID:    refreshTokenModel.UserID,
-		TenantID:  refreshTokenModel.TenantID,
-		AppID:     refreshTokenModel.AppID,
-		Scopes:    refreshTokenModel.Scopes,
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 30), // 30天
+		Token:         newRefreshTokenStr,
+		ClientID:      clientID,
+		UserID:        refreshTokenModel.UserID,
+		TenantID:      refreshTokenModel.TenantID,
+		AppID:         refreshTokenModel.AppID,
+		Scopes:        refreshTokenModel.Scopes,
+		Nonce:         refreshTokenModel.Nonce,
+		AuthTime:      refreshTokenModel.AuthTime,
+		ACR:           refreshTokenModel.ACR,
+		AMR:           refreshTokenModel.AMR,
+		ExpiresAt:     time.Now().Add(time.Hour * 24 * 30), // 30天
+		AccessTokenID: &newToken.ID,
 	}
 
 	if err := s.db.Create(&newRefreshTokenModel).Error; err != nil {
 		return nil, err
 	}
 
-	return &TokenResponse{
+	resp := &TokenResponse{
 		AccessToken:  newAccessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    3600,
 		RefreshToken: newRefreshTokenStr,
 		Scope:        refreshTokenModel.Scopes,
-	}, nil
+	}
+	if hasScope(refreshTokenModel.Scopes, "openid") {
+		issuedAt := time.Now()
+		idToken, err := s.buildIDToken(clientID, refreshTokenModel.UserID, "", refreshTokenModel.Scopes, issuedAt, OIDCAuthContext{
+			AuthTime: refreshTokenModel.AuthTime,
+			ACR:      refreshTokenModel.ACR,
+			AMR:      strings.Fields(refreshTokenModel.AMR),
+		})
+		if err != nil {
+			return nil, err
+		}
+		resp.IDToken = idToken
+	}
+	return resp, nil
 }
 
 // ValidateAccessToken 验证访问令牌
@@ -530,6 +831,110 @@ func (s *OAuthServerService) ValidateAccessToken(token string) (*model.OAuthAcce
 	return &oauthToken, nil
 }
 
+func (s *OAuthServerService) ValidateRefreshToken(token string) (*model.OAuthRefreshToken, error) {
+	var refreshToken model.OAuthRefreshToken
+	if err := s.db.Preload("User").Preload("Client").Where("token = ?", token).First(&refreshToken).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("invalid_token")
+		}
+		return nil, err
+	}
+	if refreshToken.IsExpired() {
+		return nil, errors.New("token_expired")
+	}
+	return &refreshToken, nil
+}
+
+type TokenIntrospectionResponse struct {
+	Active    bool        `json:"active"`
+	TokenType string      `json:"token_type,omitempty"`
+	ClientID  string      `json:"client_id,omitempty"`
+	Username  string      `json:"username,omitempty"`
+	Scope     string      `json:"scope,omitempty"`
+	Exp       int64       `json:"exp,omitempty"`
+	Iat       int64       `json:"iat,omitempty"`
+	Nbf       int64       `json:"nbf,omitempty"`
+	Sub       string      `json:"sub,omitempty"`
+	Aud       string      `json:"aud,omitempty"`
+	Iss       string      `json:"iss,omitempty"`
+	Act       interface{} `json:"act,omitempty"`
+}
+
+func (s *OAuthServerService) IntrospectToken(token string, authenticatedClientID string) (*TokenIntrospectionResponse, error) {
+	if accessToken, err := s.ValidateAccessToken(token); err == nil {
+		if accessToken.ClientID != authenticatedClientID {
+			return nil, errors.New("access_denied")
+		}
+		resp := tokenIntrospectionFromAccessToken(accessToken)
+		return resp, nil
+	} else if err != nil && err.Error() != "invalid_token" && err.Error() != "token_expired" {
+		return nil, err
+	}
+
+	if refreshToken, err := s.ValidateRefreshToken(token); err == nil {
+		if refreshToken.ClientID != authenticatedClientID {
+			return nil, errors.New("access_denied")
+		}
+		resp := tokenIntrospectionFromRefreshToken(refreshToken)
+		return resp, nil
+	} else if err != nil && err.Error() != "invalid_token" && err.Error() != "token_expired" {
+		return nil, err
+	}
+
+	return &TokenIntrospectionResponse{Active: false}, nil
+}
+
+func tokenIntrospectionFromAccessToken(token *model.OAuthAccessToken) *TokenIntrospectionResponse {
+	sub := strconv.FormatUint(uint64(token.UserID), 10)
+	if strings.TrimSpace(token.Client.ClientID) != "" {
+		sub = oidcSubjectForClient(token.Client, token.UserID)
+	}
+	resp := &TokenIntrospectionResponse{
+		Active:    true,
+		TokenType: "access_token",
+		ClientID:  token.ClientID,
+		Username:  token.User.Email,
+		Scope:     token.Scopes,
+		Exp:       token.ExpiresAt.Unix(),
+		Iat:       token.CreatedAt.Unix(),
+		Nbf:       token.CreatedAt.Unix(),
+		Sub:       sub,
+		Aud:       token.ClientID,
+		Iss:       oidcIssuer(),
+	}
+	if token.IsExchanged && token.ActorClientID != "" {
+		resp.Act = fiberMapTokenActor(token.ActorClientID, token.ActorAppID)
+	}
+	return resp
+}
+
+func tokenIntrospectionFromRefreshToken(token *model.OAuthRefreshToken) *TokenIntrospectionResponse {
+	sub := strconv.FormatUint(uint64(token.UserID), 10)
+	if strings.TrimSpace(token.Client.ClientID) != "" {
+		sub = oidcSubjectForClient(token.Client, token.UserID)
+	}
+	return &TokenIntrospectionResponse{
+		Active:    true,
+		TokenType: "refresh_token",
+		ClientID:  token.ClientID,
+		Username:  token.User.Email,
+		Scope:     token.Scopes,
+		Exp:       token.ExpiresAt.Unix(),
+		Iat:       token.CreatedAt.Unix(),
+		Nbf:       token.CreatedAt.Unix(),
+		Sub:       sub,
+		Aud:       token.ClientID,
+		Iss:       oidcIssuer(),
+	}
+}
+
+func fiberMapTokenActor(clientID string, appID uint) map[string]interface{} {
+	return map[string]interface{}{
+		"client_id": clientID,
+		"app_id":    appID,
+	}
+}
+
 // GetUserInfo 获取用户信息（OpenID Connect）
 func (s *OAuthServerService) GetUserInfo(token string) (*UserInfoResponse, error) {
 	oauthToken, err := s.ValidateAccessToken(token)
@@ -537,17 +942,7 @@ func (s *OAuthServerService) GetUserInfo(token string) (*UserInfoResponse, error
 		return nil, err
 	}
 
-	// 检查scope是否包含openid或profile
-	scopes := oauthToken.GetScopeList()
-	hasProfileScope := false
-	for _, scope := range scopes {
-		if scope == "openid" || scope == "profile" {
-			hasProfileScope = true
-			break
-		}
-	}
-
-	if !hasProfileScope {
+	if !hasScope(oauthToken.Scopes, "openid") {
 		return nil, errors.New("insufficient_scope")
 	}
 
@@ -561,30 +956,146 @@ func (s *OAuthServerService) GetUserInfo(token string) (*UserInfoResponse, error
 	}
 
 	user := oauthToken.User
+	displayName := oidcDisplayName(user, fmt.Sprintf("%d", user.ID))
+	givenName, familyName, middleName := oidcNameParts(user, displayName)
 	response := &UserInfoResponse{
-		Sub:           fmt.Sprintf("%d", user.ID),
-		Name:          user.Nickname,
-		Email:         user.Email,
-		EmailVerified: user.EmailVerified,
-		Phone:         user.Phone,
-		PhoneVerified: user.PhoneVerified,
-		Picture:       user.AvatarURL,
-		UpdatedAt:     user.UpdatedAt.Unix(),
+		Sub:       oidcSubjectForClient(oauthToken.Client, user.ID),
+		UpdatedAt: user.UpdatedAt.Unix(),
+	}
+	if hasScope(oauthToken.Scopes, "profile") || userInfoClaimRequested(oauthToken.Claims, "name") {
+		response.Name = displayName
+	}
+	if hasScope(oauthToken.Scopes, "profile") {
+		response.Nickname = oidcNickname(user, displayName)
+		response.NickName = response.Nickname
+		response.PreferredUsername = displayName
+		response.GivenName = givenName
+		response.FamilyName = familyName
+		response.MiddleName = middleName
+		response.Locale = strings.TrimSpace(user.Locale)
+		response.Zoneinfo = strings.TrimSpace(user.Zoneinfo)
+		response.Picture = user.AvatarURL
+		response.Profile = oidcProfileURL(user)
+		s.applyExtendedProfileClaims(user.ID, response)
+	}
+	if hasScope(oauthToken.Scopes, "email") {
+		response.Email = user.Email
+		response.EmailVerified = &user.EmailVerified
+	}
+	if hasScope(oauthToken.Scopes, "phone") {
+		response.Phone = user.Phone
+		response.PhoneVerified = &user.PhoneVerified
+	}
+	if hasScope(oauthToken.Scopes, "address") {
+		if address := s.oidcAddressClaim(user.ID); address != nil {
+			response.Address = address
+		}
 	}
 
 	return response, nil
 }
 
+func userInfoClaimRequested(claimsJSON string, claim string) bool {
+	if strings.TrimSpace(claimsJSON) == "" || strings.TrimSpace(claim) == "" {
+		return false
+	}
+	var claims struct {
+		Userinfo map[string]json.RawMessage `json:"userinfo"`
+	}
+	if err := json.Unmarshal([]byte(claimsJSON), &claims); err != nil {
+		return false
+	}
+	_, ok := claims.Userinfo[claim]
+	return ok
+}
+
+func oidcProfileURL(user model.User) string {
+	if email := strings.TrimSpace(user.Email); email != "" {
+		return "mailto:" + email
+	}
+	if user.UserUUID != "" {
+		return oidcIssuer() + "/users/" + user.UserUUID
+	}
+	if user.ID > 0 {
+		return oidcIssuer() + "/users/" + strconv.FormatUint(uint64(user.ID), 10)
+	}
+	return ""
+}
+
+func (s *OAuthServerService) applyExtendedProfileClaims(userID uint, response *UserInfoResponse) {
+	var profile model.UserProfile
+	if err := s.db.Preload("Gender").Where("user_id = ?", userID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return
+		}
+		return
+	}
+
+	if website := strings.TrimSpace(profile.Website); website != "" {
+		response.Website = website
+	}
+	if profile.Gender != nil {
+		response.Gender = strings.TrimSpace(profile.Gender.Code)
+	}
+	if profile.BirthDate != nil {
+		response.Birthdate = profile.BirthDate.Format("2006-01-02")
+	}
+}
+
+func (s *OAuthServerService) oidcAddressClaim(userID uint) *OIDCAddressClaim {
+	var profile model.UserProfile
+	if err := s.db.Where("user_id = ?", userID).First(&profile).Error; err != nil {
+		return nil
+	}
+	formatted := strings.TrimSpace(profile.Location)
+	if formatted == "" {
+		formatted = strings.TrimSpace(profile.Website)
+	}
+	if formatted == "" {
+		return nil
+	}
+	return &OIDCAddressClaim{
+		Formatted:     formatted,
+		StreetAddress: formatted,
+		Locality:      formatted,
+		Region:        formatted,
+		PostalCode:    "00000",
+		Country:       formatted,
+	}
+}
+
 // UserInfoResponse 用户信息响应（OpenID Connect标准）
 type UserInfoResponse struct {
-	Sub           string `json:"sub"`                    // 用户唯一标识
-	Name          string `json:"name,omitempty"`         // 用户姓名
-	Email         string `json:"email,omitempty"`        // 邮箱
-	EmailVerified bool   `json:"email_verified"`         // 邮箱是否验证
-	Phone         string `json:"phone_number,omitempty"` // 手机号
-	PhoneVerified bool   `json:"phone_number_verified"`  // 手机号是否验证
-	Picture       string `json:"picture,omitempty"`      // 头像
-	UpdatedAt     int64  `json:"updated_at"`             // 更新时间
+	Sub               string            `json:"sub"`                             // 用户唯一标识
+	Name              string            `json:"name,omitempty"`                  // 用户姓名
+	Nickname          string            `json:"nickname,omitempty"`              // 昵称
+	NickName          string            `json:"nick_name,omitempty"`             // 兼容别名
+	PreferredUsername string            `json:"preferred_username,omitempty"`    // 首选用户名
+	Profile           string            `json:"profile,omitempty"`               // 个人资料URL
+	Website           string            `json:"website,omitempty"`               // 网站
+	GivenName         string            `json:"given_name,omitempty"`            // 名
+	FamilyName        string            `json:"family_name,omitempty"`           // 姓
+	MiddleName        string            `json:"middle_name,omitempty"`           // 中间名
+	Gender            string            `json:"gender,omitempty"`                // 性别
+	Birthdate         string            `json:"birthdate,omitempty"`             // 生日
+	Locale            string            `json:"locale,omitempty"`                // 区域
+	Zoneinfo          string            `json:"zoneinfo,omitempty"`              // 时区
+	Email             string            `json:"email,omitempty"`                 // 邮箱
+	EmailVerified     *bool             `json:"email_verified,omitempty"`        // 邮箱是否验证
+	Phone             string            `json:"phone_number,omitempty"`          // 手机号
+	PhoneVerified     *bool             `json:"phone_number_verified,omitempty"` // 手机号是否验证
+	Address           *OIDCAddressClaim `json:"address,omitempty"`               // 地址
+	Picture           string            `json:"picture,omitempty"`               // 头像
+	UpdatedAt         int64             `json:"updated_at"`                      // 更新时间
+}
+
+type OIDCAddressClaim struct {
+	Formatted     string `json:"formatted,omitempty"`
+	StreetAddress string `json:"street_address,omitempty"`
+	Locality      string `json:"locality,omitempty"`
+	Region        string `json:"region,omitempty"`
+	PostalCode    string `json:"postal_code,omitempty"`
+	Country       string `json:"country,omitempty"`
 }
 
 // BuildAuthorizeURL 构建授权URL
@@ -603,6 +1114,18 @@ func (s *OAuthServerService) BuildAuthorizeURL(baseURL string, req *AuthorizeReq
 	}
 	if req.State != "" {
 		q.Set("state", req.State)
+	}
+	if req.Nonce != "" {
+		q.Set("nonce", req.Nonce)
+	}
+	if req.Prompt != "" {
+		q.Set("prompt", req.Prompt)
+	}
+	if req.MaxAge != "" {
+		q.Set("max_age", req.MaxAge)
+	}
+	if req.LoginHint != "" {
+		q.Set("login_hint", req.LoginHint)
 	}
 	if req.CodeChallenge != "" {
 		q.Set("code_challenge", req.CodeChallenge)

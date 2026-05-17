@@ -15,10 +15,30 @@ settings:
         value: 90
         category: audit
         description: 审计日志保留天数
+    auth.2fa.passkey_enabled:
+        value: true
+        category: auth
+        description: 是否允许使用 Passkey（WebAuthn）作为二次验证方式
+    auth.2fa.sms_enabled:
+        value: false
+        category: auth
+        description: 是否允许使用短信验证码作为二次验证方式
+    auth.2fa.totp_enabled:
+        value: true
+        category: auth
+        description: 是否允许使用 TOTP（身份验证器 App）作为二次验证方式
     auth.enable_register:
         value: true
         category: auth
         description: 允许新用户注册
+    auth.passkey.session_capacity:
+        value: 1024
+        category: auth
+        description: Passkey challenge 会话最大容量
+    auth.passkey.session_ttl_seconds:
+        value: 300
+        category: auth
+        description: Passkey challenge 会话 TTL（秒）
     auth.password_policy.min_length:
         value: 8
         category: auth
@@ -161,14 +181,14 @@ settings:
         value: true
         category: features
         description: 是否启用市场功能（订阅、产品、套餐等）
-    features.wallet_recharge_withdraw_enabled:
-        value: false
-        category: features
-        description: 是否开放用户钱包充值与提现（关闭时相关 API 拒绝，前端灰显入口）
     features.registration_invite_only:
         value: false
         category: features
         description: 仅限邀请注册
+    features.wallet_recharge_withdraw_enabled:
+        value: false
+        category: features
+        description: 是否开放用户钱包充值与提现（关闭时相关 API 拒绝，前端灰显入口）
     general.date_format:
         value: YYYY-MM-DD
         category: general
@@ -345,6 +365,10 @@ settings:
         value: 587
         category: smtp
         description: SMTP 端口
+    smtp.skip_cert_verify:
+        value: false
+        category: smtp
+        description: 是否跳过 SMTP TLS 证书校验（不推荐在生产开启）
     smtp.username:
         value: ""
         category: smtp

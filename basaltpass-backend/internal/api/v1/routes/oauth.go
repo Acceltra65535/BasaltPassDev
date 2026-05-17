@@ -34,6 +34,7 @@ func RegisterOAuthRoutes(v1 fiber.Router) {
 	oauthServerGroup.Post("/consent", oauth.ConsentHandler)
 	oauthServerGroup.Post("/token", oauth.TokenHandler)
 	oauthServerGroup.Get("/userinfo", oauth.UserInfoHandler)
+	oauthServerGroup.Post("/userinfo", oauth.UserInfoHandler)
 	oauthServerGroup.Post("/introspect", oauth.OAuthClientAuthMiddleware(), oauth.IntrospectHandler)
 	oauthServerGroup.Post("/revoke", oauth.OAuthClientAuthMiddleware(), oauth.RevokeHandler)
 	oauthServerGroup.Get("/jwks", oauth.JWKSHandler)

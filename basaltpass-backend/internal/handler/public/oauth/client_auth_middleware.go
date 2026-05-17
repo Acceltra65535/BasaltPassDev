@@ -12,18 +12,12 @@ const oauthClientIDLocalKey = "oauth_client_id"
 // not be publicly callable (e.g. introspect / revoke).
 func OAuthClientAuthMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		clientID, clientSecret := extractClientCredentials(c)
-		clientID = strings.TrimSpace(clientID)
-
-		if clientID == "" || clientSecret == "" {
+		client, err := authenticateOAuthClientForEndpoint(c)
+		if err != nil {
 			return oauthInvalidClient(c)
 		}
 
-		if _, err := oauthServerService.ValidateClientCredentials(clientID, clientSecret); err != nil {
-			return oauthInvalidClient(c)
-		}
-
-		c.Locals(oauthClientIDLocalKey, clientID)
+		c.Locals(oauthClientIDLocalKey, client.ClientID)
 		return c.Next()
 	}
 }

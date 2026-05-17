@@ -28,10 +28,13 @@
 
 ```env
 JWT_SECRET=change-me
+OIDC_KEY_ENCRYPTION_SECRET=change-me-to-a-stable-32-byte-or-64-hex-secret
 BASALTPASS_SERVER_ADDRESS=:8101
 BASALTPASS_DATABASE_DRIVER=mysql
 BASALTPASS_DATABASE_DSN=basaltpass:basaltpass@tcp(mysql:3306)/basaltpass?charset=utf8mb4&parseTime=True&loc=Local
 ```
+
+`OIDC_KEY_ENCRYPTION_SECRET` 用于加密持久化的 OIDC ID Token 签名私钥。生产环境应固定配置并妥善备份；未设置时会从 `JWT_SECRET` 派生。
 
 支持的主要字段:
 

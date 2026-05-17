@@ -5,11 +5,15 @@ import (
 	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/service/aduit"
 	serviceauth "basaltpass-backend/internal/service/auth"
+	"basaltpass-backend/internal/utils"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"basaltpass-backend/internal/model"
 
@@ -19,19 +23,80 @@ import (
 
 var oauthServerService = NewOAuthServerService()
 
+func oidcRequestValue(c *fiber.Ctx, requestObjectClaims map[string]string, key string) string {
+	if value := strings.TrimSpace(requestObjectClaims[key]); value != "" {
+		return value
+	}
+	return c.Query(key)
+}
+
+func parseUnsignedOIDCRequestObject(requestObject string) (map[string]string, error) {
+	parts := strings.Split(requestObject, ".")
+	if len(parts) != 3 {
+		return nil, errors.New("invalid request object")
+	}
+	headerBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil, err
+	}
+	var header map[string]interface{}
+	if err := json.Unmarshal(headerBytes, &header); err != nil {
+		return nil, err
+	}
+	if alg, _ := header["alg"].(string); alg != "none" {
+		return nil, errors.New("unsupported request object alg")
+	}
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, err
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, err
+	}
+	claims := make(map[string]string, len(payload))
+	for key, value := range payload {
+		switch v := value.(type) {
+		case string:
+			claims[key] = v
+		default:
+			encoded, err := json.Marshal(v)
+			if err == nil {
+				claims[key] = string(encoded)
+			}
+		}
+	}
+	return claims, nil
+}
+
 // AuthorizeHandler 处理OAuth2授权请求
 // GET /oauth/authorize
 func AuthorizeHandler(c *fiber.Ctx) error {
+	requestObjectClaims := map[string]string{}
+	if requestObject := strings.TrimSpace(c.Query("request")); requestObject != "" {
+		claims, err := parseUnsignedOIDCRequestObject(requestObject)
+		if err != nil {
+			return redirectWithErrorIfAllowed(c, c.Query("client_id"), c.Query("redirect_uri"), "invalid_request", c.Query("state"))
+		}
+		requestObjectClaims = claims
+	}
+
 	// 解析授权请求参数
 	req := &AuthorizeRequest{
-		ClientID:            c.Query("client_id"),
-		RedirectURI:         c.Query("redirect_uri"),
-		ResponseType:        c.Query("response_type"),
-		Scope:               c.Query("scope"),
-		State:               c.Query("state"),
-		CodeChallenge:       c.Query("code_challenge"),
-		CodeChallengeMethod: c.Query("code_challenge_method"),
-		Nonce:               c.Query("nonce"),
+		ClientID:            oidcRequestValue(c, requestObjectClaims, "client_id"),
+		RedirectURI:         oidcRequestValue(c, requestObjectClaims, "redirect_uri"),
+		ResponseType:        oidcRequestValue(c, requestObjectClaims, "response_type"),
+		Scope:               oidcRequestValue(c, requestObjectClaims, "scope"),
+		State:               oidcRequestValue(c, requestObjectClaims, "state"),
+		CodeChallenge:       oidcRequestValue(c, requestObjectClaims, "code_challenge"),
+		CodeChallengeMethod: oidcRequestValue(c, requestObjectClaims, "code_challenge_method"),
+		Nonce:               oidcRequestValue(c, requestObjectClaims, "nonce"),
+		Prompt:              oidcRequestValue(c, requestObjectClaims, "prompt"),
+		MaxAge:              oidcRequestValue(c, requestObjectClaims, "max_age"),
+		LoginHint:           oidcRequestValue(c, requestObjectClaims, "login_hint"),
+		Claims:              oidcRequestValue(c, requestObjectClaims, "claims"),
+		ACRValues:           oidcRequestValue(c, requestObjectClaims, "acr_values"),
 	}
 
 	// 验证授权请求
@@ -42,16 +107,25 @@ func AuthorizeHandler(c *fiber.Ctx) error {
 
 	// 检查用户是否已登录
 	userID := c.Locals("userID")
+	sessionContext := OIDCAuthContext{}
 	if userID == nil {
 		// Hosted login flow uses an HttpOnly cookie; browser redirects can't attach Authorization headers.
-		if uid, ok := tryUserIDFromAccessTokenCookie(c); ok {
+		if uid, ctx, ok := tryUserIDFromAccessTokenCookie(c); ok {
 			c.Locals("userID", uid)
 			userID = uid
+			sessionContext = ctx
 		}
 	}
 	if userID == nil {
+		if hasPrompt(req.Prompt, "none") {
+			return redirectWithErrorIfAllowed(c, req.ClientID, req.RedirectURI, "login_required", req.State)
+		}
 		// 用户未登录，重定向到登录页面
 		// 构建租户特定的登录URL
+		loginURL := buildLoginURLWithTenant(c, req, client)
+		return c.Redirect(loginURL, http.StatusFound)
+	}
+	if hasPrompt(req.Prompt, "login") || authContextTooOld(sessionContext, req) {
 		loginURL := buildLoginURLWithTenant(c, req, client)
 		return c.Redirect(loginURL, http.StatusFound)
 	}
@@ -77,8 +151,8 @@ func AuthorizeHandler(c *fiber.Ctx) error {
 		}
 
 		// Skip consent when the user has already authorized this app.
-		if alreadyAuthorized {
-			code, err := oauthServerService.GenerateAuthorizationCode(uid, req, client)
+		if alreadyAuthorized && !hasPrompt(req.Prompt, "consent") {
+			code, err := oauthServerService.GenerateAuthorizationCode(uid, req, client, sessionContext)
 			if err != nil {
 				return redirectWithError(c, req.RedirectURI, "server_error", req.State)
 			}
@@ -87,12 +161,15 @@ func AuthorizeHandler(c *fiber.Ctx) error {
 			return redirectWithCode(c, req.RedirectURI, code, req.State)
 		}
 	}
+	if hasPrompt(req.Prompt, "none") {
+		return redirectWithErrorIfAllowed(c, req.ClientID, req.RedirectURI, "consent_required", req.State)
+	}
 
 	consentURL := buildConsentURL(req, client, decision)
 	return c.Redirect(consentURL, http.StatusFound)
 }
 
-func tryUserIDFromAccessTokenCookie(c *fiber.Ctx) (uint, bool) {
+func tryUserIDFromAccessTokenCookie(c *fiber.Ctx) (uint, OIDCAuthContext, bool) {
 	// OAuth hosted flow can come from different consoles (user/tenant/admin),
 	// so we need to accept scoped cookie names as well.
 	cookieNames := []string{
@@ -107,18 +184,23 @@ func tryUserIDFromAccessTokenCookie(c *fiber.Ctx) (uint, bool) {
 		if tokenStr == "" {
 			continue
 		}
-		if uid, ok := parseUserIDFromJWT(tokenStr); ok {
-			return uid, true
+		if uid, ctx, ok := parseOIDCSessionFromJWT(tokenStr); ok {
+			return uid, ctx, true
 		}
 	}
 
-	return 0, false
+	return 0, OIDCAuthContext{}, false
 }
 
 func parseUserIDFromJWT(tokenStr string) (uint, bool) {
+	uid, _, ok := parseOIDCSessionFromJWT(tokenStr)
+	return uid, ok
+}
+
+func parseOIDCSessionFromJWT(tokenStr string) (uint, OIDCAuthContext, bool) {
 	secret, err := common.JWTSecret()
 	if err != nil {
-		return 0, false
+		return 0, OIDCAuthContext{}, false
 	}
 
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
@@ -128,30 +210,75 @@ func parseUserIDFromJWT(tokenStr string) (uint, bool) {
 		return secret, nil
 	})
 	if err != nil || token == nil || !token.Valid {
-		return 0, false
+		return 0, OIDCAuthContext{}, false
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return 0, false
+		return 0, OIDCAuthContext{}, false
 	}
 	if err := serviceauth.ValidateAccessTokenType(claims); err != nil {
-		return 0, false
+		return 0, OIDCAuthContext{}, false
 	}
 	sub, exists := claims["sub"]
 	if !exists {
-		return 0, false
+		return 0, OIDCAuthContext{}, false
 	}
+	ctx := authContextFromJWTClaims(claims)
 	if subFloat, ok := sub.(float64); ok {
-		return uint(subFloat), true
+		return uint(subFloat), ctx, true
 	}
 	if subStr, ok := sub.(string); ok {
 		uid, err := strconv.ParseUint(subStr, 10, 64)
 		if err == nil {
-			return uint(uid), true
+			return uint(uid), ctx, true
 		}
 	}
-	return 0, false
+	return 0, OIDCAuthContext{}, false
+}
+
+func authContextFromJWTClaims(claims jwt.MapClaims) OIDCAuthContext {
+	ctx := OIDCAuthContext{ACR: claimString(claims["acr"]), AMR: claimStringList(claims["amr"])}
+	if authTime := unixClaimTime(claims["auth_time"]); !authTime.IsZero() {
+		ctx.AuthTime = authTime
+	} else if iat := unixClaimTime(claims["iat"]); !iat.IsZero() {
+		ctx.AuthTime = iat
+	}
+	return normalizeOIDCAuthContext(time.Now(), ctx)
+}
+
+func unixClaimTime(value interface{}) time.Time {
+	switch v := value.(type) {
+	case float64:
+		if v > 0 {
+			return time.Unix(int64(v), 0)
+		}
+	case int64:
+		if v > 0 {
+			return time.Unix(v, 0)
+		}
+	case int:
+		if v > 0 {
+			return time.Unix(int64(v), 0)
+		}
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err == nil && parsed > 0 {
+			return time.Unix(parsed, 0)
+		}
+	}
+	return time.Time{}
+}
+
+func authContextTooOld(ctx OIDCAuthContext, req *AuthorizeRequest) bool {
+	maxAge, ok := maxAgeDuration(req)
+	if !ok {
+		return false
+	}
+	if ctx.AuthTime.IsZero() {
+		return true
+	}
+	return time.Now().Unix()-ctx.AuthTime.Unix() > int64(maxAge/time.Second)
 }
 
 func buildConsentURL(req *AuthorizeRequest, client *model.OAuthClient, decision *UserTenantAuthorizationDecision) string {
@@ -179,6 +306,21 @@ func buildConsentURL(req *AuthorizeRequest, client *model.OAuthClient, decision 
 	}
 	if req.Nonce != "" {
 		q.Set("nonce", req.Nonce)
+	}
+	if req.Prompt != "" {
+		q.Set("prompt", req.Prompt)
+	}
+	if req.MaxAge != "" {
+		q.Set("max_age", req.MaxAge)
+	}
+	if req.LoginHint != "" {
+		q.Set("login_hint", req.LoginHint)
+	}
+	if req.Claims != "" {
+		q.Set("claims", req.Claims)
+	}
+	if req.ACRValues != "" {
+		q.Set("acr_values", req.ACRValues)
 	}
 	if client != nil {
 		appTenantID := oauthServerService.resolveClientTenantID(client)
@@ -221,10 +363,12 @@ func buildConsentURL(req *AuthorizeRequest, client *model.OAuthClient, decision 
 func ConsentHandler(c *fiber.Ctx) error {
 	// 检查用户是否已登录
 	userIDVal := c.Locals("userID")
+	authContext := OIDCAuthContext{}
 	if userIDVal == nil {
-		if uid, ok := tryUserIDFromAccessTokenCookie(c); ok {
+		if uid, ctx, ok := tryUserIDFromAccessTokenCookie(c); ok {
 			c.Locals("userID", uid)
 			userIDVal = uid
+			authContext = ctx
 		}
 	}
 	if userIDVal == nil {
@@ -240,6 +384,11 @@ func ConsentHandler(c *fiber.Ctx) error {
 	codeChallenge := c.FormValue("code_challenge")
 	codeChallengeMethod := c.FormValue("code_challenge_method")
 	nonce := c.FormValue("nonce")
+	prompt := c.FormValue("prompt")
+	maxAge := c.FormValue("max_age")
+	loginHint := c.FormValue("login_hint")
+	claims := c.FormValue("claims")
+	acrValues := c.FormValue("acr_values")
 	selectedAccessToken := strings.TrimSpace(c.FormValue("selected_access_token"))
 	joinTenant := strings.EqualFold(strings.TrimSpace(c.FormValue("join_tenant")), "true") || c.FormValue("join_tenant") == "1"
 	action := c.FormValue("action") // "allow" 或 "deny"
@@ -250,7 +399,7 @@ func ConsentHandler(c *fiber.Ctx) error {
 	}
 
 	if selectedAccessToken != "" {
-		selectedUserID, ok := parseUserIDFromJWT(selectedAccessToken)
+		selectedUserID, selectedContext, ok := parseOIDCSessionFromJWT(selectedAccessToken)
 		if !ok || selectedUserID == 0 {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error":             "invalid_selected_session",
@@ -258,6 +407,9 @@ func ConsentHandler(c *fiber.Ctx) error {
 			})
 		}
 		userID = selectedUserID
+		authContext = selectedContext
+	} else if _, cookieContext, ok := tryUserIDFromAccessTokenCookie(c); ok {
+		authContext = cookieContext
 	}
 
 	// 构建授权请求
@@ -270,6 +422,11 @@ func ConsentHandler(c *fiber.Ctx) error {
 		CodeChallenge:       codeChallenge,
 		CodeChallengeMethod: codeChallengeMethod,
 		Nonce:               nonce,
+		Prompt:              prompt,
+		MaxAge:              maxAge,
+		LoginHint:           loginHint,
+		Claims:              claims,
+		ACRValues:           acrValues,
 	}
 
 	// 验证请求
@@ -309,7 +466,7 @@ func ConsentHandler(c *fiber.Ctx) error {
 	}
 
 	// 生成授权码
-	code, err := oauthServerService.GenerateAuthorizationCode(userID, req, client)
+	code, err := oauthServerService.GenerateAuthorizationCode(userID, req, client, authContext)
 	if err != nil {
 		return redirectWithError(c, redirectURI, "server_error", state)
 	}
@@ -324,6 +481,7 @@ func ConsentHandler(c *fiber.Ctx) error {
 // TokenHandler 处理OAuth2令牌请求
 // POST /oauth/token
 func TokenHandler(c *fiber.Ctx) error {
+	setOAuthTokenResponseHeaders(c)
 	grantType := c.FormValue("grant_type")
 
 	switch grantType {
@@ -341,6 +499,11 @@ func TokenHandler(c *fiber.Ctx) error {
 	}
 }
 
+func setOAuthTokenResponseHeaders(c *fiber.Ctx) {
+	c.Set("Cache-Control", "no-store")
+	c.Set("Pragma", "no-cache")
+}
+
 // handleAuthorizationCodeGrant 处理授权码授权
 func handleAuthorizationCodeGrant(c *fiber.Ctx) error {
 	// 解析令牌请求
@@ -352,18 +515,16 @@ func handleAuthorizationCodeGrant(c *fiber.Ctx) error {
 		CodeVerifier: c.FormValue("code_verifier"),
 	}
 
-	// 获取客户端认证信息（Basic Auth或表单参数）
-	clientID, clientSecret := extractClientCredentials(c)
-	if clientID == "" {
-		clientID = req.ClientID
-	}
-
-	if clientID == "" || clientSecret == "" {
+	client, err := authenticateOAuthClientForEndpoint(c)
+	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error":             "invalid_client",
 			"error_description": "Client authentication failed",
 		})
 	}
+	clientID := client.ClientID
+	clientSecret := clientSecretForLegacyValidation(c, client)
+	req.ClientAuthenticated = true
 
 	// 交换令牌
 	tokenResponse, err := oauthServerService.ExchangeCodeForToken(req, clientID, clientSecret)
@@ -381,17 +542,18 @@ func handleAuthorizationCodeGrant(c *fiber.Ctx) error {
 func handleRefreshTokenGrant(c *fiber.Ctx) error {
 	refreshToken := c.FormValue("refresh_token")
 
-	// 获取客户端认证信息
-	clientID, clientSecret := extractClientCredentials(c)
-	if clientID == "" || clientSecret == "" {
+	client, err := authenticateOAuthClientForEndpoint(c)
+	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error":             "invalid_client",
 			"error_description": "Client authentication failed",
 		})
 	}
+	clientID := client.ClientID
+	clientSecret := clientSecretForLegacyValidation(c, client)
 
 	// 刷新令牌
-	tokenResponse, err := oauthServerService.RefreshAccessToken(refreshToken, clientID, clientSecret)
+	tokenResponse, err := oauthServerService.RefreshAccessToken(refreshToken, clientID, clientSecret, true)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":             err.Error(),
@@ -407,14 +569,18 @@ func handleRefreshTokenGrant(c *fiber.Ctx) error {
 func UserInfoHandler(c *fiber.Ctx) error {
 	// 从Authorization头获取访问令牌
 	authHeader := c.Get("Authorization")
-	if !strings.HasPrefix(authHeader, "Bearer ") {
+	token := ""
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		token = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+	} else if c.Method() == fiber.MethodPost {
+		token = strings.TrimSpace(c.FormValue("access_token"))
+	}
+	if token == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error":             "invalid_token",
 			"error_description": "Missing or invalid access token",
 		})
 	}
-
-	token := strings.TrimPrefix(authHeader, "Bearer ")
 
 	// 获取用户信息
 	userInfo, err := oauthServerService.GetUserInfo(token)
@@ -444,41 +610,18 @@ func IntrospectHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// 验证令牌
-	oauthToken, err := oauthServerService.ValidateAccessToken(token)
+	introspection, err := oauthServerService.IntrospectToken(token, authenticatedClientID)
 	if err != nil {
-		return c.JSON(fiber.Map{
-			"active": false,
-		})
-	}
-
-	if oauthToken.ClientID != authenticatedClientID {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error":             "access_denied",
-			"error_description": "Token does not belong to authenticated client",
-		})
-	}
-
-	// 返回令牌信息
-	resp := fiber.Map{
-		"active":    true,
-		"client_id": oauthToken.ClientID,
-		"username":  oauthToken.User.Email,
-		"scope":     oauthToken.Scopes,
-		"exp":       oauthToken.ExpiresAt.Unix(),
-		"iat":       oauthToken.CreatedAt.Unix(),
-		"sub":       oauthToken.UserID,
-	}
-
-	// RFC 8693 §4.1 — include actor information for exchanged tokens
-	if oauthToken.IsExchanged && oauthToken.ActorClientID != "" {
-		resp["act"] = fiber.Map{
-			"client_id": oauthToken.ActorClientID,
-			"app_id":    oauthToken.ActorAppID,
+		if err.Error() == "access_denied" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error":             "access_denied",
+				"error_description": "Token does not belong to authenticated client",
+			})
 		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "server_error"})
 	}
 
-	return c.JSON(resp)
+	return c.JSON(introspection)
 }
 
 // RevokeHandler 令牌撤销端点
@@ -549,10 +692,14 @@ func buildLoginURLWithTenant(c *fiber.Ctx, req *AuthorizeRequest, client *model.
 		loginURL = uiBaseURL + "/login"
 	}
 
-	// 构建原始OAuth2授权URL作为重定向参数
-	originalURL := "/api/v1/oauth/authorize?" + c.Context().QueryArgs().String()
+	originalURL := buildAuthorizeReturnURL(c, req)
 
-	return loginURL + "?redirect=" + url.QueryEscape(originalURL)
+	q := url.Values{}
+	q.Set("redirect", originalURL)
+	if strings.TrimSpace(req.LoginHint) != "" {
+		q.Set("login_hint", strings.TrimSpace(req.LoginHint))
+	}
+	return loginURL + "?" + q.Encode()
 }
 
 // buildLoginURL 构建登录URL，包含OAuth2参数（保留向后兼容性）
@@ -563,10 +710,37 @@ func buildLoginURL(c *fiber.Ctx, req *AuthorizeRequest) string {
 		loginURL = uiBaseURL + "/login"
 	}
 
-	// 构建原始OAuth2授权URL作为重定向参数
-	originalURL := "/api/v1/oauth/authorize?" + c.Context().QueryArgs().String()
+	originalURL := buildAuthorizeReturnURL(c, req)
 
-	return loginURL + "?redirect=" + url.QueryEscape(originalURL)
+	q := url.Values{}
+	q.Set("redirect", originalURL)
+	if strings.TrimSpace(req.LoginHint) != "" {
+		q.Set("login_hint", strings.TrimSpace(req.LoginHint))
+	}
+	return loginURL + "?" + q.Encode()
+}
+
+func buildAuthorizeReturnURL(c *fiber.Ctx, req *AuthorizeRequest) string {
+	u := "/api/v1/oauth/authorize"
+	q, err := url.ParseQuery(c.Context().QueryArgs().String())
+	if err != nil {
+		q = url.Values{}
+	}
+	prompts := make([]string, 0)
+	for _, prompt := range strings.Fields(req.Prompt) {
+		if prompt != "login" {
+			prompts = append(prompts, prompt)
+		}
+	}
+	if len(prompts) == 0 {
+		q.Del("prompt")
+	} else {
+		q.Set("prompt", strings.Join(prompts, " "))
+	}
+	if encoded := q.Encode(); encoded != "" {
+		u += "?" + encoded
+	}
+	return u
 }
 
 // redirectWithError 带错误信息重定向
@@ -652,6 +826,174 @@ func extractClientCredentials(c *fiber.Ctx) (clientID, clientSecret string) {
 	clientSecret = c.FormValue("client_secret")
 
 	return clientID, clientSecret
+}
+
+func clientSecretForLegacyValidation(c *fiber.Ctx, client *model.OAuthClient) string {
+	if client == nil {
+		return ""
+	}
+	if isJWTClientAuthMethod(client.GetTokenEndpointAuthMethod()) {
+		return ""
+	}
+	_, secret := extractClientCredentials(c)
+	return secret
+}
+
+func authenticateOAuthClientForEndpoint(c *fiber.Ctx) (*model.OAuthClient, error) {
+	assertion := strings.TrimSpace(c.FormValue("client_assertion"))
+	assertionType := strings.TrimSpace(c.FormValue("client_assertion_type"))
+	if assertion != "" || assertionType != "" {
+		return authenticateOAuthClientAssertion(c, assertionType, assertion)
+	}
+
+	clientID, clientSecret := extractClientCredentials(c)
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		clientID = strings.TrimSpace(c.FormValue("client_id"))
+	}
+	if clientID == "" {
+		return nil, errors.New("invalid_client")
+	}
+
+	var client model.OAuthClient
+	if err := common.DB().Where("client_id = ? AND is_active = ?", clientID, true).First(&client).Error; err != nil {
+		return nil, errors.New("invalid_client")
+	}
+
+	switch client.GetTokenEndpointAuthMethod() {
+	case model.OAuthTokenEndpointAuthNone:
+		if clientSecret != "" {
+			return nil, errors.New("invalid_client")
+		}
+		return &client, nil
+	case model.OAuthTokenEndpointAuthClientSecretBasic, model.OAuthTokenEndpointAuthClientSecretPost:
+		if clientSecret == "" || !client.VerifyClientSecret(clientSecret) {
+			return nil, errors.New("invalid_client")
+		}
+		return &client, nil
+	default:
+		return nil, errors.New("invalid_client")
+	}
+}
+
+const clientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
+func authenticateOAuthClientAssertion(c *fiber.Ctx, assertionType string, assertion string) (*model.OAuthClient, error) {
+	if assertionType != clientAssertionTypeJWTBearer || assertion == "" {
+		return nil, errors.New("invalid_client")
+	}
+
+	claims := jwt.MapClaims{}
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	unverified, _, err := parser.ParseUnverified(assertion, claims)
+	if err != nil || unverified == nil {
+		return nil, errors.New("invalid_client")
+	}
+
+	clientID := strings.TrimSpace(claimString(claims["iss"]))
+	if clientID == "" {
+		clientID = strings.TrimSpace(c.FormValue("client_id"))
+	}
+	if clientID == "" || claimString(claims["sub"]) != clientID {
+		return nil, errors.New("invalid_client")
+	}
+
+	var client model.OAuthClient
+	if err := common.DB().Where("client_id = ? AND is_active = ?", clientID, true).First(&client).Error; err != nil {
+		return nil, errors.New("invalid_client")
+	}
+
+	keyFunc, err := clientAssertionKeyFunc(&client)
+	if err != nil {
+		return nil, err
+	}
+	validatedClaims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(assertion, validatedClaims, keyFunc, jwt.WithAudience(tokenEndpointAudience()), jwt.WithIssuer(clientID), jwt.WithExpirationRequired())
+	if err != nil || token == nil || !token.Valid {
+		return nil, errors.New("invalid_client")
+	}
+	if claimString(validatedClaims["sub"]) != clientID {
+		return nil, errors.New("invalid_client")
+	}
+	return &client, nil
+}
+
+func tokenEndpointAudience() string {
+	return oidcIssuer() + "/oauth/token"
+}
+
+func clientAssertionKeyFunc(client *model.OAuthClient) (jwt.Keyfunc, error) {
+	switch client.GetTokenEndpointAuthMethod() {
+	case model.OAuthTokenEndpointAuthClientSecretJWT:
+		return func(token *jwt.Token) (interface{}, error) {
+			if token.Method != jwt.SigningMethodHS256 {
+				return nil, jwt.ErrTokenSignatureInvalid
+			}
+			secret, err := utils.DecryptOAuthClientSecret(client.ClientSecretEncrypted)
+			if err != nil || secret == "" {
+				return nil, errors.New("client_secret_jwt secret unavailable")
+			}
+			return []byte(secret), nil
+		}, nil
+	case model.OAuthTokenEndpointAuthPrivateKeyJWT:
+		return func(token *jwt.Token) (interface{}, error) {
+			if token.Method != jwt.SigningMethodRS256 {
+				return nil, jwt.ErrTokenSignatureInvalid
+			}
+			kid, _ := token.Header["kid"].(string)
+			return clientPublicKeyForAssertion(client, kid)
+		}, nil
+	default:
+		return nil, errors.New("invalid_client")
+	}
+}
+
+func clientPublicKeyForAssertion(client *model.OAuthClient, kid string) (interface{}, error) {
+	jwksText := strings.TrimSpace(client.ClientJWKS)
+	if jwksText == "" && strings.TrimSpace(client.ClientJWKSURI) != "" {
+		resp, err := http.Get(strings.TrimSpace(client.ClientJWKSURI))
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, errors.New("client jwks uri unavailable")
+		}
+		var payload map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, err
+		}
+		bytes, err := json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+		jwksText = string(bytes)
+	}
+	key, err := rsaPublicKeyFromJWKS(jwksText, kid)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+func rsaPublicKeyFromJWKS(jwksText string, kid string) (interface{}, error) {
+	var payload struct {
+		Keys []map[string]string `json:"keys"`
+	}
+	if err := json.Unmarshal([]byte(jwksText), &payload); err != nil {
+		return nil, err
+	}
+	for _, key := range payload.Keys {
+		if kid != "" && key["kid"] != "" && key["kid"] != kid {
+			continue
+		}
+		bytes, err := json.Marshal(key)
+		if err != nil {
+			continue
+		}
+		return rsaPublicKeyFromJWK(string(bytes))
+	}
+	return nil, errors.New("matching jwk not found")
 }
 
 func parseBasicAuthCredentials(authHeader string) (clientID, clientSecret string, ok bool) {

@@ -452,7 +452,7 @@ func (s Service) Verify2FA(req Verify2FARequest) (TokenPair, error) {
 	default:
 		return TokenPair{}, errors.New("unsupported 2FA type")
 	}
-	return GenerateTokenPairWithTenantAndScope(user.ID, tenantID, ConsoleScopeUser)
+	return GenerateTokenPairWithTenantScopeAndAuthMethods(user.ID, tenantID, ConsoleScopeUser, []string{"pwd", "otp"})
 }
 
 // setupFirstUserAsGlobalAdmin 设置第一个用户为全局管理员。

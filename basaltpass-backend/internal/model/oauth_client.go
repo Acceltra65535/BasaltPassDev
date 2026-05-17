@@ -14,13 +14,20 @@ import (
 // OAuthClient 表示一个OAuth2客户端（业务应用）
 type OAuthClient struct {
 	gorm.Model
-	AppID        uint   `gorm:"not null;index" json:"app_id"`                                           // 关联的应用ID
-	ClientID     string `gorm:"size:64;uniqueIndex;not null" json:"client_id"`                          // 客户端ID
-	ClientSecret string `gorm:"size:128;not null" json:"-"`                                             // 客户端密钥（不返回给前端）
-	RedirectURIs string `gorm:"type:text;not null" json:"redirect_uris"`                                // 允许的重定向URI列表（用逗号分隔）
-	Scopes       string `gorm:"type:text" json:"scopes"`                                                // 允许的权限范围（用逗号分隔）
-	GrantTypes   string `gorm:"size:255;default:'authorization_code,refresh_token'" json:"grant_types"` // 支持的授权类型
-	IsActive     bool   `gorm:"default:true" json:"is_active"`                                          // 是否激活
+	AppID                   uint   `gorm:"not null;index" json:"app_id"`                  // 关联的应用ID
+	ClientID                string `gorm:"size:64;uniqueIndex;not null" json:"client_id"` // 客户端ID
+	ClientSecret            string `gorm:"size:128;not null" json:"-"`                    // 客户端密钥（不返回给前端）
+	ClientSecretEncrypted   string `gorm:"type:text" json:"-"`
+	TokenEndpointAuthMethod string `gorm:"size:64;not null;default:'client_secret_basic'" json:"token_endpoint_auth_method"`
+	SubjectType             string `gorm:"size:32;not null;default:'public'" json:"subject_type"`
+	SectorIdentifierURI     string `gorm:"size:500" json:"sector_identifier_uri,omitempty"`
+	ClientJWKS              string `gorm:"type:text" json:"client_jwks,omitempty"`
+	ClientJWKSURI           string `gorm:"size:500" json:"client_jwks_uri,omitempty"`
+	RedirectURIs            string `gorm:"type:text;not null" json:"redirect_uris"`                                // 允许的重定向URI列表（用逗号分隔）
+	PostLogoutRedirectURIs  string `gorm:"type:text" json:"post_logout_redirect_uris"`                             // 允许的登出后重定向URI列表（用逗号分隔）
+	Scopes                  string `gorm:"type:text" json:"scopes"`                                                // 允许的权限范围（用逗号分隔）
+	GrantTypes              string `gorm:"size:255;default:'authorization_code,refresh_token'" json:"grant_types"` // 支持的授权类型
+	IsActive                bool   `gorm:"default:true" json:"is_active"`                                          // 是否激活
 
 	// 应用配置
 	AllowedOrigins string `gorm:"type:text" json:"allowed_origins"` // 允许的CORS源（用逗号分隔）
@@ -33,6 +40,33 @@ type OAuthClient struct {
 	// 关联
 	App     App  `gorm:"foreignKey:AppID" json:"app,omitempty"`
 	Creator User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
+}
+
+const (
+	OAuthTokenEndpointAuthClientSecretBasic = "client_secret_basic"
+	OAuthTokenEndpointAuthClientSecretPost  = "client_secret_post"
+	OAuthTokenEndpointAuthNone              = "none"
+	OAuthTokenEndpointAuthClientSecretJWT   = "client_secret_jwt"
+	OAuthTokenEndpointAuthPrivateKeyJWT     = "private_key_jwt"
+
+	OAuthSubjectTypePublic   = "public"
+	OAuthSubjectTypePairwise = "pairwise"
+)
+
+func (c *OAuthClient) GetTokenEndpointAuthMethod() string {
+	method := strings.TrimSpace(c.TokenEndpointAuthMethod)
+	if method == "" {
+		return OAuthTokenEndpointAuthClientSecretBasic
+	}
+	return method
+}
+
+func (c *OAuthClient) GetSubjectType() string {
+	subjectType := strings.TrimSpace(c.SubjectType)
+	if subjectType == "" {
+		return OAuthSubjectTypePublic
+	}
+	return subjectType
 }
 
 // GenerateClientCredentials 生成客户端ID和密钥
@@ -65,6 +99,17 @@ func (c *OAuthClient) GetRedirectURIList() []string {
 // SetRedirectURIList 设置重定向URI列表
 func (c *OAuthClient) SetRedirectURIList(uris []string) {
 	c.RedirectURIs = strings.Join(uris, ",")
+}
+
+func (c *OAuthClient) GetPostLogoutRedirectURIList() []string {
+	if c.PostLogoutRedirectURIs == "" {
+		return []string{}
+	}
+	return strings.Split(c.PostLogoutRedirectURIs, ",")
+}
+
+func (c *OAuthClient) SetPostLogoutRedirectURIList(uris []string) {
+	c.PostLogoutRedirectURIs = strings.Join(uris, ",")
 }
 
 // GetScopeList 获取权限范围列表
@@ -104,6 +149,19 @@ func (c *OAuthClient) GetGrantTypeList() []string {
 // ValidateRedirectURI 验证重定向URI是否被允许
 func (c *OAuthClient) ValidateRedirectURI(uri string) bool {
 	allowedURIs := c.GetRedirectURIList()
+	for _, allowedURI := range allowedURIs {
+		if strings.TrimSpace(allowedURI) == uri {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *OAuthClient) ValidatePostLogoutRedirectURI(uri string) bool {
+	allowedURIs := c.GetPostLogoutRedirectURIList()
+	if len(allowedURIs) == 0 {
+		allowedURIs = c.GetRedirectURIList()
+	}
 	for _, allowedURI := range allowedURIs {
 		if strings.TrimSpace(allowedURI) == uri {
 			return true
