@@ -79,7 +79,42 @@ go run ./cmd/basaltpass
 ## API
 
 - 健康检查: `GET /health`
+- OIDC Discovery: `GET /api/v1/.well-known/openid-configuration`
+- OAuth Authorization: `GET /api/v1/oauth/authorize`
+- Token Endpoint: `POST /api/v1/oauth/token`
+- UserInfo: `GET|POST /api/v1/oauth/userinfo`
+- JWKS: `GET /api/v1/oauth/jwks`
+- Introspection: `POST /api/v1/oauth/introspect`
+- Revocation: `POST /api/v1/oauth/revoke`
+- RP-Initiated Logout: `GET /api/v1/end_session`
 - S2S 接口说明: `../basaltpass-docs/docs/reference/s2s-api.md`
+
+## OIDC 运行时约定
+
+当前后端实现面向 OIDC Authorization Code profile：
+
+- `response_type` 仅声明并支持 `code`，不暴露 implicit/hybrid flow。
+- 当 `scope` 包含 `openid` 时，授权请求必须携带 `nonce`。
+- 公共客户端应使用 PKCE S256；confidential client 可继续使用 client secret。
+- token endpoint 在 `openid` scope 下返回 RS256 签名的 `id_token`。
+- 客户端应通过 `/api/v1/oauth/jwks` 获取公钥并校验 `iss`、`sub`、`aud`、`exp`、`iat`、`nonce`。
+- refresh token 仅在请求 `offline_access` 且客户端允许 `refresh_token` grant 时签发。
+- refresh token introspection、access token introspection 和 revocation 均由 OAuth 端点处理。
+- signing key 存入数据库并使用 `OIDC_KEY_ENCRYPTION_SECRET` 加密私钥；生产环境必须稳定配置该密钥。
+
+管理端可触发 OIDC signing key rotation。轮换期间新 key 会先出现在 JWKS 中，旧 key 会保留到已签发 ID Token 过期后再隐藏，避免客户端缓存 JWKS 时出现验签失败。
+
+更完整的客户端接入说明见 `../basaltpass-docs/docs/integration/oauth2-oidc.md`。
+
+## Conformance 测试
+
+本仓库包含本地 OpenID Foundation conformance suite 辅助文件：
+
+- `cmd/conformance-seed`: 为本地 SQLite conformance 数据库写入 static client、用户和 profile 数据。
+- `scripts/seed_conformance_sqlite.py`: 轻量 seed 脚本，适合快速重置本地测试数据。
+- `conformance.config.yaml`: 本地 conformance 后端配置示例。
+
+`conformance.env`、suite 日志、临时证书、测试结果 zip 和本地数据库属于运行产物，不应提交。
 
 ## 系统设置
 
