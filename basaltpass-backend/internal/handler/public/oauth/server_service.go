@@ -817,7 +817,12 @@ func (s *OAuthServerService) RefreshAccessToken(refreshToken string, clientID st
 // ValidateAccessToken 验证访问令牌
 func (s *OAuthServerService) ValidateAccessToken(token string) (*model.OAuthAccessToken, error) {
 	var oauthToken model.OAuthAccessToken
-	if err := s.db.Preload("User").Preload("Client").Where("token = ?", token).First(&oauthToken).Error; err != nil {
+	if err := s.db.
+		Preload("User").
+		Preload("Client").
+		Preload("Tenant").
+		Where("token = ?", token).
+		First(&oauthToken).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("invalid_token")
 		}
@@ -833,7 +838,12 @@ func (s *OAuthServerService) ValidateAccessToken(token string) (*model.OAuthAcce
 
 func (s *OAuthServerService) ValidateRefreshToken(token string) (*model.OAuthRefreshToken, error) {
 	var refreshToken model.OAuthRefreshToken
-	if err := s.db.Preload("User").Preload("Client").Where("token = ?", token).First(&refreshToken).Error; err != nil {
+	if err := s.db.
+		Preload("User").
+		Preload("Client").
+		Preload("Tenant").
+		Where("token = ?", token).
+		First(&refreshToken).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("invalid_token")
 		}
@@ -846,18 +856,21 @@ func (s *OAuthServerService) ValidateRefreshToken(token string) (*model.OAuthRef
 }
 
 type TokenIntrospectionResponse struct {
-	Active    bool        `json:"active"`
-	TokenType string      `json:"token_type,omitempty"`
-	ClientID  string      `json:"client_id,omitempty"`
-	Username  string      `json:"username,omitempty"`
-	Scope     string      `json:"scope,omitempty"`
-	Exp       int64       `json:"exp,omitempty"`
-	Iat       int64       `json:"iat,omitempty"`
-	Nbf       int64       `json:"nbf,omitempty"`
-	Sub       string      `json:"sub,omitempty"`
-	Aud       string      `json:"aud,omitempty"`
-	Iss       string      `json:"iss,omitempty"`
-	Act       interface{} `json:"act,omitempty"`
+	Active     bool        `json:"active"`
+	TokenType  string      `json:"token_type,omitempty"`
+	ClientID   string      `json:"client_id,omitempty"`
+	Username   string      `json:"username,omitempty"`
+	Scope      string      `json:"scope,omitempty"`
+	Exp        int64       `json:"exp,omitempty"`
+	Iat        int64       `json:"iat,omitempty"`
+	Nbf        int64       `json:"nbf,omitempty"`
+	Sub        string      `json:"sub,omitempty"`
+	Aud        string      `json:"aud,omitempty"`
+	Iss        string      `json:"iss,omitempty"`
+	TenantID   string      `json:"tenant_id,omitempty"`
+	TenantCode string      `json:"tenant_code,omitempty"`
+	Tenant     interface{} `json:"tenant,omitempty"`
+	Act        interface{} `json:"act,omitempty"`
 }
 
 func (s *OAuthServerService) IntrospectToken(token string, authenticatedClientID string) (*TokenIntrospectionResponse, error) {
@@ -905,6 +918,7 @@ func tokenIntrospectionFromAccessToken(token *model.OAuthAccessToken) *TokenIntr
 	if token.IsExchanged && token.ActorClientID != "" {
 		resp.Act = fiberMapTokenActor(token.ActorClientID, token.ActorAppID)
 	}
+	applyTokenTenantIntrospection(resp, token.TenantID, token.Tenant)
 	return resp
 }
 
@@ -913,7 +927,7 @@ func tokenIntrospectionFromRefreshToken(token *model.OAuthRefreshToken) *TokenIn
 	if strings.TrimSpace(token.Client.ClientID) != "" {
 		sub = oidcSubjectForClient(token.Client, token.UserID)
 	}
-	return &TokenIntrospectionResponse{
+	resp := &TokenIntrospectionResponse{
 		Active:    true,
 		TokenType: "refresh_token",
 		ClientID:  token.ClientID,
@@ -926,12 +940,28 @@ func tokenIntrospectionFromRefreshToken(token *model.OAuthRefreshToken) *TokenIn
 		Aud:       token.ClientID,
 		Iss:       oidcIssuer(),
 	}
+	applyTokenTenantIntrospection(resp, token.TenantID, token.Tenant)
+	return resp
 }
 
 func fiberMapTokenActor(clientID string, appID uint) map[string]interface{} {
 	return map[string]interface{}{
 		"client_id": clientID,
 		"app_id":    appID,
+	}
+}
+
+func applyTokenTenantIntrospection(resp *TokenIntrospectionResponse, tenantID uint, tenant model.Tenant) {
+	if tenantID > 0 {
+		resp.TenantID = strconv.FormatUint(uint64(tenantID), 10)
+	}
+	if strings.TrimSpace(tenant.Code) != "" {
+		resp.TenantCode = tenant.Code
+		resp.Tenant = map[string]interface{}{
+			"id":   tenantID,
+			"code": tenant.Code,
+			"name": tenant.Name,
+		}
 	}
 }
 
