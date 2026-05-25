@@ -186,7 +186,7 @@ func (s *dbSessionStore) Set(_ context.Context, key string, v *webauthn.SessionD
 			return err
 		}
 		var existing int64
-		if err := tx.Model(&dbSessionRecord{}).Where("key = ?", key).Count(&existing).Error; err != nil {
+		if err := tx.Model(&dbSessionRecord{}).Where("`key` = ?", key).Count(&existing).Error; err != nil {
 			return err
 		}
 		if existing == 0 && s.capacity > 0 && count >= int64(s.capacity) {
@@ -209,7 +209,7 @@ func (s *dbSessionStore) Get(_ context.Context, key string) (*sessionEnvelope, e
 		return nil, fmt.Errorf("migrate passkey sessions: %w", err)
 	}
 	var record dbSessionRecord
-	if err := s.db.First(&record, "key = ?", key).Error; err != nil {
+	if err := s.db.First(&record, "`key` = ?", key).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errSessionNotFound
 		}
@@ -233,7 +233,7 @@ func (s *dbSessionStore) Consume(_ context.Context, key string) (*sessionEnvelop
 	var env *sessionEnvelope
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var record dbSessionRecord
-		if err := tx.First(&record, "key = ?", key).Error; err != nil {
+		if err := tx.First(&record, "`key` = ?", key).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errSessionNotFound
 			}
@@ -262,7 +262,7 @@ func (s *dbSessionStore) Delete(_ context.Context, key string) error {
 	if err := s.ensureSchema(); err != nil {
 		return fmt.Errorf("migrate passkey sessions: %w", err)
 	}
-	return s.db.Delete(&dbSessionRecord{}, "key = ?", key).Error
+	return s.db.Delete(&dbSessionRecord{}, "`key` = ?", key).Error
 }
 
 type lazySessionStore struct {

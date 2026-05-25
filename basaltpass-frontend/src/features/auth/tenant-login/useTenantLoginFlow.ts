@@ -88,6 +88,20 @@ export function useTenantLoginFlow({
     setEmailCode('')
   }
 
+  const sendEmail2FACode = async (token = preAuthToken) => {
+    if (!token) {
+      return
+    }
+    try {
+      await client.post('/api/v1/auth/2fa/email/send', { pre_auth_token: token }, { timeout: authRequestTimeout })
+    } catch (error: unknown) {
+      const rawMessage = extractErrorMessage(error)
+      if (!rawMessage.toLowerCase().includes('sent recently')) {
+        setError(rawMessage || t('auth.tenant.flow.verifyFailed'))
+      }
+    }
+  }
+
   const submitPasswordLogin = async (event: FormEvent) => {
     event.preventDefault()
     if (!tenantInfo) {
@@ -110,10 +124,15 @@ export function useTenantLoginFlow({
       )
 
       if (response.data.need_2fa) {
-        setPreAuthToken(response.data.pre_auth_token || '')
-        setTwoFAType(response.data['2fa_type'] || '')
+        const nextPreAuthToken = response.data.pre_auth_token || ''
+        const nextTwoFAType = response.data['2fa_type'] || ''
+        setPreAuthToken(nextPreAuthToken)
+        setTwoFAType(nextTwoFAType)
         setAvailable2FAMethods(response.data.available_2fa_methods || [])
         setStep(2)
+        if (nextTwoFAType === 'email') {
+          void sendEmail2FACode(nextPreAuthToken)
+        }
         return
       }
 
@@ -150,6 +169,9 @@ export function useTenantLoginFlow({
     setTwoFACode('')
     setEmailCode('')
     setError('')
+    if (method === 'email') {
+      void sendEmail2FACode()
+    }
   }
 
   const submit2FAVerify = async (event: FormEvent) => {

@@ -1,6 +1,6 @@
 export const buildInfo = {
   version: "beancs-v1.0.26",
-  commit: "b18b26c3",
-  generatedAt: "2026-05-09T06:47:10.010Z",
+  commit: "3d1be4d",
+  generatedAt: "2026-05-25T23:18:22.705Z",
   copyrightStartYear: 2024,
 } as const

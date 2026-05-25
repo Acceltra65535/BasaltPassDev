@@ -3,12 +3,17 @@ package auth
 import (
 	"basaltpass-backend/internal/handler/user/security"
 	"basaltpass-backend/internal/service/aduit"
+	securityservice "basaltpass-backend/internal/service/security"
 	settingssvc "basaltpass-backend/internal/service/settings"
 	tenantservice "basaltpass-backend/internal/service/tenant"
 	"basaltpass-backend/internal/utils"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -324,6 +329,13 @@ LOGIN_USER_FOUND:
 		}
 	}
 
+	if user.Email != "" && len(availableMethods) > 0 && !containsMethod(availableMethods, "email") {
+		availableMethods = append(availableMethods, "email")
+		if defaultMethod == "" {
+			defaultMethod = "email"
+		}
+	}
+
 	// SMS 验证码作为额外的 2FA 方式（仅在开关打开且用户有手机号时追加）
 	if smsMethodEnabled && user.Phone != "" {
 		availableMethods = append(availableMethods, "sms")
@@ -361,6 +373,15 @@ LOGIN_USER_FOUND:
 		return LoginResult{}, fmt.Errorf("%w: %v", ErrServiceUnavailable, err)
 	}
 	return LoginResult{Need2FA: false, TokenPair: tokens, UserID: user.ID}, nil
+}
+
+func containsMethod(methods []string, method string) bool {
+	for _, item := range methods {
+		if item == method {
+			return true
+		}
+	}
+	return false
 }
 
 // Refresh validates a refresh token and returns a new token pair.
@@ -445,14 +466,128 @@ func (s Service) Verify2FA(req Verify2FARequest) (TokenPair, error) {
 		// SMS 验证码校验逻辑待实现
 		return TokenPair{}, errors.New("SMS 2FA verification is not yet implemented")
 	case "email":
-		if !user.EmailVerified {
-			return TokenPair{}, errors.New("email not verified")
+		if err := verifyEmail2FACode(db, user, req.Code); err != nil {
+			return TokenPair{}, err
 		}
-		// 邮箱验证码校验逻辑可扩展
 	default:
 		return TokenPair{}, errors.New("unsupported 2FA type")
 	}
 	return GenerateTokenPairWithTenantScopeAndAuthMethods(user.ID, tenantID, ConsoleScopeUser, []string{"pwd", "otp"})
+}
+
+func (s Service) SendEmail2FACode(preAuthToken, requestedIP string) error {
+	userID, _, err := ParsePreAuthToken(preAuthToken)
+	if err != nil {
+		return errors.New("invalid or expired 2FA session token")
+	}
+
+	db := common.DB()
+	var user model.User
+	if err := db.First(&user, userID).Error; err != nil {
+		return errors.New("user not found")
+	}
+	if strings.TrimSpace(user.Email) == "" {
+		return errors.New("account has no email")
+	}
+
+	now := time.Now()
+	cooldownCutoff := now.Add(-time.Duration(model.EmailVerificationResendCooldown) * time.Second)
+	var recent model.EmailVerificationToken
+	if err := db.Where("user_id = ? AND email = ? AND used_at IS NULL AND expires_at > ? AND created_at > ?",
+		user.ID, user.Email, now, cooldownCutoff).
+		Order("created_at DESC").
+		First(&recent).Error; err == nil {
+		return errors.New("email verification code was sent recently")
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("%w: %v", ErrServiceUnavailable, err)
+	}
+
+	code, err := generateEmail2FACode()
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrServiceUnavailable, err)
+	}
+
+	if err := db.Model(&model.EmailVerificationToken{}).
+		Where("user_id = ? AND email = ? AND used_at IS NULL", user.ID, user.Email).
+		Update("expires_at", now).Error; err != nil {
+		return fmt.Errorf("%w: %v", ErrServiceUnavailable, err)
+	}
+
+	token := model.EmailVerificationToken{
+		UserID:      user.ID,
+		Email:       user.Email,
+		CodeHash:    hashEmail2FACode(code),
+		ExpiresAt:   now.Add(time.Duration(model.EmailVerificationTTL) * time.Minute),
+		RequestedIP: requestedIP,
+	}
+	if err := db.Create(&token).Error; err != nil {
+		return fmt.Errorf("%w: %v", ErrServiceUnavailable, err)
+	}
+
+	secSvc := securityservice.NewService(db)
+	if err := secSvc.SendEmailVerificationEmail(user.Email, code); err != nil {
+		_ = db.Delete(&token).Error
+		return fmt.Errorf("failed to send email verification code: %w", err)
+	}
+	return nil
+}
+
+func verifyEmail2FACode(db *gorm.DB, user model.User, code string) error {
+	code = strings.TrimSpace(code)
+	if user.Email == "" {
+		return errors.New("account has no email")
+	}
+	if code == "" {
+		return errors.New("email verification code required")
+	}
+
+	var token model.EmailVerificationToken
+	if err := db.Where("user_id = ? AND email = ? AND used_at IS NULL AND expires_at > ?",
+		user.ID, user.Email, time.Now()).
+		Order("created_at DESC").
+		First(&token).Error; err != nil {
+		return errors.New("verification code not found or expired")
+	}
+	if token.AttemptCount >= model.EmailVerificationMaxAttempts {
+		return errors.New("verification code attempts exceeded")
+	}
+
+	if err := db.Model(&token).UpdateColumn("attempt_count", token.AttemptCount+1).Error; err != nil {
+		return fmt.Errorf("%w: %v", ErrServiceUnavailable, err)
+	}
+	if hashEmail2FACode(code) != token.CodeHash {
+		return errors.New("invalid email verification code")
+	}
+
+	now := time.Now()
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&token).Updates(map[string]interface{}{"used_at": &now}).Error; err != nil {
+			return err
+		}
+		updates := map[string]interface{}{"email_verified": true, "email_verified_at": &now}
+		if err := tx.Model(&user).Updates(updates).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func generateEmail2FACode() (string, error) {
+	const digits = "0123456789"
+	code := make([]byte, 6)
+	for i := range code {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(digits))))
+		if err != nil {
+			return "", err
+		}
+		code[i] = digits[n.Int64()]
+	}
+	return string(code), nil
+}
+
+func hashEmail2FACode(code string) string {
+	h := sha256.Sum256([]byte(code))
+	return hex.EncodeToString(h[:])
 }
 
 // setupFirstUserAsGlobalAdmin 设置第一个用户为全局管理员。

@@ -11,7 +11,7 @@ type UserTenantTOTP struct {
 	ID        uint       `gorm:"primaryKey" json:"id"`
 	UserID    uint       `gorm:"not null;index" json:"user_id"`
 	TenantID  uint       `gorm:"not null;index;default:0" json:"tenant_id"`
-	Secret    string     `gorm:"size:64;not null" json:"secret"`
+	Secret    string     `gorm:"type:text;not null" json:"secret"`
 	Enabled   bool       `gorm:"default:false" json:"enabled"`
 	EnabledAt *time.Time `json:"enabled_at,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`

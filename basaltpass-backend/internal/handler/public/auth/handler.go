@@ -286,3 +286,34 @@ func Verify2FAHandler(c *fiber.Ctx) error {
 		},
 	})
 }
+
+type sendEmail2FARequest struct {
+	PreAuthToken string `json:"pre_auth_token"`
+}
+
+func SendEmail2FAHandler(c *fiber.Ctx) error {
+	var req sendEmail2FARequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	if strings.TrimSpace(req.PreAuthToken) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "pre_auth_token is required"})
+	}
+	if err := svc.SendEmail2FACode(req.PreAuthToken, c.IP()); err != nil {
+		message := err.Error()
+		if strings.Contains(message, "sent recently") {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": message})
+		}
+		if strings.Contains(message, "invalid or expired") || strings.Contains(message, "user not found") {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": message})
+		}
+		if strings.Contains(message, "no email") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": message})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": message})
+	}
+	return c.JSON(fiber.Map{
+		"message":    "Verification code sent",
+		"expires_in": model.EmailVerificationTTL * 60,
+	})
+}
