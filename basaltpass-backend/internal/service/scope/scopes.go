@@ -14,6 +14,8 @@ func DefaultAllowedScopes() []string {
 		OpenID,
 		Profile,
 		Email,
+		Address,
+		Phone,
 		OfflineAccess,
 		S2SRead,
 		S2SUserRead,
@@ -50,6 +52,10 @@ func Describe(s string) Meta {
 		return Meta{Scope: s, Category: "oidc", Title: "Profile", Description: "允许通过 userinfo 获取昵称/头像等基础资料"}
 	case Email:
 		return Meta{Scope: s, Category: "oidc", Title: "Email", Description: "允许通过 userinfo 获取邮箱与邮箱验证状态"}
+	case Address:
+		return Meta{Scope: s, Category: "oidc", Title: "Address", Description: "允许通过 userinfo 获取地址信息"}
+	case Phone:
+		return Meta{Scope: s, Category: "oidc", Title: "Phone", Description: "允许通过 userinfo 获取手机号与验证状态"}
 	case OfflineAccess:
 		return Meta{Scope: s, Category: "oidc", Title: "Offline access", Description: "允许申请 refresh_token（需要服务端启用刷新令牌）"}
 	case S2SRead:
@@ -88,6 +94,8 @@ const (
 	OpenID        = "openid"
 	Profile       = "profile"
 	Email         = "email"
+	Address       = "address"
+	Phone         = "phone"
 	OfflineAccess = "offline_access"
 )
 

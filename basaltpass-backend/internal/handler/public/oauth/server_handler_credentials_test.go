@@ -74,7 +74,7 @@ func createOAuthJWTForTest(t *testing.T, claims jwt.MapClaims) string {
 func TestTryUserIDFromAccessTokenCookie_AcceptsAccessCookie(t *testing.T) {
 	app := fiber.New()
 	app.Get("/", func(c *fiber.Ctx) error {
-		uid, ok := tryUserIDFromAccessTokenCookie(c)
+		uid, _, ok := tryUserIDFromAccessTokenCookie(c)
 		if !ok {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
@@ -101,7 +101,7 @@ func TestTryUserIDFromAccessTokenCookie_AcceptsAccessCookie(t *testing.T) {
 func TestTryUserIDFromAccessTokenCookie_RejectsRefreshCookie(t *testing.T) {
 	app := fiber.New()
 	app.Get("/", func(c *fiber.Ctx) error {
-		if _, ok := tryUserIDFromAccessTokenCookie(c); ok {
+		if _, _, ok := tryUserIDFromAccessTokenCookie(c); ok {
 			return c.SendStatus(fiber.StatusOK)
 		}
 		return c.SendStatus(fiber.StatusUnauthorized)

@@ -224,6 +224,7 @@ func RegisterAdminRoutes(v1 fiber.Router) {
 	aliasOAuthClients.Get("/:client_id/stats", oauth.GetClientStatsHandler)
 	aliasOAuthClients.Get("/:client_id/tokens", oauth.GetTokensHandler)
 	aliasOAuthClients.Post("/:client_id/revoke-tokens", oauth.RevokeClientTokensHandler)
+	adminAliasGroup.Post("/oidc/signing-keys/rotate", oauth.AdminRotateOIDCSigningKeyHandler)
 
 	// Apps （系统级 + 应用用户管理）
 	aliasApps := adminAliasGroup.Group("/apps")
@@ -367,6 +368,7 @@ func RegisterAdminRoutes(v1 fiber.Router) {
 	oauthClientGroup.Get("/:client_id/stats", oauth.GetClientStatsHandler)                // /tenant/oauth/clients/:client_id/stats
 	oauthClientGroup.Get("/:client_id/tokens", oauth.GetTokensHandler)                    // /tenant/oauth/clients/:client_id/tokens
 	oauthClientGroup.Post("/:client_id/revoke-tokens", oauth.RevokeClientTokensHandler)   // /tenant/oauth/clients/:client_id/revoke-tokens
+	adminGroup.Post("/oidc/signing-keys/rotate", oauth.AdminRotateOIDCSigningKeyHandler)
 
 	// 系统级应用管理
 	adminAppGroup := adminGroup.Group("/apps")

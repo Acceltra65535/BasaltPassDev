@@ -198,6 +198,7 @@ func RunMigrations() error {
 		&model.OAuthAuthorizationCode{},
 		&model.OAuthAccessToken{},
 		&model.OAuthRefreshToken{},
+		&model.OIDCSigningKey{},
 		&model.RolePermission{},
 
 		// 订阅系统模型

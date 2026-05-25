@@ -93,6 +93,12 @@ type Config struct {
 		// In production, you can leave it empty when UI and API share the same origin.
 		BaseURL string `mapstructure:"base_url"`
 	} `mapstructure:"ui"`
+
+	OIDC struct {
+		// Issuer is the public OIDC issuer URL, including the API version prefix.
+		// Example: https://auth.example.com/api/v1
+		Issuer string `mapstructure:"issuer"`
+	} `mapstructure:"oidc"`
 }
 
 var cfg Config
@@ -169,6 +175,8 @@ func Load(path string) (*Config, error) {
 	} else {
 		v.SetDefault("ui.base_url", "")
 	}
+
+	v.SetDefault("oidc.issuer", "")
 
 	// Email defaults
 	v.SetDefault("email.provider", "smtp")

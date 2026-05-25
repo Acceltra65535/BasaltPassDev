@@ -57,6 +57,12 @@ func (s Service) GetProfile(userID uint, activeTenantID uint) (userdto.ProfileRe
 		Email:        u.Email,
 		Phone:        u.Phone,
 		Nickname:     u.Nickname,
+		NickName:     u.Nickname,
+		GivenName:    u.GivenName,
+		FamilyName:   u.FamilyName,
+		MiddleName:   u.MiddleName,
+		Locale:       u.Locale,
+		Zoneinfo:     u.Zoneinfo,
 		AvatarURL:    u.AvatarURL,
 		IsSuperAdmin: isSuperAdmin,
 		HasTenant:    hasTenant,
@@ -71,6 +77,21 @@ func (s Service) UpdateProfile(userID uint, req userdto.UpdateProfileRequest) er
 	var updates = make(map[string]interface{})
 	if req.Nickname != nil {
 		updates["nickname"] = *req.Nickname
+	}
+	if req.GivenName != nil {
+		updates["given_name"] = *req.GivenName
+	}
+	if req.FamilyName != nil {
+		updates["family_name"] = *req.FamilyName
+	}
+	if req.MiddleName != nil {
+		updates["middle_name"] = *req.MiddleName
+	}
+	if req.Locale != nil {
+		updates["locale"] = *req.Locale
+	}
+	if req.Zoneinfo != nil {
+		updates["zoneinfo"] = *req.Zoneinfo
 	}
 	if req.Email != nil {
 		updates["email"] = *req.Email

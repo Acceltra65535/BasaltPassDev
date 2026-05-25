@@ -104,7 +104,22 @@ Important variables:
 
 For production, always use a strong secret and an external managed database.
 
-## OAuth / OIDC Endpoints (Typical)
+## OAuth / OIDC Support
+
+BasaltPass currently supports the OIDC Authorization Code profile used by most
+server-rendered apps, SPAs, mobile apps, and backend services:
+
+- Authorization Code flow with `response_type=code`
+- PKCE S256 for public clients and browser-based clients
+- Required `nonce` when `scope` contains `openid`
+- RS256 signed `id_token` returned from the token endpoint
+- JWKS-based ID Token verification
+- Scope-controlled `userinfo` claims
+- Refresh tokens gated by `offline_access`
+- Token introspection and revocation
+- RP-initiated logout through `end_session_endpoint`
+- Pairwise subject identifiers and JWT client authentication
+
 
 With base URL `https://auth.example.com/api/v1`:
 
@@ -114,6 +129,12 @@ With base URL `https://auth.example.com/api/v1`:
 - `/oauth/userinfo`
 - `/oauth/jwks`
 - `/oauth/introspect`
+- `/oauth/revoke`
+- `/end_session`
+
+The detailed client integration guide lives in
+`basaltpass-docs/docs/integration/oauth2-oidc.md`. Historical implementation
+notes are kept in `OIDC_REMEDIATION_PLAN.md`.
 
 ## Frontend Workspaces
 

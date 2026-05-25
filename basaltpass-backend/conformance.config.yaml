@@ -1,0 +1,12 @@
+env: develop
+server:
+  address: ":8102"
+database:
+  driver: sqlite
+  path: conformance-basaltpass.db
+ui:
+  base_url: https://host.docker.internal:9443/basaltpass-ui
+oidc:
+  issuer: https://host.docker.internal:9443/basaltpass/api/v1
+seeding:
+  enabled: false

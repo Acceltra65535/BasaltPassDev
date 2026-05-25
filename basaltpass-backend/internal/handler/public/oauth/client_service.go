@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/service/aduit"
 	"basaltpass-backend/internal/service/scope"
 	"basaltpass-backend/internal/service/settings"
+	"basaltpass-backend/internal/utils"
 	"errors"
 	"strings"
 	"time"
@@ -28,40 +29,58 @@ func NewClientService() *ClientService {
 
 // CreateClientRequest 创建客户端请求
 type CreateClientRequest struct {
-	Name           string   `json:"name" validate:"required,min=1,max=100"`
-	Description    string   `json:"description" validate:"max=500"`
-	RedirectURIs   []string `json:"redirect_uris" validate:"required,min=1"`
-	Scopes         []string `json:"scopes"`
-	AllowedOrigins []string `json:"allowed_origins"`
+	Name                    string   `json:"name" validate:"required,min=1,max=100"`
+	Description             string   `json:"description" validate:"max=500"`
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+	SubjectType             string   `json:"subject_type"`
+	SectorIdentifierURI     string   `json:"sector_identifier_uri"`
+	ClientJWKS              string   `json:"client_jwks"`
+	ClientJWKSURI           string   `json:"client_jwks_uri"`
+	RedirectURIs            []string `json:"redirect_uris" validate:"required,min=1"`
+	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris"`
+	Scopes                  []string `json:"scopes"`
+	AllowedOrigins          []string `json:"allowed_origins"`
 }
 
 // UpdateClientRequest 更新客户端请求
 type UpdateClientRequest struct {
-	Name           string   `json:"name" validate:"omitempty,min=1,max=100"`
-	Description    string   `json:"description" validate:"omitempty,max=500"`
-	RedirectURIs   []string `json:"redirect_uris" validate:"omitempty,min=1"`
-	Scopes         []string `json:"scopes"`
-	AllowedOrigins []string `json:"allowed_origins"`
-	IsActive       *bool    `json:"is_active"`
+	Name                    string   `json:"name" validate:"omitempty,min=1,max=100"`
+	Description             string   `json:"description" validate:"omitempty,max=500"`
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+	SubjectType             string   `json:"subject_type"`
+	SectorIdentifierURI     string   `json:"sector_identifier_uri"`
+	ClientJWKS              string   `json:"client_jwks"`
+	ClientJWKSURI           string   `json:"client_jwks_uri"`
+	RedirectURIs            []string `json:"redirect_uris" validate:"omitempty,min=1"`
+	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris"`
+	Scopes                  []string `json:"scopes"`
+	AllowedOrigins          []string `json:"allowed_origins"`
+	IsActive                *bool    `json:"is_active"`
 }
 
 // ClientResponse 客户端响应
 type ClientResponse struct {
-	ID             uint      `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	ClientID       string    `json:"client_id"`
-	ClientSecret   string    `json:"client_secret,omitempty"` // 只在创建时返回
-	RedirectURIs   []string  `json:"redirect_uris"`
-	Scopes         []string  `json:"scopes"`
-	AllowedOrigins []string  `json:"allowed_origins"`
-	IsActive       bool      `json:"is_active"`
-	LastUsedAt     *string   `json:"last_used_at"`
-	CreatedBy      uint      `json:"created_by"`
-	CreatedAt      string    `json:"created_at"`
-	UpdatedAt      string    `json:"updated_at"`
-	Creator        *UserInfo `json:"creator,omitempty"`
-	App            *AppInfo  `json:"app,omitempty"`
+	ID                      uint      `json:"id"`
+	Name                    string    `json:"name"`
+	Description             string    `json:"description"`
+	ClientID                string    `json:"client_id"`
+	ClientSecret            string    `json:"client_secret,omitempty"` // 只在创建时返回
+	TokenEndpointAuthMethod string    `json:"token_endpoint_auth_method"`
+	SubjectType             string    `json:"subject_type"`
+	SectorIdentifierURI     string    `json:"sector_identifier_uri,omitempty"`
+	ClientJWKS              string    `json:"client_jwks,omitempty"`
+	ClientJWKSURI           string    `json:"client_jwks_uri,omitempty"`
+	RedirectURIs            []string  `json:"redirect_uris"`
+	PostLogoutRedirectURIs  []string  `json:"post_logout_redirect_uris"`
+	Scopes                  []string  `json:"scopes"`
+	AllowedOrigins          []string  `json:"allowed_origins"`
+	IsActive                bool      `json:"is_active"`
+	LastUsedAt              *string   `json:"last_used_at"`
+	CreatedBy               uint      `json:"created_by"`
+	CreatedAt               string    `json:"created_at"`
+	UpdatedAt               string    `json:"updated_at"`
+	Creator                 *UserInfo `json:"creator,omitempty"`
+	App                     *AppInfo  `json:"app,omitempty"`
 }
 
 // UserInfo 用户信息
@@ -94,9 +113,17 @@ func (s *ClientService) CreateClient(creatorID uint, req *CreateClientRequest) (
 	if err := client.GenerateClientCredentials(); err != nil {
 		return nil, err
 	}
+	client.TokenEndpointAuthMethod = normalizedTokenEndpointAuthMethod(req.TokenEndpointAuthMethod)
+	client.SubjectType = normalizedSubjectType(req.SubjectType)
+	client.SectorIdentifierURI = strings.TrimSpace(req.SectorIdentifierURI)
+	client.ClientJWKS = strings.TrimSpace(req.ClientJWKS)
+	client.ClientJWKSURI = strings.TrimSpace(req.ClientJWKSURI)
 
 	// 设置重定向URI、权限范围和允许的源
 	client.SetRedirectURIList(req.RedirectURIs)
+	if len(req.PostLogoutRedirectURIs) > 0 {
+		client.SetPostLogoutRedirectURIList(req.PostLogoutRedirectURIs)
+	}
 	if len(req.Scopes) > 0 {
 		client.SetScopeList(req.Scopes)
 	} else {
@@ -108,9 +135,20 @@ func (s *ClientService) CreateClient(creatorID uint, req *CreateClientRequest) (
 		client.AllowedOrigins = strings.Join(req.AllowedOrigins, ",")
 	}
 
-	// 哈希客户端密钥
 	plainSecret := client.ClientSecret
-	client.HashClientSecret()
+	if client.GetTokenEndpointAuthMethod() == model.OAuthTokenEndpointAuthNone {
+		client.ClientSecret = ""
+		plainSecret = ""
+	} else if client.GetTokenEndpointAuthMethod() == model.OAuthTokenEndpointAuthClientSecretJWT {
+		encrypted, err := utils.EncryptOAuthClientSecret(plainSecret)
+		if err != nil {
+			return nil, err
+		}
+		client.ClientSecretEncrypted = encrypted
+		client.HashClientSecret()
+	} else {
+		client.HashClientSecret()
+	}
 
 	// 保存到数据库
 	if err := s.db.Create(client).Error; err != nil {
@@ -152,9 +190,17 @@ func (s *ClientService) CreateClientForApp(appID, creatorID uint, req *CreateCli
 	if err := client.GenerateClientCredentials(); err != nil {
 		return nil, err
 	}
+	client.TokenEndpointAuthMethod = normalizedTokenEndpointAuthMethod(req.TokenEndpointAuthMethod)
+	client.SubjectType = normalizedSubjectType(req.SubjectType)
+	client.SectorIdentifierURI = strings.TrimSpace(req.SectorIdentifierURI)
+	client.ClientJWKS = strings.TrimSpace(req.ClientJWKS)
+	client.ClientJWKSURI = strings.TrimSpace(req.ClientJWKSURI)
 
 	// 设置重定向URI和权限范围
 	client.SetRedirectURIList(req.RedirectURIs)
+	if len(req.PostLogoutRedirectURIs) > 0 {
+		client.SetPostLogoutRedirectURIList(req.PostLogoutRedirectURIs)
+	}
 	if len(req.Scopes) > 0 {
 		client.SetScopeList(req.Scopes)
 	} else {
@@ -165,9 +211,20 @@ func (s *ClientService) CreateClientForApp(appID, creatorID uint, req *CreateCli
 		client.SetAllowedOriginList(req.AllowedOrigins)
 	}
 
-	// 哈希客户端密钥
 	plainSecret := client.ClientSecret
-	client.HashClientSecret()
+	if client.GetTokenEndpointAuthMethod() == model.OAuthTokenEndpointAuthNone {
+		client.ClientSecret = ""
+		plainSecret = ""
+	} else if client.GetTokenEndpointAuthMethod() == model.OAuthTokenEndpointAuthClientSecretJWT {
+		encrypted, err := utils.EncryptOAuthClientSecret(plainSecret)
+		if err != nil {
+			return nil, err
+		}
+		client.ClientSecretEncrypted = encrypted
+		client.HashClientSecret()
+	} else {
+		client.HashClientSecret()
+	}
 
 	// 保存到数据库
 	if err := s.db.Create(client).Error; err != nil {
@@ -243,6 +300,24 @@ func (s *ClientService) UpdateClient(clientID string, req *UpdateClientRequest) 
 	if err := s.validateUpdateRequest(req); err != nil {
 		return nil, err
 	}
+	effectiveAuthMethod := client.GetTokenEndpointAuthMethod()
+	if strings.TrimSpace(req.TokenEndpointAuthMethod) != "" {
+		effectiveAuthMethod = normalizedTokenEndpointAuthMethod(req.TokenEndpointAuthMethod)
+	}
+	effectiveJWKS := client.ClientJWKS
+	if strings.TrimSpace(req.ClientJWKS) != "" {
+		effectiveJWKS = strings.TrimSpace(req.ClientJWKS)
+	}
+	effectiveJWKSURI := client.ClientJWKSURI
+	if strings.TrimSpace(req.ClientJWKSURI) != "" {
+		effectiveJWKSURI = strings.TrimSpace(req.ClientJWKSURI)
+	}
+	if err := validateClientJWTAuthMetadata(effectiveAuthMethod, effectiveJWKS, effectiveJWKSURI); err != nil {
+		return nil, err
+	}
+	if effectiveAuthMethod == model.OAuthTokenEndpointAuthClientSecretJWT && strings.TrimSpace(client.ClientSecretEncrypted) == "" {
+		return nil, errors.New("client_secret_jwt 需要重新生成客户端密钥以保存可验签密钥")
+	}
 
 	// 更新字段
 	updates := make(map[string]interface{})
@@ -253,9 +328,28 @@ func (s *ClientService) UpdateClient(clientID string, req *UpdateClientRequest) 
 	if req.Description != "" {
 		updates["description"] = req.Description
 	}
+	if strings.TrimSpace(req.TokenEndpointAuthMethod) != "" {
+		updates["token_endpoint_auth_method"] = normalizedTokenEndpointAuthMethod(req.TokenEndpointAuthMethod)
+	}
+	if strings.TrimSpace(req.SubjectType) != "" {
+		updates["subject_type"] = normalizedSubjectType(req.SubjectType)
+	}
+	if strings.TrimSpace(req.SectorIdentifierURI) != "" {
+		updates["sector_identifier_uri"] = strings.TrimSpace(req.SectorIdentifierURI)
+	}
+	if strings.TrimSpace(req.ClientJWKS) != "" {
+		updates["client_jwks"] = strings.TrimSpace(req.ClientJWKS)
+	}
+	if strings.TrimSpace(req.ClientJWKSURI) != "" {
+		updates["client_jwks_uri"] = strings.TrimSpace(req.ClientJWKSURI)
+	}
 	if len(req.RedirectURIs) > 0 {
 		client.SetRedirectURIList(req.RedirectURIs)
 		updates["redirect_uris"] = client.RedirectURIs
+	}
+	if len(req.PostLogoutRedirectURIs) > 0 {
+		client.SetPostLogoutRedirectURIList(req.PostLogoutRedirectURIs)
+		updates["post_logout_redirect_uris"] = client.PostLogoutRedirectURIs
 	}
 	if len(req.Scopes) > 0 {
 		client.SetScopeList(req.Scopes)
@@ -328,14 +422,22 @@ func (s *ClientService) RegenerateSecret(clientID string) (string, error) {
 
 	plainSecret := client.ClientSecret
 	client.HashClientSecret()
+	updates := map[string]interface{}{
+		"client_secret": client.ClientSecret,
+	}
+	if client.GetTokenEndpointAuthMethod() == model.OAuthTokenEndpointAuthClientSecretJWT {
+		encrypted, err := utils.EncryptOAuthClientSecret(plainSecret)
+		if err != nil {
+			return "", err
+		}
+		updates["client_secret_encrypted"] = encrypted
+	}
 
 	// 保持原始的ClientID
 	client.ClientID = clientID
 
 	// 更新数据库
-	if err := s.db.Model(&client).Updates(map[string]interface{}{
-		"client_secret": client.ClientSecret,
-	}).Error; err != nil {
+	if err := s.db.Model(&client).Updates(updates).Error; err != nil {
 		return "", err
 	}
 
@@ -413,6 +515,20 @@ func (s *ClientService) validateCreateRequest(req *CreateClientRequest) error {
 			return errors.New("无效的重定向URI: " + uri)
 		}
 	}
+	for _, uri := range req.PostLogoutRedirectURIs {
+		if !isValidURL(uri) {
+			return errors.New("无效的登出后重定向URI: " + uri)
+		}
+	}
+	if err := validateTokenEndpointAuthMethod(req.TokenEndpointAuthMethod); err != nil {
+		return err
+	}
+	if err := validateSubjectType(req.SubjectType); err != nil {
+		return err
+	}
+	if strings.TrimSpace(req.SectorIdentifierURI) != "" && !isValidURL(req.SectorIdentifierURI) {
+		return errors.New("无效的 sector_identifier_uri: " + req.SectorIdentifierURI)
+	}
 	if len(req.Scopes) > 0 {
 		allowed := settings.GetStringSlice("oauth.allowed_scopes", scope.DefaultAllowedScopes())
 		allowedSet := map[string]struct{}{}
@@ -447,6 +563,25 @@ func (s *ClientService) validateUpdateRequest(req *UpdateClientRequest) error {
 			}
 		}
 	}
+	if len(req.PostLogoutRedirectURIs) > 0 {
+		for _, uri := range req.PostLogoutRedirectURIs {
+			if !isValidURL(uri) {
+				return errors.New("无效的登出后重定向URI: " + uri)
+			}
+		}
+	}
+	if err := validateTokenEndpointAuthMethod(req.TokenEndpointAuthMethod); err != nil {
+		return err
+	}
+	if err := validateSubjectType(req.SubjectType); err != nil {
+		return err
+	}
+	if err := validateClientJWTAuthMetadata(req.TokenEndpointAuthMethod, req.ClientJWKS, req.ClientJWKSURI); err != nil {
+		return err
+	}
+	if strings.TrimSpace(req.SectorIdentifierURI) != "" && !isValidURL(req.SectorIdentifierURI) {
+		return errors.New("无效的 sector_identifier_uri: " + req.SectorIdentifierURI)
+	}
 	if len(req.Scopes) > 0 {
 		allowed := settings.GetStringSlice("oauth.allowed_scopes", scope.DefaultAllowedScopes())
 		allowedSet := map[string]struct{}{}
@@ -470,6 +605,62 @@ func (s *ClientService) validateUpdateRequest(req *UpdateClientRequest) error {
 	return nil
 }
 
+func normalizedTokenEndpointAuthMethod(method string) string {
+	method = strings.TrimSpace(method)
+	if method == "" {
+		return model.OAuthTokenEndpointAuthClientSecretBasic
+	}
+	return method
+}
+
+func validateTokenEndpointAuthMethod(method string) error {
+	method = strings.TrimSpace(method)
+	if method == "" {
+		return nil
+	}
+	switch method {
+	case model.OAuthTokenEndpointAuthClientSecretBasic, model.OAuthTokenEndpointAuthClientSecretPost, model.OAuthTokenEndpointAuthNone, model.OAuthTokenEndpointAuthClientSecretJWT, model.OAuthTokenEndpointAuthPrivateKeyJWT:
+		return nil
+	default:
+		return errors.New("无效的 token_endpoint_auth_method: " + method)
+	}
+}
+
+func normalizedSubjectType(subjectType string) string {
+	subjectType = strings.TrimSpace(subjectType)
+	if subjectType == "" {
+		return model.OAuthSubjectTypePublic
+	}
+	return subjectType
+}
+
+func validateSubjectType(subjectType string) error {
+	subjectType = strings.TrimSpace(subjectType)
+	if subjectType == "" {
+		return nil
+	}
+	switch subjectType {
+	case model.OAuthSubjectTypePublic, model.OAuthSubjectTypePairwise:
+		return nil
+	default:
+		return errors.New("无效的 subject_type: " + subjectType)
+	}
+}
+
+func validateClientJWTAuthMetadata(method string, jwks string, jwksURI string) error {
+	method = normalizedTokenEndpointAuthMethod(method)
+	if method != model.OAuthTokenEndpointAuthPrivateKeyJWT {
+		return nil
+	}
+	if strings.TrimSpace(jwks) == "" && strings.TrimSpace(jwksURI) == "" {
+		return errors.New("private_key_jwt 需要配置 client_jwks 或 client_jwks_uri")
+	}
+	if strings.TrimSpace(jwksURI) != "" && !isValidURL(jwksURI) {
+		return errors.New("无效的 client_jwks_uri: " + jwksURI)
+	}
+	return nil
+}
+
 func isValidURL(urlStr string) bool {
 	return strings.HasPrefix(urlStr, "http://") || strings.HasPrefix(urlStr, "https://")
 }
@@ -477,17 +668,23 @@ func isValidURL(urlStr string) bool {
 // 转换函数
 func (s *ClientService) clientToResponse(client *model.OAuthClient, plainSecret string) *ClientResponse {
 	resp := &ClientResponse{
-		ID:             client.ID,
-		Name:           client.App.Name,
-		Description:    client.App.Description,
-		ClientID:       client.ClientID,
-		RedirectURIs:   client.GetRedirectURIList(),
-		Scopes:         client.GetScopeList(),
-		AllowedOrigins: client.GetAllowedOriginList(),
-		IsActive:       client.IsActive,
-		CreatedBy:      client.CreatedBy,
-		CreatedAt:      client.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      client.UpdatedAt.Format(time.RFC3339),
+		ID:                      client.ID,
+		Name:                    client.App.Name,
+		Description:             client.App.Description,
+		ClientID:                client.ClientID,
+		TokenEndpointAuthMethod: client.GetTokenEndpointAuthMethod(),
+		SubjectType:             client.GetSubjectType(),
+		SectorIdentifierURI:     client.SectorIdentifierURI,
+		ClientJWKS:              client.ClientJWKS,
+		ClientJWKSURI:           client.ClientJWKSURI,
+		RedirectURIs:            client.GetRedirectURIList(),
+		PostLogoutRedirectURIs:  client.GetPostLogoutRedirectURIList(),
+		Scopes:                  client.GetScopeList(),
+		AllowedOrigins:          client.GetAllowedOriginList(),
+		IsActive:                client.IsActive,
+		CreatedBy:               client.CreatedBy,
+		CreatedAt:               client.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:               client.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if plainSecret != "" {

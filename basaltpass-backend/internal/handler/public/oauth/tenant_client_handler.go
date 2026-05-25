@@ -65,12 +65,18 @@ func TenantCreateOAuthClientHandler(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		AppID          uint     `json:"app_id" validate:"required"`
-		Name           string   `json:"name" validate:"required,min=1,max=100"`
-		Description    string   `json:"description" validate:"max=500"`
-		RedirectURIs   []string `json:"redirect_uris" validate:"required,min=1"`
-		Scopes         []string `json:"scopes"`
-		AllowedOrigins []string `json:"allowed_origins"`
+		AppID                   uint     `json:"app_id" validate:"required"`
+		Name                    string   `json:"name" validate:"required,min=1,max=100"`
+		Description             string   `json:"description" validate:"max=500"`
+		TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+		SubjectType             string   `json:"subject_type"`
+		SectorIdentifierURI     string   `json:"sector_identifier_uri"`
+		ClientJWKS              string   `json:"client_jwks"`
+		ClientJWKSURI           string   `json:"client_jwks_uri"`
+		RedirectURIs            []string `json:"redirect_uris" validate:"required,min=1"`
+		PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris"`
+		Scopes                  []string `json:"scopes"`
+		AllowedOrigins          []string `json:"allowed_origins"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -90,11 +96,17 @@ func TenantCreateOAuthClientHandler(c *fiber.Ctx) error {
 
 	// 创建OAuth客户端请求
 	createReq := &CreateClientRequest{
-		Name:           req.Name,
-		Description:    req.Description,
-		RedirectURIs:   req.RedirectURIs,
-		Scopes:         req.Scopes,
-		AllowedOrigins: req.AllowedOrigins,
+		Name:                    req.Name,
+		Description:             req.Description,
+		TokenEndpointAuthMethod: req.TokenEndpointAuthMethod,
+		SubjectType:             req.SubjectType,
+		SectorIdentifierURI:     req.SectorIdentifierURI,
+		ClientJWKS:              req.ClientJWKS,
+		ClientJWKSURI:           req.ClientJWKSURI,
+		RedirectURIs:            req.RedirectURIs,
+		PostLogoutRedirectURIs:  req.PostLogoutRedirectURIs,
+		Scopes:                  req.Scopes,
+		AllowedOrigins:          req.AllowedOrigins,
 	}
 
 	// 获取当前用户ID

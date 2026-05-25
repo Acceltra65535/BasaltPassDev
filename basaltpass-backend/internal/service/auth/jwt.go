@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"basaltpass-backend/internal/common"
@@ -75,6 +76,10 @@ func GenerateTokenPairWithTenant(userID uint, tenantID uint) (TokenPair, error) 
 // - tenant: tenant console
 // - admin: global admin console
 func GenerateTokenPairWithTenantAndScope(userID uint, tenantID uint, scope string) (TokenPair, error) {
+	return GenerateTokenPairWithTenantScopeAndAuthMethods(userID, tenantID, scope, []string{"pwd"})
+}
+
+func GenerateTokenPairWithTenantScopeAndAuthMethods(userID uint, tenantID uint, scope string, methods []string) (TokenPair, error) {
 	if scope == "" {
 		scope = ConsoleScopeUser
 	}
@@ -91,12 +96,19 @@ func GenerateTokenPairWithTenantAndScope(userID uint, tenantID uint, scope strin
 		}
 	}
 
+	now := time.Now()
+	amr := normalizeAuthMethods(methods)
+	acr := acrForAuthMethods(amr)
 	accessClaims := jwt.MapClaims{
-		"sub": userID,
-		"tid": tenantID, // 租户ID - 现在直接使用user.tenant_id
-		"scp": scope,    // console scope
-		"typ": TokenTypeAccess,
-		"exp": time.Now().Add(15 * time.Minute).Unix(),
+		"sub":       userID,
+		"tid":       tenantID, // 租户ID - 现在直接使用user.tenant_id
+		"scp":       scope,    // console scope
+		"typ":       TokenTypeAccess,
+		"iat":       now.Unix(),
+		"auth_time": now.Unix(),
+		"acr":       acr,
+		"amr":       amr,
+		"exp":       now.Add(15 * time.Minute).Unix(),
 	}
 	secret, err := common.JWTSecret()
 	if err != nil {
@@ -110,11 +122,15 @@ func GenerateTokenPairWithTenantAndScope(userID uint, tenantID uint, scope strin
 	}
 
 	refreshClaims := jwt.MapClaims{
-		"sub": userID,
-		"tid": tenantID,
-		"scp": scope,
-		"exp": time.Now().Add(7 * 24 * time.Hour).Unix(),
-		"typ": TokenTypeRefresh,
+		"sub":       userID,
+		"tid":       tenantID,
+		"scp":       scope,
+		"iat":       now.Unix(),
+		"auth_time": now.Unix(),
+		"acr":       acr,
+		"amr":       amr,
+		"exp":       now.Add(7 * 24 * time.Hour).Unix(),
+		"typ":       TokenTypeRefresh,
 	}
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString(secret)
 	if err != nil {
@@ -124,6 +140,41 @@ func GenerateTokenPairWithTenantAndScope(userID uint, tenantID uint, scope strin
 
 	log.Printf("[auth][debug] Tokens generated successfully for userID=%d, tenantID=%d, scope=%s", userID, tenantID, scope)
 	return TokenPair{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+}
+
+func normalizeAuthMethods(methods []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(methods))
+	for _, method := range methods {
+		method = strings.TrimSpace(method)
+		if method == "" {
+			continue
+		}
+		if _, exists := seen[method]; exists {
+			continue
+		}
+		seen[method] = struct{}{}
+		out = append(out, method)
+	}
+	if len(out) == 0 {
+		return []string{"pwd"}
+	}
+	return out
+}
+
+func acrForAuthMethods(methods []string) string {
+	if len(methods) > 1 {
+		return "urn:basaltpass:acr:mfa"
+	}
+	for _, method := range methods {
+		switch method {
+		case "webauthn":
+			return "urn:basaltpass:acr:webauthn"
+		case "otp":
+			return "urn:basaltpass:acr:mfa"
+		}
+	}
+	return "urn:basaltpass:acr:password"
 }
 
 func resolveTokenTenantID(userID uint, claimedTenantID uint, scope string) (uint, error) {

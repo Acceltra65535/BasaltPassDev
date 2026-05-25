@@ -30,6 +30,11 @@ type User struct {
 	Phone         string `gorm:"size:32;index;default:null" json:"phone"`
 	PasswordHash  string `gorm:"size:255"`
 	Nickname      string `gorm:"size:64"`
+	GivenName     string `gorm:"size:64" json:"given_name"`
+	FamilyName    string `gorm:"size:64" json:"family_name"`
+	MiddleName    string `gorm:"size:64" json:"middle_name"`
+	Locale        string `gorm:"size:32" json:"locale"`
+	Zoneinfo      string `gorm:"size:64" json:"zoneinfo"`
 	AvatarURL     string `gorm:"size:255"`
 	TOTPSecret    string `gorm:"size:64"`
 	TwoFAEnabled  bool

@@ -34,6 +34,7 @@ func RegisterOAuthRoutes(v1 fiber.Router) {
 	oauthServerGroup.Post("/consent", oauth.ConsentHandler)
 	oauthServerGroup.Post("/token", oauth.TokenHandler)
 	oauthServerGroup.Get("/userinfo", oauth.UserInfoHandler)
+	oauthServerGroup.Post("/userinfo", oauth.UserInfoHandler)
 	oauthServerGroup.Post("/introspect", oauth.OAuthClientAuthMiddleware(), oauth.IntrospectHandler)
 	oauthServerGroup.Post("/revoke", oauth.OAuthClientAuthMiddleware(), oauth.RevokeHandler)
 	oauthServerGroup.Get("/jwks", oauth.JWKSHandler)
@@ -53,6 +54,10 @@ func RegisterOAuthRoutes(v1 fiber.Router) {
 	authGroup.Post("/verify-2fa",
 		ratelimit.Verify2FARateLimit(),
 		timeout.NewWithContext(auth2.Verify2FAHandler, authRouteTimeout),
+	)
+	authGroup.Post("/2fa/email/send",
+		ratelimit.Verify2FARateLimit(),
+		timeout.NewWithContext(auth2.SendEmail2FAHandler, authRouteTimeout),
 	)
 	authGroup.Post("/identity/switch", middleware.JWTMiddleware(), auth2.SwitchUserTenantIdentityHandler)
 	authGroup.Post("/console/authorize", middleware.JWTMiddleware(), auth2.ConsoleAuthorizeHandler)
