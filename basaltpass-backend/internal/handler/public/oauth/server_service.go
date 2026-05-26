@@ -456,6 +456,16 @@ func (s *OAuthServerService) buildIDToken(clientID string, userID uint, nonce st
 	if nonce != "" {
 		claims["nonce"] = nonce
 	}
+	if hasScope(scopes, "email") {
+		var user model.User
+		if err := s.db.Select("email", "email_verified").First(&user, userID).Error; err != nil {
+			return "", err
+		}
+		if email := strings.TrimSpace(user.Email); email != "" {
+			claims["email"] = email
+			claims["email_verified"] = user.EmailVerified
+		}
+	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = GetKeyID()
