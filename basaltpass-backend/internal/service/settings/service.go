@@ -56,7 +56,7 @@ func defaultItems() map[string]SettingItem {
 	return map[string]SettingItem{
 		// General
 		"general.site_name":   {Value: "BasaltPass", Category: "general", Description: "系统名称"},
-		"general.site_url":    {Value: "http://localhost:8101", Category: "general", Description: "站点 URL（用于邮件、回调等绝对链接）"},
+		"general.site_url":    {Value: "http://localhost:5101", Category: "general", Description: "站点 URL（用于邮件、回调等绝对链接）"},
 		"general.timezone":    {Value: "Asia/Shanghai", Category: "general", Description: "默认时区"},
 		"general.locale":      {Value: "zh-CN", Category: "general", Description: "默认语言/区域"},
 		"general.theme":       {Value: "light", Category: "general", Description: "默认主题（light/dark/system）"},
