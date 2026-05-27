@@ -261,27 +261,27 @@ export default function TenantLayout({ children, title, actions }: TenantLayoutP
             <div className="flex flex-shrink-0 border-t border-gray-200 p-2">
               <div className="flex w-full items-center justify-between">
               {/*  */}
-              <div ref={mobileUserMenuRef} className="relative">
+              <div ref={mobileUserMenuRef} className="relative min-w-0 flex-1">
                 <PButton
                   variant="ghost" 
                   size="sm"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center justify-start rounded-lg bg-white px-1 py-1 text-sm focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-50"
+                  className="flex w-full min-w-0 items-center justify-start rounded-lg bg-white px-1 py-1 text-sm focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-50"
                 >
                   <span className="sr-only">{t('common.openUserMenu')}</span>
                   {user?.avatar_url ? (
                     <img 
-                      className="h-7 w-7 rounded-full object-cover" 
+                      className="h-7 w-7 flex-shrink-0 rounded-full object-cover" 
                       src={user.avatar_url} 
                       alt={user.nickname || user.email}
                     />
                   ) : (
-                    <div className="h-7 w-7 rounded-full bg-blue-600 flex items-center justify-center">
+                    <div className="h-7 w-7 flex-shrink-0 rounded-full bg-blue-600 flex items-center justify-center">
                       <span className="text-xs font-medium text-white">{getUserInitial()}</span>
                     </div>
                   )}
-                  <span className="ml-2 max-w-[8rem] truncate text-sm font-medium text-gray-700">{userDisplayName}</span>
-                  <ChevronDownIcon className="ml-1 h-4 w-4 text-gray-500" />
+                  <span className="ml-2 min-w-0 flex-1 truncate text-sm font-medium text-gray-700" title={userDisplayName}>{userDisplayName}</span>
+                  <ChevronDownIcon className="ml-1 h-4 w-4 flex-shrink-0 text-gray-500" />
                 </PButton>
 
                 {/*  */}
@@ -369,7 +369,7 @@ export default function TenantLayout({ children, title, actions }: TenantLayoutP
               </div>
 
               {/* ： NotificationProvider ， */}
-              <div className="relative ml-3 flex flex-shrink-0 items-center gap-2">
+              <div className="relative ml-2 flex flex-shrink-0 items-center gap-2">
                 {renderThemeControl('mobile-sidebar')}
                 <span className="sr-only">{t('common.viewNotifications')}</span>
                 <EnhancedNotificationIcon
@@ -400,27 +400,27 @@ export default function TenantLayout({ children, title, actions }: TenantLayoutP
             <div className="flex flex-shrink-0 border-t border-gray-200 p-2">
               <div className="flex w-full items-center justify-between">
               {/*  */}
-              <div ref={desktopUserMenuRef} className="relative">
+              <div ref={desktopUserMenuRef} className="relative min-w-0 flex-1">
                 <PButton
                   variant="ghost" 
                   size="sm"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center justify-start rounded-lg bg-white px-1 py-1 text-sm focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-50"
+                  className="flex w-full min-w-0 items-center justify-start rounded-lg bg-white px-1 py-1 text-sm focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-50"
                 >
                   <span className="sr-only">{t('common.openUserMenu')}</span>
                   {user?.avatar_url ? (
                     <img 
-                      className="h-7 w-7 rounded-full object-cover" 
+                      className="h-7 w-7 flex-shrink-0 rounded-full object-cover" 
                       src={user.avatar_url} 
                       alt={user.nickname || user.email}
                     />
                   ) : (
-                    <div className="h-7 w-7 rounded-full bg-blue-600 flex items-center justify-center">
+                    <div className="h-7 w-7 flex-shrink-0 rounded-full bg-blue-600 flex items-center justify-center">
                       <span className="text-xs font-medium text-white">{getUserInitial()}</span>
                     </div>
                   )}
-                  <span className="ml-2 max-w-[8rem] truncate text-sm font-medium text-gray-700">{userDisplayName}</span>
-                  <ChevronDownIcon className="ml-1 h-4 w-4 text-gray-500" />
+                  <span className="ml-2 min-w-0 flex-1 truncate text-sm font-medium text-gray-700" title={userDisplayName}>{userDisplayName}</span>
+                  <ChevronDownIcon className="ml-1 h-4 w-4 flex-shrink-0 text-gray-500" />
                 </PButton>
 
                 {/*  */}
@@ -508,7 +508,7 @@ export default function TenantLayout({ children, title, actions }: TenantLayoutP
               </div>
 
               {/* ： NotificationProvider ， */}
-              <div className="relative ml-3 flex flex-shrink-0 items-center gap-2">
+              <div className="relative ml-2 flex flex-shrink-0 items-center gap-2">
                 {renderThemeControl('desktop')}
                 <span className="sr-only">{t('common.viewNotifications')}</span>
                 <EnhancedNotificationIcon
