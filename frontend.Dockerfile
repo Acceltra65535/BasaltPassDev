@@ -1,4 +1,4 @@
-FROM node:18-bullseye-slim AS builder
+FROM node:26-bullseye-slim AS builder
 WORKDIR /app
 ARG VITE_API_BASE
 ARG VITE_APP_VERSION
