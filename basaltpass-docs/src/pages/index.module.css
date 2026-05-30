@@ -52,6 +52,13 @@
   box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08);
 }
 
+.heroLogo {
+  display: block;
+  width: min(100%, 18rem);
+  height: auto;
+  margin: 0 0 1rem;
+}
+
 .heroPanelTitle {
   margin: 0 0 1rem;
   font-weight: 700;

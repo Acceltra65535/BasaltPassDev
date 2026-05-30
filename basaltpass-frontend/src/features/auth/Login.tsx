@@ -16,7 +16,7 @@ import { useLoginFlow } from './login/useLoginFlow'
 function Login() {
   const navigate = useNavigate()
   const { login } = useAuth()
-  const { siteName, siteInitial, setPageTitle } = useConfig()
+  const { siteName, setPageTitle } = useConfig()
   const { t } = useI18n()
   const [searchParams] = useSearchParams()
 
@@ -90,7 +90,7 @@ function Login() {
   }, [step, twoFAType, totpInputRef])
 
   return (
-    <LoginShell siteInitial={siteInitial} siteName={siteName}>
+    <LoginShell siteName={siteName}>
       {error && step === 1 && (
         <div className="mt-6">
           <PAlert variant="error" title={t('auth.login.errorTitle')} message={error} />

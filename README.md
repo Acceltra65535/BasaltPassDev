@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/basaltpass-logo-wordmark.svg" alt="BasaltPass" width="420" />
+</p>
+
 # BasaltPass
 
 BasaltPass is a production-ready, multi-tenant identity and access platform for modern SaaS systems.

@@ -2,6 +2,7 @@ import {useEffect, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
@@ -116,6 +117,8 @@ const quickLinks: QuickLink[] = [
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
+  const wordmarkSrc = useBaseUrl('/img/brand/basaltpass-logo-wordmark.svg');
+
   return (
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
       <div className="container">
@@ -142,6 +145,7 @@ function HomepageHeader() {
             </div>
           </div>
           <div className={styles.heroPanel}>
+            <img className={styles.heroLogo} src={wordmarkSrc} alt="BasaltPass" />
             <p className={styles.heroPanelTitle}>
               <Translate id="homepage.capabilities.heading">What BasaltPass already covers</Translate>
             </p>

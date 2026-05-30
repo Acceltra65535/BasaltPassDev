@@ -60,12 +60,12 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/logo.svg',
+    image: 'img/brand/basaltpass-logo-wordmark-card.svg',
     navbar: {
       title: 'BasaltPass',
       logo: {
         alt: 'BasaltPass Logo',
-        src: 'img/logo.svg',
+        src: 'img/brand/basaltpass-logo-symbol.svg',
       },
       items: [
         {

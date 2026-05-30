@@ -11,6 +11,7 @@ import { PButton } from '@ui'
 import { authorizeConsole, joinConsoleUrl } from '@api/console'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
+import basaltPassLogoSymbol from '@shared/assets/brand/basaltpass-logo-symbol.svg'
 
 interface TenantLayoutProps {
   children: ReactNode
@@ -251,8 +252,9 @@ export default function TenantLayout({ children, title, actions }: TenantLayoutP
                 </button>
               </div>
               <div className="h-0 min-h-0 flex-1 overflow-y-auto pt-5 pb-4">
-                <div className="flex flex-shrink-0 items-center px-4">
-                  <h1 className="text-2xl font-bold text-gray-900">{siteName}</h1>
+                <div className="flex flex-shrink-0 items-center gap-3 px-4">
+                  <img className="h-9 w-9 flex-shrink-0 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
+                  <h1 className="truncate text-2xl font-bold text-gray-900">{siteName}</h1>
                 </div>
                 <nav className="mt-5 space-y-1 px-2">
                   <TenantNavigation />
@@ -390,8 +392,9 @@ export default function TenantLayout({ children, title, actions }: TenantLayoutP
         <div className="hidden lg:flex lg:w-64 lg:min-h-0 lg:flex-col lg:fixed lg:inset-y-0">
           <div className="flex flex-1 min-h-0 flex-col bg-white border-r border-gray-200">
             <div className="flex flex-1 min-h-0 flex-col overflow-y-auto pt-5 pb-4">
-              <div className="flex items-center flex-shrink-0 px-4">
-                <h1 className="text-2xl font-bold text-gray-900">{siteName}</h1>
+              <div className="flex items-center flex-shrink-0 gap-3 px-4">
+                <img className="h-9 w-9 flex-shrink-0 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
+                <h1 className="truncate text-2xl font-bold text-gray-900">{siteName}</h1>
               </div>
               <div className="mt-5 flex flex-1 flex-col px-3">
                 <TenantNavigation />

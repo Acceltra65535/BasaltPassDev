@@ -2,14 +2,14 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
+import basaltPassLogoSymbol from '@shared/assets/brand/basaltpass-logo-symbol.svg'
 
 interface LoginShellProps {
   children: ReactNode
-  siteInitial: string
   siteName: string
 }
 
-export function LoginShell({ children, siteInitial, siteName }: LoginShellProps) {
+export function LoginShell({ children, siteName }: LoginShellProps) {
   const { t } = useI18n()
 
   return (
@@ -18,8 +18,8 @@ export function LoginShell({ children, siteInitial, siteName }: LoginShellProps)
         <div className="w-full rounded-2xl border border-gray-200 bg-white px-6 py-8 shadow-sm sm:px-8">
           <div className="space-y-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900">
-                <span className="text-sm font-semibold text-white">{siteInitial}</span>
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-white">
+                <img className="h-10 w-10 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">{siteName}</p>

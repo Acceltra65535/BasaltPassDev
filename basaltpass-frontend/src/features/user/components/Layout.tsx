@@ -31,6 +31,7 @@ import { uiAlert } from '@contexts/DialogContext'
 import { ROUTES } from '@constants'
 import ConsoleAccountSwitcherModal from '@components/ConsoleAccountSwitcherModal'
 import { useI18n } from '@shared/i18n'
+import basaltPassLogoSymbol from '@shared/assets/brand/basaltpass-logo-symbol.svg'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -328,8 +329,9 @@ export default function Layout({ children }: LayoutProps) {
               </PButton>
             </div>
             <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
-              <div className="flex-shrink-0 flex items-center px-4">
-                <h1 className="text-2xl font-bold text-gray-900">{tenantDisplayName}</h1>
+              <div className="flex-shrink-0 flex items-center gap-3 px-4">
+                <img className="h-9 w-9 flex-shrink-0 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
+                <h1 className="truncate text-2xl font-bold text-gray-900">{tenantDisplayName}</h1>
               </div>
               <nav className="mt-5 px-2 space-y-1">
                 {filteredNavigation.map((item) => (
@@ -467,8 +469,9 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex flex-col w-64">
           <div className="flex flex-col h-0 flex-1 border-r border-gray-200 bg-white">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-              <div className="flex items-center flex-shrink-0 px-4">
-                <h1 className="text-2xl font-bold text-gray-900">{tenantDisplayName}</h1>
+              <div className="flex items-center flex-shrink-0 gap-3 px-4">
+                <img className="h-9 w-9 flex-shrink-0 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
+                <h1 className="truncate text-2xl font-bold text-gray-900">{tenantDisplayName}</h1>
               </div>
               <nav className="mt-5 flex-1 px-2 bg-white space-y-1">
                 {filteredNavigation.map((item) => (
