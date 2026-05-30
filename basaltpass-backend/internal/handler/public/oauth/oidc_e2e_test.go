@@ -117,7 +117,10 @@ func TestOIDCAuthCodePKCEIssuesIDTokenAndJWKSVerifies(t *testing.T) {
 	if claims["azp"] != client.ClientID {
 		t.Fatalf("unexpected azp claim: %v", claims["azp"])
 	}
-	for _, claim := range []string{"email", "email_verified", "name", "preferred_username", "given_name", "family_name", "middle_name", "picture"} {
+	if claims["email"] != user.Email || claims["email_verified"] != user.EmailVerified {
+		t.Fatalf("expected email claims in id_token: email=%v email_verified=%v", claims["email"], claims["email_verified"])
+	}
+	for _, claim := range []string{"name", "preferred_username", "given_name", "family_name", "middle_name", "picture"} {
 		if _, exists := claims[claim]; exists {
 			t.Fatalf("code-flow id_token should leave %s to userinfo, claims=%v", claim, claims)
 		}
@@ -157,6 +160,9 @@ func TestOIDCAuthCodePKCEIssuesIDTokenAndJWKSVerifies(t *testing.T) {
 	}
 	if refreshedClaims["auth_time"] != claims["auth_time"] {
 		t.Fatalf("refresh id_token should preserve auth_time, got=%v want=%v", refreshedClaims["auth_time"], claims["auth_time"])
+	}
+	if refreshedClaims["email"] != user.Email || refreshedClaims["email_verified"] != user.EmailVerified {
+		t.Fatalf("expected refreshed email claims: email=%v email_verified=%v", refreshedClaims["email"], refreshedClaims["email_verified"])
 	}
 }
 

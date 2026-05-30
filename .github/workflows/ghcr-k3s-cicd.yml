@@ -154,11 +154,14 @@ jobs:
       - name: Configure BasaltPass backend secret
         shell: bash
         run: |
+          PUBLIC_URL="${{ vars.BASALTPASS_PUBLIC_URL }}"
+          PUBLIC_URL="${PUBLIC_URL%/}"
           kubectl -n "${NAMESPACE}" create secret generic basaltpass-env \
             --from-literal=JWT_SECRET="${{ secrets.PROD_JWT_SECRET }}" \
             --from-literal=BASALTPASS_ENV=production \
             --from-literal=BASALTPASS_SERVER_ADDRESS=:8101 \
-            --from-literal=BASALTPASS_UI_BASE_URL="${{ vars.BASALTPASS_PUBLIC_URL }}" \
+            --from-literal=BASALTPASS_UI_BASE_URL="${PUBLIC_URL}" \
+            --from-literal=BASALTPASS_OIDC_ISSUER="${PUBLIC_URL}/api/v1" \
             --from-literal=BASALTPASS_DATABASE_DRIVER="${{ vars.BASALTPASS_DATABASE_DRIVER || 'postgres' }}" \
             --from-literal=BASALTPASS_DATABASE_DSN="${{ secrets.BASALTPASS_DATABASE_DSN }}" \
             --from-literal=BASALTPASS_CORS_ALLOW_ORIGINS="${{ vars.BASALTPASS_CORS_ALLOW_ORIGINS }}" \
