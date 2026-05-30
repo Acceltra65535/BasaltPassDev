@@ -22,12 +22,14 @@ import (
 
 // OneTapAuthRequest One-Tap认证请求
 type OneTapAuthRequest struct {
-	ClientID     string `json:"client_id" validate:"required"`
-	Scope        string `json:"scope,omitempty"`
-	Nonce        string `json:"nonce,omitempty"`
-	State        string `json:"state,omitempty"`
-	RedirectURI  string `json:"redirect_uri,omitempty"`
-	ResponseType string `json:"response_type,omitempty"` // must be "code" when provided
+	ClientID            string `json:"client_id" validate:"required"`
+	Scope               string `json:"scope,omitempty"`
+	Nonce               string `json:"nonce,omitempty"`
+	State               string `json:"state,omitempty"`
+	RedirectURI         string `json:"redirect_uri,omitempty"`
+	ResponseType        string `json:"response_type,omitempty"` // must be "code" when provided
+	CodeChallenge       string `json:"code_challenge,omitempty"`
+	CodeChallengeMethod string `json:"code_challenge_method,omitempty"`
 }
 
 // OneTapAuthResponse One-Tap认证响应
@@ -86,12 +88,14 @@ func OneTapLoginHandler(c *fiber.Ctx) error {
 
 	scope := normalizeRequestedScope(req.Scope, client)
 	authReq := &AuthorizeRequest{
-		ClientID:     req.ClientID,
-		RedirectURI:  req.RedirectURI,
-		ResponseType: "code",
-		Scope:        scope,
-		Nonce:        req.Nonce,
-		State:        req.State,
+		ClientID:            req.ClientID,
+		RedirectURI:         req.RedirectURI,
+		ResponseType:        "code",
+		Scope:               scope,
+		Nonce:               req.Nonce,
+		State:               req.State,
+		CodeChallenge:       req.CodeChallenge,
+		CodeChallengeMethod: req.CodeChallengeMethod,
 	}
 	validatedClient, err := oauthServerService.ValidateAuthorizeRequest(authReq)
 	if err != nil {
@@ -150,6 +154,8 @@ func SilentAuthHandler(c *fiber.Ctx) error {
 	state := c.Query("state")
 	scope := c.Query("scope")
 	nonce := c.Query("nonce")
+	codeChallenge := c.Query("code_challenge")
+	codeChallengeMethod := c.Query("code_challenge_method")
 
 	if prompt != "none" {
 		return renderSilentAuthError(c, fiber.StatusBadRequest, clientID, redirectURI, state, "invalid_request")
@@ -171,12 +177,14 @@ func SilentAuthHandler(c *fiber.Ctx) error {
 		return renderSilentAuthError(c, fiber.StatusForbidden, clientID, redirectURI, state, "access_denied")
 	}
 	authReq := &AuthorizeRequest{
-		ClientID:     clientID,
-		RedirectURI:  redirectURI,
-		ResponseType: "code",
-		Scope:        normalizeRequestedScope(scope, client),
-		Nonce:        nonce,
-		State:        state,
+		ClientID:            clientID,
+		RedirectURI:         redirectURI,
+		ResponseType:        "code",
+		Scope:               normalizeRequestedScope(scope, client),
+		Nonce:               nonce,
+		State:               state,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: codeChallengeMethod,
 	}
 	validatedClient, err := oauthServerService.ValidateAuthorizeRequest(authReq)
 	if err != nil {

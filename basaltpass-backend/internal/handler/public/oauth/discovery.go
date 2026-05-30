@@ -55,7 +55,6 @@ type OIDCDiscoveryResponse struct {
 	RequestParameterSupported                  bool     `json:"request_parameter_supported"`
 	RequestObjectSigningAlgValuesSupported     []string `json:"request_object_signing_alg_values_supported,omitempty"`
 
-	// TODO ⬇️ One-Tap Auth支持
 	CheckSessionIframe string `json:"check_session_iframe,omitempty"`
 	EndSessionEndpoint string `json:"end_session_endpoint,omitempty"`
 }
@@ -88,7 +87,6 @@ func DiscoveryHandler(c *fiber.Ctx) error {
 		ResponseModesSupported: []string{
 			"query",
 			"fragment",
-			// TODO ⬇️ "web_message", // One-Tap Auth支持
 		},
 		PromptValuesSupported: []string{
 			"none",
@@ -156,7 +154,6 @@ func DiscoveryHandler(c *fiber.Ctx) error {
 			"none",
 		},
 
-		// TODO ⬇️ One-Tap Auth和Silent Auth端点
 		CheckSessionIframe: issuer + "/check_session_iframe",
 		EndSessionEndpoint: issuer + "/end_session",
 	}
@@ -457,7 +454,6 @@ func GetKeyID() string {
 // CheckSessionIframeHandler 会话检查iframe端点
 // GET /check_session_iframe
 func CheckSessionIframeHandler(c *fiber.Ctx) error {
-	// TODO ⬇️ 实现One-Tap Auth的会话检查iframe
 	html := `
 <!DOCTYPE html>
 <html>

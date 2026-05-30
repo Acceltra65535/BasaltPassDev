@@ -36,7 +36,7 @@ func setupOIDCE2EDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open sqlite failed: %v", err)
 	}
-	if err := db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantUser{}, &model.Gender{}, &model.UserProfile{}, &model.App{}, &model.OAuthClient{}, &model.OAuthAuthorizationCode{}, &model.OAuthAccessToken{}, &model.OAuthRefreshToken{}, &model.OIDCSigningKey{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantUser{}, &model.Gender{}, &model.UserProfile{}, &model.App{}, &model.AppUser{}, &model.OAuthClient{}, &model.OAuthAuthorizationCode{}, &model.OAuthAccessToken{}, &model.OAuthRefreshToken{}, &model.OIDCSigningKey{}); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
 	common.SetDBForTest(db)
@@ -490,12 +490,13 @@ func TestOIDCDiscoveryMetadataAdvertisesSupportedEndpoints(t *testing.T) {
 		t.Fatalf("decode discovery: %v", err)
 	}
 
+	issuer := oidcIssuer()
 	expected := map[string]string{
-		"issuer":                 "http://localhost:8101/api/v1",
-		"revocation_endpoint":    "http://localhost:8101/api/v1/oauth/revoke",
-		"introspection_endpoint": "http://localhost:8101/api/v1/oauth/introspect",
-		"end_session_endpoint":   "http://localhost:8101/api/v1/end_session",
-		"check_session_iframe":   "http://localhost:8101/api/v1/check_session_iframe",
+		"issuer":                 issuer,
+		"revocation_endpoint":    issuer + "/oauth/revoke",
+		"introspection_endpoint": issuer + "/oauth/introspect",
+		"end_session_endpoint":   issuer + "/end_session",
+		"check_session_iframe":   issuer + "/check_session_iframe",
 	}
 	for key, want := range expected {
 		if got := payload[key]; got != want {

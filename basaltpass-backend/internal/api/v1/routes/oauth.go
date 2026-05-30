@@ -39,7 +39,7 @@ func RegisterOAuthRoutes(v1 fiber.Router) {
 	oauthServerGroup.Post("/revoke", oauth.OAuthClientAuthMiddleware(), oauth.RevokeHandler)
 	oauthServerGroup.Get("/jwks", oauth.JWKSHandler)
 
-	// TODO ⬇️ One-Tap Auth和Silent Auth端点
+	// One-Tap Auth and Silent Auth issue authorization codes for standard token exchange.
 	oauthServerGroup.Post("/one-tap/login", oauth.OneTapLoginHandler)
 	oauthServerGroup.Get("/silent-auth", oauth.SilentAuthHandler)
 	oauthServerGroup.Get("/check-session", oauth.CheckSessionHandler)
