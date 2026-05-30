@@ -16,6 +16,7 @@ import (
 
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/tenantquota"
 
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
@@ -603,6 +604,10 @@ func (s *OAuthServerService) ExchangeCodeForToken(req *TokenRequest, clientID st
 	}
 
 	// 9. 生成访问令牌
+	if err := tenantquota.EnsureTokensWithinLimit(s.db, authCode.TenantID, time.Now()); err != nil {
+		return nil, err
+	}
+
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		return nil, err
@@ -743,6 +748,10 @@ func (s *OAuthServerService) RefreshAccessToken(refreshToken string, clientID st
 	}
 
 	// 3. 生成新的访问令牌
+	if err := tenantquota.EnsureTokensWithinLimit(s.db, refreshTokenModel.TenantID, time.Now()); err != nil {
+		return nil, err
+	}
+
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		return nil, err
@@ -1234,6 +1243,9 @@ func (s *OAuthServerService) EnsureUserTenantIdentity(userID, tenantID uint, rol
 		return err
 	}
 
+	if err := tenantquota.EnsureUserCanJoin(s.db, tenantID, userID); err != nil {
+		return err
+	}
 	return s.db.Create(&model.TenantUser{
 		UserID:   userID,
 		TenantID: tenantID,

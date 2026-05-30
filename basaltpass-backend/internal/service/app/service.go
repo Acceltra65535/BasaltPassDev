@@ -8,6 +8,7 @@ import (
 
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/tenantquota"
 
 	"gorm.io/gorm"
 )
@@ -176,6 +177,10 @@ func (s *AppService) CreateApp(tenantID, creatorUserID uint, req *CreateAppReque
 
 	// 开始事务
 	tx := s.db.Begin()
+	if err := tenantquota.EnsureAppsWithinLimit(tx, tenantID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 	if err := tx.Create(app).Error; err != nil {
 		tx.Rollback()
 		return nil, err
@@ -185,6 +190,10 @@ func (s *AppService) CreateApp(tenantID, creatorUserID uint, req *CreateAppReque
 	var tenantUser model.TenantUser
 	if err := tx.Where("user_id = ? AND tenant_id = ?", creatorUserID, tenantID).First(&tenantUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := tenantquota.EnsureUserCanJoin(tx, tenantID, creatorUserID); err != nil {
+				tx.Rollback()
+				return nil, err
+			}
 			if err := tx.Create(&model.TenantUser{
 				UserID:   creatorUserID,
 				TenantID: tenantID,
@@ -727,6 +736,10 @@ func (s *AppService) AdminCreateApp(req *AdminCreateAppRequest) (*AppResponse, e
 
 	// 开始事务
 	tx := s.db.Begin()
+	if err := tenantquota.EnsureAppsWithinLimit(tx, req.TenantID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 	if err := tx.Create(app).Error; err != nil {
 		tx.Rollback()
 		return nil, err

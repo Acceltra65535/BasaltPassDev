@@ -8,6 +8,7 @@ import (
 	"basaltpass-backend/internal/service/passwordpolicy"
 	settingssvc "basaltpass-backend/internal/service/settings"
 	tenantservice "basaltpass-backend/internal/service/tenant"
+	"basaltpass-backend/internal/service/tenantquota"
 	"basaltpass-backend/internal/service/wallet"
 	"basaltpass-backend/internal/utils"
 	"context"
@@ -407,6 +408,12 @@ func (s *Service) CompleteSignup(req CompleteSignupRequest) (*model.User, error)
 		tx.Rollback()
 		return nil, err
 	}
+	if pendingSignup.TenantID > 0 {
+		if err := tenantquota.EnsureUsersWithinLimit(tx, pendingSignup.TenantID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
 
 	// 检查是否是第一个用户
 	var userCount int64
@@ -459,6 +466,10 @@ func (s *Service) CompleteSignup(req CompleteSignupRequest) (*model.User, error)
 			var cnt int64
 			tx.Model(&model.TenantUser{}).Where("user_id = ? AND tenant_id = ?", user.ID, inv.TenantID).Count(&cnt)
 			if cnt == 0 {
+				if err := tenantquota.EnsureUserCanJoin(tx, inv.TenantID, user.ID); err != nil {
+					tx.Rollback()
+					return nil, err
+				}
 				tenantUser := model.TenantUser{
 					UserID:   user.ID,
 					TenantID: inv.TenantID,

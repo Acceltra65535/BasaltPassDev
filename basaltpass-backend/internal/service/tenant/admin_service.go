@@ -10,6 +10,7 @@ import (
 
 	admindto "basaltpass-backend/internal/dto/tenant"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/tenantquota"
 
 	"gorm.io/gorm"
 )
@@ -121,8 +122,7 @@ func (s *AdminTenantService) GetTenantDetail(id uint) (*admindto.AdminTenantDeta
 	s.db.Model(&model.App{}).Where("tenant_id = ?", id).Count(&appCount)
 	var activeAppCount int64
 	s.db.Model(&model.App{}).Where("tenant_id = ? AND status = ?", id, model.AppStatusActive).Count(&activeAppCount)
-	var quota model.TenantQuota
-	s.db.Where("tenant_id = ?", id).First(&quota)
+	quota, _ := tenantquota.Get(s.db, id)
 	var owner model.TenantUser
 	s.db.Preload("User").Where("tenant_id = ? AND role = ?", id, model.TenantRoleOwner).First(&owner)
 
@@ -146,6 +146,7 @@ func (s *AdminTenantService) GetTenantDetail(id uint) (*admindto.AdminTenantDeta
 	settings := admindto.TenantSettings{
 		MaxUsers:         quota.MaxUsers,
 		MaxApps:          quota.MaxApps,
+		MaxTeams:         quota.MaxTeams,
 		MaxTokensPerHour: quota.MaxTokensPerHour,
 	}
 	return &admindto.AdminTenantDetailResponse{AdminTenantListResponse: base, Settings: settings, Stats: stats, RecentUsers: recentUsers, RecentApps: recentApps}, nil
@@ -163,7 +164,10 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 	if !tenantCodePattern.MatchString(req.Code) {
 		return nil, errors.New("租户代码只能包含小写字母、数字和连字符")
 	}
-	if req.MaxApps <= 0 || req.MaxUsers <= 0 || req.MaxTokensPerHour <= 0 {
+	if req.MaxTeams == 0 {
+		req.MaxTeams = tenantquota.DefaultMaxTeams
+	}
+	if req.MaxApps <= 0 || req.MaxUsers <= 0 || req.MaxTeams <= 0 || req.MaxTokensPerHour <= 0 {
 		return nil, errors.New("租户配额必须大于 0")
 	}
 
@@ -209,6 +213,7 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 			TenantID:         tenant.ID,
 			MaxApps:          req.MaxApps,
 			MaxUsers:         req.MaxUsers,
+			MaxTeams:         req.MaxTeams,
 			MaxTokensPerHour: req.MaxTokensPerHour,
 		}
 		if err := tx.Create(quota).Error; err != nil {

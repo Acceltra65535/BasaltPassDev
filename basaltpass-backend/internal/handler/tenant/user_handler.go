@@ -8,6 +8,7 @@ import (
 	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/model"
 	emailservice "basaltpass-backend/internal/service/email"
+	"basaltpass-backend/internal/service/tenantquota"
 	"basaltpass-backend/internal/utils"
 
 	"context"
@@ -590,6 +591,12 @@ func AuthorizeGlobalUserToTenantHandler(c *fiber.Ctx) error {
 			TenantID: tenantID,
 			Role:     assignedRole,
 		}
+		if err := tenantquota.EnsureUserCanJoin(tx, tenantID, user.ID); err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
 		if err := tx.Create(&newTenantUser).Error; err != nil {
 			tx.Rollback()
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -863,6 +870,13 @@ func InviteTenantUserHandler(c *fiber.Ctx) error {
 				tx.Rollback()
 			}
 		}()
+
+		if err := tenantquota.EnsureUserCanJoin(tx, tenantID, existingUser.ID); err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
 
 		// 主关系落到 users.tenant_id
 		if err := tx.Model(&model.User{}).

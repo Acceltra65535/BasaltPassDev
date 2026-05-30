@@ -7,6 +7,7 @@ import (
 	"basaltpass-backend/internal/common"
 	admindto "basaltpass-backend/internal/dto/team"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/tenantquota"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -105,6 +106,9 @@ func CreateTenantTeamHandler(c *fiber.Ctx) error {
 	}
 
 	if err := common.DB().Transaction(func(tx *gorm.DB) error {
+		if err := tenantquota.EnsureTeamsWithinLimit(tx, tenantID); err != nil {
+			return err
+		}
 		if err := tx.Create(&t).Error; err != nil {
 			return err
 		}

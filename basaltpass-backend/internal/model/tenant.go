@@ -184,12 +184,12 @@ func (j *JSONMap) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, j)
 }
 
-// TODO ⬇️ 添加租户配额限制
 type TenantQuota struct {
 	ID               uint `gorm:"primaryKey" json:"id"`
 	TenantID         uint `gorm:"not null;uniqueIndex" json:"tenant_id"`
 	MaxApps          int  `gorm:"default:5" json:"max_apps"`               // 最大应用数量
 	MaxUsers         int  `gorm:"default:100" json:"max_users"`            // 最大用户数量
+	MaxTeams         int  `gorm:"default:20" json:"max_teams"`             // 最大团队数量
 	MaxTokensPerHour int  `gorm:"default:1000" json:"max_tokens_per_hour"` // 每小时最大令牌数
 
 	CreatedAt time.Time `json:"created_at"`

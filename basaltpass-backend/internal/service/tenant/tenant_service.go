@@ -9,6 +9,7 @@ import (
 
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/tenantquota"
 
 	"gorm.io/gorm"
 )
@@ -109,6 +110,7 @@ type TenantDetailStats struct {
 type TenantQuotaInfo struct {
 	MaxApps          int `json:"max_apps"`
 	MaxUsers         int `json:"max_users"`
+	MaxTeams         int `json:"max_teams"`
 	MaxTokensPerHour int `json:"max_tokens_per_hour"`
 }
 
@@ -139,9 +141,10 @@ func (s *TenantService) CreateTenant(ownerUserID uint, req *CreateTenantRequest)
 		TenantID: tenant.ID,
 	}
 
-	quota.MaxApps = 5
-	quota.MaxUsers = 100
-	quota.MaxTokensPerHour = 1000
+	quota.MaxApps = tenantquota.DefaultMaxApps
+	quota.MaxUsers = tenantquota.DefaultMaxUsers
+	quota.MaxTeams = tenantquota.DefaultMaxTeams
+	quota.MaxTokensPerHour = tenantquota.DefaultMaxTokensPerHour
 
 	if err := tx.Create(quota).Error; err != nil {
 		tx.Rollback()
@@ -641,19 +644,20 @@ func (s *TenantService) getTenantDetailStats(tenantID uint) *TenantDetailStats {
 
 // getTenantQuota 获取租户配额信息
 func (s *TenantService) getTenantQuota(tenantID uint) *TenantQuotaInfo {
-	var quota model.TenantQuota
-	if err := s.db.Where("tenant_id = ?", tenantID).First(&quota).Error; err != nil {
-		// 如果没有找到配额记录，返回默认值
+	quota, err := tenantquota.Get(s.db, tenantID)
+	if err != nil {
 		return &TenantQuotaInfo{
-			MaxApps:          5,
-			MaxUsers:         100,
-			MaxTokensPerHour: 1000,
+			MaxApps:          tenantquota.DefaultMaxApps,
+			MaxUsers:         tenantquota.DefaultMaxUsers,
+			MaxTeams:         tenantquota.DefaultMaxTeams,
+			MaxTokensPerHour: tenantquota.DefaultMaxTokensPerHour,
 		}
 	}
 
 	return &TenantQuotaInfo{
 		MaxApps:          quota.MaxApps,
 		MaxUsers:         quota.MaxUsers,
+		MaxTeams:         quota.MaxTeams,
 		MaxTokensPerHour: quota.MaxTokensPerHour,
 	}
 }

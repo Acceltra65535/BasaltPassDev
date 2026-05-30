@@ -3,6 +3,7 @@ package tokenexchange
 import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/tenantquota"
 	"errors"
 	"strings"
 	"sync"
@@ -127,6 +128,10 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 	targetClientID := s.resolveTargetClientID(targetApp.ID)
 
 	// Step 9: Generate the cross-app token
+	if err := tenantquota.EnsureTokensWithinLimit(s.db, tenantID, time.Now()); err != nil {
+		return nil, err
+	}
+
 	tokenStr, err := model.GenerateCrossAppToken()
 	if err != nil {
 		return nil, err
@@ -302,9 +307,9 @@ type trustCacheEntry struct {
 }
 
 type trustCache struct {
-	mu      sync.RWMutex
-	items   map[trustCacheKey]*trustCacheEntry
-	ttl     time.Duration
+	mu    sync.RWMutex
+	items map[trustCacheKey]*trustCacheEntry
+	ttl   time.Duration
 }
 
 func newTrustCache(ttl time.Duration) *trustCache {

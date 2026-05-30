@@ -22,6 +22,7 @@ type AdminCreateTenantRequest struct {
 	OwnerEmail       string         `json:"owner_email" validate:"required,email"`
 	MaxApps          int            `json:"max_apps" validate:"required,min=1"`
 	MaxUsers         int            `json:"max_users" validate:"required,min=1"`
+	MaxTeams         int            `json:"max_teams" validate:"omitempty,min=1"`
 	MaxTokensPerHour int            `json:"max_tokens_per_hour" validate:"required,min=1"`
 	Settings         TenantSettings `json:"settings"`
 }
@@ -127,6 +128,7 @@ type AdminTenantUserDetailResponse struct {
 type TenantSettings struct {
 	MaxUsers         int  `json:"max_users"`
 	MaxApps          int  `json:"max_apps"`
+	MaxTeams         int  `json:"max_teams"`
 	MaxTokensPerHour int  `json:"max_tokens_per_hour"`
 	MaxStorage       int  `json:"max_storage"` // MB
 	EnableAPI        bool `json:"enable_api"`
