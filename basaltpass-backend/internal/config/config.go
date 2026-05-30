@@ -122,7 +122,7 @@ func Load(path string) (*Config, error) {
 		} else {
 			log.Printf("env file not found at %s (skip): %v", custom, err)
 		}
-	} else {
+	} else if !runningTestBinary() {
 		if envPath := findRepositoryEnvFile(); envPath != "" {
 			if err := gotenv.Load(envPath); err == nil {
 				log.Printf("loaded env from %s", envPath)
@@ -287,4 +287,8 @@ func findRepositoryEnvFile() string {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func runningTestBinary() bool {
+	return strings.HasSuffix(os.Args[0], ".test")
 }

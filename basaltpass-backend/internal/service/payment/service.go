@@ -54,6 +54,8 @@ type MockStripeResponse struct {
 
 var ErrTenantStripeNotConfigured = errors.New("tenant stripe configuration is missing or disabled")
 
+const stripeWebhookSignatureTolerance = 5 * time.Minute
+
 type tenantStripeConfig struct {
 	TenantID       uint
 	Enabled        bool
@@ -307,7 +309,7 @@ func parseStripeSignatureHeader(signatureHeader string) (string, []string) {
 	return timestamp, v1Signatures
 }
 
-func verifyStripeSignature(payload []byte, signatureHeader, webhookSecret string) bool {
+func verifyStripeSignature(payload []byte, signatureHeader, webhookSecret string, now time.Time) bool {
 	webhookSecret = strings.TrimSpace(webhookSecret)
 	if webhookSecret == "" {
 		return false
@@ -315,6 +317,14 @@ func verifyStripeSignature(payload []byte, signatureHeader, webhookSecret string
 
 	timestamp, v1Signatures := parseStripeSignatureHeader(signatureHeader)
 	if timestamp == "" || len(v1Signatures) == 0 {
+		return false
+	}
+	signedAtUnix, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return false
+	}
+	signedAt := time.Unix(signedAtUnix, 0)
+	if signedAt.After(now.Add(stripeWebhookSignatureTolerance)) || now.Sub(signedAt) > stripeWebhookSignatureTolerance {
 		return false
 	}
 
@@ -332,46 +342,51 @@ func verifyStripeSignature(payload []byte, signatureHeader, webhookSecret string
 	return false
 }
 
-func findWebhookSecretByTenantID(db *gorm.DB, tenantID uint) string {
+type webhookSecretCandidate struct {
+	TenantID uint
+	Secret   string
+}
+
+func findWebhookSecretByTenantID(db *gorm.DB, tenantID uint) webhookSecretCandidate {
 	if tenantID == 0 {
-		return ""
+		return webhookSecretCandidate{}
 	}
 
 	var tenant model.Tenant
 	if err := db.Select("id", "metadata").First(&tenant, tenantID).Error; err != nil {
-		return ""
+		return webhookSecretCandidate{}
 	}
 
 	metadata := map[string]interface{}(tenant.Metadata)
 	rawStripe, ok := metadata["stripe"]
 	if !ok {
-		return ""
+		return webhookSecretCandidate{}
 	}
 	stripeMap, ok := rawStripe.(map[string]interface{})
 	if !ok {
-		return ""
+		return webhookSecretCandidate{}
 	}
 	if !parseBool(stripeMap["enabled"]) {
-		return ""
+		return webhookSecretCandidate{}
 	}
-	return parseString(stripeMap["webhook_secret"])
+	return webhookSecretCandidate{TenantID: tenant.ID, Secret: parseString(stripeMap["webhook_secret"])}
 }
 
-func appendUniqueSecret(secrets []string, secret string) []string {
-	secret = strings.TrimSpace(secret)
-	if secret == "" {
+func appendUniqueSecret(secrets []webhookSecretCandidate, candidate webhookSecretCandidate) []webhookSecretCandidate {
+	candidate.Secret = strings.TrimSpace(candidate.Secret)
+	if candidate.TenantID == 0 || candidate.Secret == "" {
 		return secrets
 	}
 	for _, existing := range secrets {
-		if existing == secret {
+		if existing.TenantID == candidate.TenantID && existing.Secret == candidate.Secret {
 			return secrets
 		}
 	}
-	return append(secrets, secret)
+	return append(secrets, candidate)
 }
 
-func collectCandidateWebhookSecrets(db *gorm.DB, eventObject map[string]interface{}) []string {
-	secrets := make([]string, 0, 3)
+func collectCandidateWebhookSecrets(db *gorm.DB, eventObject map[string]interface{}) []webhookSecretCandidate {
+	secrets := make([]webhookSecretCandidate, 0, 3)
 
 	if metadata, ok := eventObject["metadata"].(map[string]interface{}); ok {
 		if tenantIDStr := parseString(metadata["tenant_id"]); tenantIDStr != "" {
@@ -386,21 +401,15 @@ func collectCandidateWebhookSecrets(db *gorm.DB, eventObject map[string]interfac
 
 	if stripeObjectType == "checkout.session" && stripeObjectID != "" {
 		var session model.PaymentSession
-		if err := db.Select("id", "user_id", "stripe_session_id").Where("stripe_session_id = ?", stripeObjectID).First(&session).Error; err == nil {
-			var user model.User
-			if err := db.Select("id", "tenant_id").First(&user, session.UserID).Error; err == nil {
-				secrets = appendUniqueSecret(secrets, findWebhookSecretByTenantID(db, user.TenantID))
-			}
+		if err := db.Preload("PaymentIntent").Where("stripe_session_id = ?", stripeObjectID).First(&session).Error; err == nil {
+			secrets = appendUniqueSecret(secrets, findWebhookSecretByTenantID(db, parseTenantIDFromRawMetadata(session.PaymentIntent.Metadata)))
 		}
 	}
 
 	if stripeObjectType == "payment_intent" && stripeObjectID != "" {
 		var paymentIntent model.PaymentIntent
-		if err := db.Select("id", "user_id", "stripe_payment_intent_id").Where("stripe_payment_intent_id = ?", stripeObjectID).First(&paymentIntent).Error; err == nil {
-			var user model.User
-			if err := db.Select("id", "tenant_id").First(&user, paymentIntent.UserID).Error; err == nil {
-				secrets = appendUniqueSecret(secrets, findWebhookSecretByTenantID(db, user.TenantID))
-			}
+		if err := db.Where("stripe_payment_intent_id = ?", stripeObjectID).First(&paymentIntent).Error; err == nil {
+			secrets = appendUniqueSecret(secrets, findWebhookSecretByTenantID(db, parseTenantIDFromRawMetadata(paymentIntent.Metadata)))
 		}
 	}
 
@@ -422,7 +431,7 @@ func collectCandidateWebhookSecrets(db *gorm.DB, eventObject map[string]interfac
 		if !ok || !parseBool(stripeMap["enabled"]) {
 			continue
 		}
-		secrets = appendUniqueSecret(secrets, parseString(stripeMap["webhook_secret"]))
+		secrets = appendUniqueSecret(secrets, webhookSecretCandidate{TenantID: tenant.ID, Secret: parseString(stripeMap["webhook_secret"])})
 	}
 
 	return secrets
@@ -455,7 +464,14 @@ func parseTenantIDFromRawMetadata(raw string) uint {
 	return parseUIntFromAny(metadata["tenant_id"])
 }
 
-func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObject map[string]interface{}) error {
+func ensureWebhookTenantMatch(verifiedTenantID uint, recordTenantID uint) error {
+	if verifiedTenantID == 0 || recordTenantID == 0 || verifiedTenantID != recordTenantID {
+		return errors.New("stripe webhook tenant mismatch")
+	}
+	return nil
+}
+
+func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObject map[string]interface{}, verifiedTenantID uint) error {
 	stripeSessionID := parseString(eventObject["id"])
 	if stripeSessionID == "" {
 		return nil
@@ -466,6 +482,10 @@ func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObjec
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}
+		return err
+	}
+	tenantID := parseTenantIDFromRawMetadata(session.PaymentIntent.Metadata)
+	if err := ensureWebhookTenantMatch(verifiedTenantID, tenantID); err != nil {
 		return err
 	}
 
@@ -490,7 +510,6 @@ func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObjec
 		}
 
 		if !wasComplete {
-			tenantID := parseTenantIDFromRawMetadata(session.PaymentIntent.Metadata)
 			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, session.Currency, session.Amount); err != nil {
 				return fmt.Errorf("failed to update wallet: %w", err)
 			}
@@ -526,7 +545,7 @@ func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObjec
 	return nil
 }
 
-func processStripePaymentIntentEvent(tx *gorm.DB, eventType string, eventObject map[string]interface{}) error {
+func processStripePaymentIntentEvent(tx *gorm.DB, eventType string, eventObject map[string]interface{}, verifiedTenantID uint) error {
 	stripePaymentIntentID := parseString(eventObject["id"])
 	if stripePaymentIntentID == "" {
 		return nil
@@ -537,6 +556,9 @@ func processStripePaymentIntentEvent(tx *gorm.DB, eventType string, eventObject 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}
+		return err
+	}
+	if err := ensureWebhookTenantMatch(verifiedTenantID, parseTenantIDFromRawMetadata(paymentIntent.Metadata)); err != nil {
 		return err
 	}
 
@@ -603,9 +625,12 @@ func ProcessStripeWebhook(payload []byte, signatureHeader string) (string, strin
 
 	candidateSecrets := collectCandidateWebhookSecrets(db, eventObject)
 	verified := false
+	verifiedTenantID := uint(0)
+	now := time.Now()
 	for _, secret := range candidateSecrets {
-		if verifyStripeSignature(payload, signatureHeader, secret) {
+		if verifyStripeSignature(payload, signatureHeader, secret.Secret, now) {
 			verified = true
+			verifiedTenantID = secret.TenantID
 			break
 		}
 	}
@@ -618,7 +643,6 @@ func ProcessStripeWebhook(payload []byte, signatureHeader string) (string, strin
 		return eventID, eventType, nil
 	}
 
-	now := time.Now()
 	webhookEvent := model.PaymentWebhookEvent{
 		StripeEventID:    eventID,
 		EventType:        eventType,
@@ -642,9 +666,9 @@ func ProcessStripeWebhook(payload []byte, signatureHeader string) (string, strin
 	processErr := db.Transaction(func(tx *gorm.DB) error {
 		switch eventType {
 		case "checkout.session.completed", "checkout.session.expired":
-			return processStripeCheckoutSessionEvent(tx, eventType, eventObject)
+			return processStripeCheckoutSessionEvent(tx, eventType, eventObject, verifiedTenantID)
 		case "payment_intent.succeeded", "payment_intent.processing", "payment_intent.payment_failed", "payment_intent.canceled":
-			return processStripePaymentIntentEvent(tx, eventType, eventObject)
+			return processStripePaymentIntentEvent(tx, eventType, eventObject, verifiedTenantID)
 		default:
 			return nil
 		}

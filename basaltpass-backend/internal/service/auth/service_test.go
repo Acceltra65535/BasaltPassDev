@@ -17,6 +17,14 @@ import (
 func TestGenerateTokenPair(t *testing.T) {
 	// 设置测试环境变量
 	os.Setenv("JWT_SECRET", "test-secret-for-unit-tests")
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite failed: %v", err)
+	}
+	if err := db.AutoMigrate(&model.AuthRefreshToken{}); err != nil {
+		t.Fatalf("auto migrate failed: %v", err)
+	}
+	common.SetDBForTest(db)
 
 	// Platform-scoped token generation does not need tenant auth settings.
 	p, err := GenerateTokenPairWithTenantAndScope(1, 0, ConsoleScopeUser)
@@ -34,7 +42,7 @@ func setupAuthLoginTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("open sqlite failed: %v", err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantAuthSetting{}, &model.Passkey{}, &model.TenantUser{}, &model.UserTenantTOTP{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantAuthSetting{}, &model.Passkey{}, &model.TenantUser{}, &model.UserTenantTOTP{}, &model.AuthRefreshToken{}); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
 
@@ -102,6 +110,42 @@ func TestLoginV2GlobalPortalAllowsGlobalAccount(t *testing.T) {
 	}
 	if res.UserID != user.ID {
 		t.Fatalf("expected user id %d, got %d", user.ID, res.UserID)
+	}
+}
+
+func TestRefreshRotatesAndRejectsReuse(t *testing.T) {
+	db := setupAuthLoginTestDB(t)
+
+	user := model.User{
+		TenantID:      0,
+		Email:         "refresh@example.com",
+		PasswordHash:  mustPasswordHash(t, "pass-refresh"),
+		Nickname:      "refresh-user",
+		EmailVerified: true,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+
+	initial, err := GenerateTokenPairWithTenantAndScope(user.ID, 0, ConsoleScopeUser)
+	if err != nil {
+		t.Fatalf("generate initial token pair failed: %v", err)
+	}
+
+	svc := Service{}
+	rotated, err := svc.Refresh(initial.RefreshToken)
+	if err != nil {
+		t.Fatalf("refresh should succeed: %v", err)
+	}
+	if rotated.RefreshToken == "" || rotated.RefreshToken == initial.RefreshToken {
+		t.Fatalf("expected refresh token rotation")
+	}
+
+	if _, err := svc.Refresh(initial.RefreshToken); err == nil {
+		t.Fatalf("reused refresh token should be rejected")
+	}
+	if _, err := svc.Refresh(rotated.RefreshToken); err == nil {
+		t.Fatalf("token family should be revoked after reuse detection")
 	}
 }
 

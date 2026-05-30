@@ -7,10 +7,7 @@
     <script>
       ;(function () {
         var fallbackTitle = document.title
-        var envApiBase = '%VITE_API_BASE%'
-        var apiBase = envApiBase && envApiBase !== '%VITE_API_BASE%'
-          ? envApiBase
-          : window.location.origin
+        var apiBase = window.__BASALTPASS_API_BASE__ || window.location.origin
 
         fetch(String(apiBase).replace(/\/$/, '') + '/api/v1/config', { credentials: 'include' })
           .then(function (response) {

@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"log"
 	"os"
@@ -80,6 +83,10 @@ func GenerateTokenPairWithTenantAndScope(userID uint, tenantID uint, scope strin
 }
 
 func GenerateTokenPairWithTenantScopeAndAuthMethods(userID uint, tenantID uint, scope string, methods []string) (TokenPair, error) {
+	return generateTokenPairWithTenantScopeAuthMethodsAndFamily(userID, tenantID, scope, methods, "")
+}
+
+func generateTokenPairWithTenantScopeAuthMethodsAndFamily(userID uint, tenantID uint, scope string, methods []string, familyID string) (TokenPair, error) {
 	if scope == "" {
 		scope = ConsoleScopeUser
 	}
@@ -121,15 +128,25 @@ func GenerateTokenPairWithTenantScopeAndAuthMethods(userID uint, tenantID uint, 
 		return TokenPair{}, err
 	}
 
+	refreshJTI, err := randomTokenID()
+	if err != nil {
+		return TokenPair{}, err
+	}
+	if strings.TrimSpace(familyID) == "" {
+		familyID = refreshJTI
+	}
+	refreshExpiresAt := now.Add(7 * 24 * time.Hour)
 	refreshClaims := jwt.MapClaims{
 		"sub":       userID,
 		"tid":       tenantID,
 		"scp":       scope,
+		"jti":       refreshJTI,
+		"fam":       familyID,
 		"iat":       now.Unix(),
 		"auth_time": now.Unix(),
 		"acr":       acr,
 		"amr":       amr,
-		"exp":       now.Add(7 * 24 * time.Hour).Unix(),
+		"exp":       refreshExpiresAt.Unix(),
 		"typ":       TokenTypeRefresh,
 	}
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString(secret)
@@ -137,9 +154,76 @@ func GenerateTokenPairWithTenantScopeAndAuthMethods(userID uint, tenantID uint, 
 		log.Printf("[auth][error] Failed to sign refresh token for userID=%d, tenantID=%d, scope=%s: %v", userID, tenantID, scope, err)
 		return TokenPair{}, err
 	}
+	if err := storeRefreshToken(refreshJTI, familyID, refreshToken, userID, tenantID, scope, refreshExpiresAt); err != nil {
+		log.Printf("[auth][error] Failed to persist refresh token for userID=%d, tenantID=%d, scope=%s: %v", userID, tenantID, scope, err)
+		return TokenPair{}, err
+	}
 
 	log.Printf("[auth][debug] Tokens generated successfully for userID=%d, tenantID=%d, scope=%s", userID, tenantID, scope)
 	return TokenPair{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+}
+
+func randomTokenID() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+func tokenSHA256(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
+
+func storeRefreshToken(jti, familyID, rawToken string, userID, tenantID uint, scope string, expiresAt time.Time) error {
+	db := common.DB()
+	if db == nil {
+		return errors.New("database unavailable")
+	}
+	return db.Create(&model.AuthRefreshToken{
+		JTI:       jti,
+		FamilyID:  familyID,
+		TokenHash: tokenSHA256(rawToken),
+		UserID:    userID,
+		TenantID:  tenantID,
+		Scope:     scope,
+		ExpiresAt: expiresAt,
+	}).Error
+}
+
+func consumeRefreshToken(jti, familyID, rawToken string) error {
+	jti = strings.TrimSpace(jti)
+	familyID = strings.TrimSpace(familyID)
+	if jti == "" || familyID == "" {
+		return errors.New("invalid refresh token state")
+	}
+	db := common.DB()
+	if db == nil {
+		return errors.New("database unavailable")
+	}
+
+	now := time.Now()
+	var record model.AuthRefreshToken
+	if err := db.Where("jti = ? AND token_hash = ?", jti, tokenSHA256(rawToken)).First(&record).Error; err != nil {
+		return errors.New("invalid refresh token")
+	}
+	if record.FamilyID != familyID {
+		return errors.New("invalid refresh token family")
+	}
+	if record.RevokedAt != nil || record.ConsumedAt != nil {
+		_ = db.Model(&model.AuthRefreshToken{}).
+			Where("family_id = ? AND revoked_at IS NULL", record.FamilyID).
+			Update("revoked_at", now).Error
+		return errors.New("refresh token reuse detected")
+	}
+	if now.After(record.ExpiresAt) {
+		return errors.New("refresh token expired")
+	}
+	return db.Model(&record).Updates(map[string]interface{}{
+		"consumed_at": now,
+		"revoked_at":  now,
+	}).Error
 }
 
 func normalizeAuthMethods(methods []string) []string {

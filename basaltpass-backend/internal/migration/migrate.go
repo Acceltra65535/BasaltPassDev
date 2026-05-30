@@ -164,6 +164,7 @@ func RunMigrations() error {
 		&model.SystemApp{},
 		&model.Notification{},
 		&model.UserNotificationSettings{},
+		&model.AuthRefreshToken{},
 		&model.Invitation{},
 
 		// 邮件日志

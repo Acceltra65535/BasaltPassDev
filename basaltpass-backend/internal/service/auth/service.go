@@ -394,6 +394,17 @@ func (s Service) Refresh(refreshToken string) (TokenPair, error) {
 	if !ok || claims["typ"] != TokenTypeRefresh {
 		return TokenPair{}, errors.New("invalid token type")
 	}
+	jti, ok := claims["jti"].(string)
+	if !ok || strings.TrimSpace(jti) == "" {
+		return TokenPair{}, errors.New("invalid refresh token state")
+	}
+	familyID, ok := claims["fam"].(string)
+	if !ok || strings.TrimSpace(familyID) == "" {
+		return TokenPair{}, errors.New("invalid refresh token state")
+	}
+	if err := consumeRefreshToken(jti, familyID, refreshToken); err != nil {
+		return TokenPair{}, err
+	}
 	userIDFloat, ok := claims["sub"].(float64)
 	if !ok {
 		return TokenPair{}, errors.New("invalid subject")
@@ -411,7 +422,7 @@ func (s Service) Refresh(refreshToken string) (TokenPair, error) {
 	if err != nil {
 		return TokenPair{}, err
 	}
-	return GenerateTokenPairWithTenantAndScope(uint(userIDFloat), tenantID, scope)
+	return generateTokenPairWithTenantScopeAuthMethodsAndFamily(uint(userIDFloat), tenantID, scope, []string{"pwd"}, familyID)
 }
 
 // Verify2FA 校验二次验证信息，成功返回token。
