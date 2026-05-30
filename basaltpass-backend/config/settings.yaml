@@ -171,7 +171,7 @@ settings:
         category: cors
         description: 严格模式（仅允许白名单域名）
     email.from_suffix:
-        value: mail.hollowdata.com
+        value: example.com
         category: email
         description: 发件人邮箱后缀（用于 no-reply@<suffix>）
     features.beta_features:

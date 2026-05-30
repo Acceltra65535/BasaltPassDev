@@ -1,4 +1,5 @@
 # frontend
+node_modules/
 basaltpass-frontend/node_modules/
 basaltpass-frontend/dist/
 
@@ -12,6 +13,11 @@ basaltpass-frontend/apps/user/dist/
 # backend
 .env
 *.exe
+*.test
+*.out
+basaltpass
+basaltpass-backend/basaltpass
+basaltpass-backend/cmd/basaltpass/basaltpass
 
 # general
 .DS_Store
@@ -19,6 +25,10 @@ basaltpass-frontend/apps/user/dist/
 .env.development.local
 .env.test.local
 *.db
+*.sqlite
+*.sqlite3
+__pycache__/
+*.py[cod]
 basaltpass-backend/basaltpass.db
 basaltpass-backend/main.exe
 basaltpass-backend/email-test
@@ -40,5 +50,7 @@ basaltpass-backend/config.yaml
 
 # log
 .logs
+.logs/
+*.log
 
 .gocache/
