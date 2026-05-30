@@ -1455,9 +1455,12 @@ const en = {
         editRole: 'Edit Role',
         remove: 'Remove',
       },
+      confirmRemove: 'Remove this member from the team?',
       errors: {
         title: 'Load failed',
         loadFailed: 'Failed to load members',
+        updateFailed: 'Failed to update member role',
+        removeFailed: 'Failed to remove member',
       },
     },
   },

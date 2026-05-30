@@ -21,6 +21,14 @@ func getSiteURL() string {
 	return strings.TrimRight(url, "/")
 }
 
+func (s *Service) sendEmailWithLogging(ctx context.Context, msg *emailservice.Message, userID *uint, emailContext string) error {
+	if s.emailSvc == nil {
+		return errors.New("email service not configured")
+	}
+	_, err := s.emailSvc.SendWithLogging(ctx, msg, userID, emailContext)
+	return err
+}
+
 // sendEmailChangeVerificationEmail 发送邮箱变更验证邮件
 func (s *Service) sendEmailChangeVerificationEmail(newEmail, token, oldEmail string) error {
 	siteURL := getSiteURL()
@@ -120,8 +128,7 @@ BasaltPass 团队
 		HTMLBody: htmlBody,
 	}
 
-	_, err := s.emailSvc.SendWithLogging(context.Background(), msg, nil, "email_change_verification")
-	return err
+	return s.sendEmailWithLogging(context.Background(), msg, nil, "email_change_verification")
 }
 
 // sendEmailChangeNotificationEmail 发送邮箱变更通知邮件到旧邮箱
@@ -222,8 +229,7 @@ BasaltPass 团队
 		HTMLBody: htmlBody,
 	}
 
-	_, err := s.emailSvc.SendWithLogging(context.Background(), msg, nil, "email_change_notification")
-	return err
+	return s.sendEmailWithLogging(context.Background(), msg, nil, "email_change_notification")
 }
 
 // sendEmailChangeSuccessEmail 发送邮箱变更成功邮件
@@ -309,16 +315,11 @@ BasaltPass 团队
 		HTMLBody: htmlBody,
 	}
 
-	_, err := s.emailSvc.SendWithLogging(context.Background(), msg, nil, "email_change_success")
-	return err
+	return s.sendEmailWithLogging(context.Background(), msg, nil, "email_change_success")
 }
 
 // sendPasswordChangeNotificationEmail 发送密码修改通知邮件
 func (s *Service) sendPasswordChangeNotificationEmail(email string) error {
-	if s.emailSvc == nil {
-		return errors.New("email service not configured")
-	}
-
 	subject := "🔐 BasaltPass 密码修改通知"
 
 	textBody := `
@@ -406,8 +407,7 @@ BasaltPass 团队
 		HTMLBody: htmlBody,
 	}
 
-	_, err := s.emailSvc.SendWithLogging(context.Background(), msg, nil, "password_change_notification")
-	return err
+	return s.sendEmailWithLogging(context.Background(), msg, nil, "password_change_notification")
 }
 
 // sendPasswordResetEmail 发送密码重置邮件
@@ -509,8 +509,7 @@ BasaltPass 团队
 		HTMLBody: htmlBody,
 	}
 
-	_, err := s.emailSvc.SendWithLogging(context.Background(), msg, nil, "password_reset")
-	return err
+	return s.sendEmailWithLogging(context.Background(), msg, nil, "password_reset")
 }
 
 // sendPasswordResetSuccessEmail 发送密码重置成功邮件
@@ -598,8 +597,7 @@ BasaltPass 团队
 		HTMLBody: htmlBody,
 	}
 
-	_, err := s.emailSvc.SendWithLogging(context.Background(), msg, nil, "password_reset_success")
-	return err
+	return s.sendEmailWithLogging(context.Background(), msg, nil, "password_reset_success")
 }
 
 // SendEmailVerificationEmail 发送邮箱验证码邮件（已登录用户验证自己的邮箱）
@@ -670,6 +668,5 @@ BasaltPass 团队
 		HTMLBody: htmlBody,
 	}
 
-	_, err := s.emailSvc.SendWithLogging(context.Background(), msg, nil, "email_verification")
-	return err
+	return s.sendEmailWithLogging(context.Background(), msg, nil, "email_verification")
 }

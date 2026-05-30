@@ -1,23 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import Layout from '@features/user/components/Layout';
-import { PCard, PButton, PSkeleton, PAlert, PBadge, PPageHeader } from '@ui';
+import { PButton, PSkeleton, PAlert, PBadge, PPageHeader } from '@ui';
 import PTable, { PTableColumn, PTableAction } from '@ui/PTable';
-import { teamApi } from '@api/user/team';
+import { teamApi, TeamMemberResponse } from '@api/user/team';
 import { useI18n } from '@shared/i18n';
 
-interface TeamMember {
-  id: number;
-  user_id: number;
-  team_id: number;
-  role: string;
-  joined_at: string;
-  user: {
-    id: number;
-    email: string;
-    nickname: string;
-  };
-}
+type TeamMember = TeamMemberResponse;
 
 const TeamMembers: React.FC = () => {
   const { t, locale } = useI18n();
@@ -26,6 +15,7 @@ const TeamMembers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
+  const [savingMemberId, setSavingMemberId] = useState<number | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -36,14 +26,16 @@ const TeamMembers: React.FC = () => {
   const loadMembers = async () => {
     try {
       setLoading(true);
-      // API
-      const response = await teamApi.getTeam(parseInt(id!));
-      // API
-      // API
-      setMembers([]); // ，API
-      setCurrentUserRole(response.data.data?.user_role || '');
+      setError(null);
+      const teamId = parseInt(id!, 10);
+      const [teamResponse, membersResponse] = await Promise.all([
+        teamApi.getTeam(teamId),
+        teamApi.getTeamMembers(teamId),
+      ]);
+      setMembers(membersResponse.data.data || []);
+      setCurrentUserRole(teamResponse.data.data?.user_role || '');
     } catch (err: any) {
-      setError(err.response?.data?.message || t('pages.teamMembers.errors.loadFailed'));
+      setError(err.response?.data?.error || err.response?.data?.message || t('pages.teamMembers.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -68,6 +60,33 @@ const TeamMembers: React.FC = () => {
   };
 
   const canManageMembers = currentUserRole === 'owner' || currentUserRole === 'admin';
+
+  const handleRoleChange = async (member: TeamMember, role: 'owner' | 'admin' | 'member') => {
+    if (!id || member.role === role) return;
+    try {
+      setSavingMemberId(member.id);
+      await teamApi.updateMemberRole(parseInt(id, 10), member.id, { role });
+      setMembers((prev) => prev.map((item) => (item.id === member.id ? { ...item, role } : item)));
+    } catch (err: any) {
+      window.alert(err.response?.data?.error || err.response?.data?.message || t('pages.teamMembers.errors.updateFailed'));
+    } finally {
+      setSavingMemberId(null);
+    }
+  };
+
+  const handleRemoveMember = async (member: TeamMember) => {
+    if (!id) return;
+    if (!window.confirm(t('pages.teamMembers.confirmRemove'))) return;
+    try {
+      setSavingMemberId(member.id);
+      await teamApi.removeMember(parseInt(id, 10), member.id);
+      setMembers((prev) => prev.filter((item) => item.id !== member.id));
+    } catch (err: any) {
+      window.alert(err.response?.data?.error || err.response?.data?.message || t('pages.teamMembers.errors.removeFailed'));
+    } finally {
+      setSavingMemberId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -139,7 +158,26 @@ const TeamMembers: React.FC = () => {
                     </div>
                   )
                 },
-                { key: 'role', title: t('pages.teamMembers.columns.role'), render: (m) => getRoleBadge(m.role) },
+                {
+                  key: 'role',
+                  title: t('pages.teamMembers.columns.role'),
+                  render: (member) => {
+                    if (!canManageMembers || member.role === 'owner') {
+                      return getRoleBadge(member.role);
+                    }
+                    return (
+                      <select
+                        value={member.role}
+                        disabled={savingMemberId === member.id}
+                        onChange={(event) => handleRoleChange(member, event.target.value as 'owner' | 'admin' | 'member')}
+                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="admin">{t('pages.teamDetail.roles.admin')}</option>
+                        <option value="member">{t('pages.teamDetail.roles.member')}</option>
+                      </select>
+                    );
+                  },
+                },
                 {
                   key: 'joined_at',
                   title: t('pages.teamMembers.columns.joinedAt'),
@@ -151,8 +189,13 @@ const TeamMembers: React.FC = () => {
 
               const actions: PTableAction<TeamMember>[] = canManageMembers
                 ? [
-                    { key: 'edit', label: t('pages.teamMembers.actions.editRole'), variant: 'secondary', size: 'sm', onClick: () => {/* TODO: open role modal */} },
-                    { key: 'remove', label: t('pages.teamMembers.actions.remove'), variant: 'danger', size: 'sm', onClick: () => {/* TODO: remove member */} },
+                    {
+                      key: 'remove',
+                      label: t('pages.teamMembers.actions.remove'),
+                      variant: 'danger',
+                      size: 'sm',
+                      onClick: handleRemoveMember,
+                    },
                   ]
                 : [];
 

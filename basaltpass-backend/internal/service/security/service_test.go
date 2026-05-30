@@ -89,3 +89,53 @@ func TestChangePasswordRevokesRefreshTokens(t *testing.T) {
 		t.Fatalf("expected oauth refresh tokens to be deleted, got %d", remainingOAuth)
 	}
 }
+
+func TestSecurityEmailMethodsReturnErrorWhenEmailServiceMissing(t *testing.T) {
+	svc := &Service{}
+
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{
+			name: "email change verification",
+			run: func() error {
+				return svc.sendEmailChangeVerificationEmail("new@example.com", "token", "old@example.com")
+			},
+		},
+		{
+			name: "email change notification",
+			run: func() error {
+				return svc.sendEmailChangeNotificationEmail("old@example.com", "new@example.com", "token")
+			},
+		},
+		{
+			name: "email change success",
+			run:  func() error { return svc.sendEmailChangeSuccessEmail("new@example.com", "old@example.com") },
+		},
+		{
+			name: "password change notification",
+			run:  func() error { return svc.sendPasswordChangeNotificationEmail("user@example.com") },
+		},
+		{
+			name: "password reset",
+			run:  func() error { return svc.sendPasswordResetEmail("user@example.com", "token") },
+		},
+		{
+			name: "password reset success",
+			run:  func() error { return svc.sendPasswordResetSuccessEmail("user@example.com") },
+		},
+		{
+			name: "email verification",
+			run:  func() error { return svc.SendEmailVerificationEmail("user@example.com", "123456") },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.run(); err == nil {
+				t.Fatal("expected error when email service is missing")
+			}
+		})
+	}
+}
