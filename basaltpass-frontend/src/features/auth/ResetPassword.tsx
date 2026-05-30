@@ -111,7 +111,7 @@ function ResetPassword() {
               label={t('auth.resetPassword.request.emailLabel')}
               type="email"
               value={email}
-              onChange={setEmail}
+              onChange={(event) => setEmail(event.target.value)}
               placeholder={t('auth.resetPassword.request.emailPlaceholder')}
               required
             />
@@ -155,7 +155,7 @@ function ResetPassword() {
             label={t('auth.resetPassword.reset.newPasswordLabel')}
             type="password"
             value={newPassword}
-            onChange={setNewPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
             placeholder={t('auth.resetPassword.reset.newPasswordPlaceholder')}
             required
           />
@@ -166,7 +166,7 @@ function ResetPassword() {
             label={t('auth.resetPassword.reset.confirmPasswordLabel')}
             type="password"
             value={confirmPassword}
-            onChange={setConfirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
             placeholder={t('auth.resetPassword.reset.confirmPasswordPlaceholder')}
             required
           />
