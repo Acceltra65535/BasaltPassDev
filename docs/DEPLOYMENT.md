@@ -1,6 +1,6 @@
 # BasaltPass 部署说明
 
-BasaltPass 是本工作区所有业务项目的统一认证服务。必须先部署 BasaltPass，再部署其他业务项目。
+BasaltPass 可作为 SaaS 系统的统一认证服务独立部署。生产环境应先部署 BasaltPass，再让业务项目接入它提供的 OAuth/OIDC 端点。
 
 ## 1. 部署目标
 
@@ -14,19 +14,18 @@ BasaltPass 是本工作区所有业务项目的统一认证服务。必须先部
 
 - `backend.Dockerfile`
 - `frontend.Dockerfile`
-- `deploy/docker-compose.prod.yml`
-- `deploy/.env.prod.example`
-- 工作区级 SOP: `../GITHUB_ACTIONS_GHCR_AUTO_DEPLOY_SOP.md`
+- `docker-compose.yml`（本地开发/验证）
+- `.env.example`
 
-## 2. GHCR 自动部署方式
+## 2. 镜像部署方式
 
-建议使用 Tag 驱动生产部署:
+建议使用 Tag 或 CI 构建生产镜像:
 
 1. GitHub Actions 构建前后端镜像
 2. 推送到 GHCR
-3. 通过 SSH 登录服务器
-4. 上传 `deploy/docker-compose.prod.yml`
-5. 服务器执行:
+3. 在目标环境拉取镜像
+4. 注入生产 `.env` 或平台 Secret
+5. 启动服务:
 
 ```bash
 docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
@@ -49,7 +48,7 @@ FRONTEND_IMAGE=ghcr.io/<owner>/basaltpass-frontend:<tag>
 /opt/basaltpass
 ```
 
-将 `deploy/.env.prod.example` 复制为服务器实际使用的 `.env`:
+创建服务器实际使用的 `.env`，或使用 Kubernetes / 容器平台的 Secret 机制注入:
 
 ```env
 JWT_SECRET=<long-random-secret>
@@ -62,7 +61,7 @@ BASALTPASS_CORS_ALLOW_ORIGINS=https://auth.example.com,https://admin.example.com
 
 ## 4. 生产编排
 
-`deploy/docker-compose.prod.yml` 已经使用:
+生产编排文件应至少传入:
 
 - `${BACKEND_IMAGE}`
 - `${FRONTEND_IMAGE}`
@@ -74,6 +73,8 @@ BASALTPASS_CORS_ALLOW_ORIGINS=https://auth.example.com,https://admin.example.com
 docker compose -f docker-compose.yml pull
 docker compose -f docker-compose.yml up -d --remove-orphans
 ```
+
+本仓库的 `docker-compose.yml` 偏向本地开发。公开仓库不携带环境专用的生产 compose 或集群 manifest；请根据你的服务器、Ingress、TLS、数据库和 Secret 管理方式维护生产编排。
 
 ## 5. 提供给下游项目的线上地址
 

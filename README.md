@@ -45,7 +45,7 @@ BasaltPass/
 ├─ basaltpass-docs/                 # Docusaurus documentation site
 ├─ scripts/                         # Dev helper scripts (dev.sh / dev.ps1)
 ├─ docker-compose.yml               # Local compose orchestration
-├─ deploy/docker-compose.prod.yml   # Production compose template
+├─ .basalt.example/                 # Optional local Basalt app metadata template
 ├─ backend.Dockerfile
 ├─ frontend.Dockerfile
 └─ README.md
@@ -170,11 +170,14 @@ Project-level test and verification scripts are available under `test/`.
 Recommended production approach:
 
 - Build and publish backend/frontend images (GHCR supported)
-- Use `deploy/docker-compose.prod.yml`
 - Inject runtime configuration via `.env`
 - Place BasaltPass behind HTTPS reverse proxy / ingress
 
-See detailed deployment guidance in `DEPLOYMENT.md`.
+See detailed deployment guidance in `docs/DEPLOYMENT.md`.
+
+The repository includes Dockerfiles and a local `docker-compose.yml`. For
+production, treat compose or Kubernetes manifests as environment-specific
+deployment assets and keep secrets outside git.
 
 ## Documentation
 

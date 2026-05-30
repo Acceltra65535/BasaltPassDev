@@ -23,7 +23,7 @@
       { "service": "frontend_prod_mapping_local", "port": 5104, "protocol": "http" }
     ],
     "metadata": {
-      "project_root": "C:/Users/Administrator/Desktop/WorkPlace/BasaltPass",
+      "project_root": "./BasaltPass",
       "health_checks": [
         {
           "service": "backend_api",
@@ -39,7 +39,7 @@
         }
       ],
       "notes": [
-        "Replace the baseline RBAC template with BasaltPass real tenant/system roles when the importer is ready."
+        "Copy this directory to .basalt for local Basalt app metadata."
       ]
     }
   }

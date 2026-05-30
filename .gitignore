@@ -25,8 +25,11 @@ basaltpass-backend/cmd/basaltpass/basaltpass
 .env.development.local
 .env.test.local
 *.db
+*.db.backup.*
+*.db-*
 *.sqlite
 *.sqlite3
+conformance-basaltpass.db
 __pycache__/
 *.py[cod]
 basaltpass-backend/basaltpass.db
@@ -34,6 +37,7 @@ basaltpass-backend/main.exe
 basaltpass-backend/email-test
 
 # development tools
+.basalt/
 .vscode/
 .vscode-test/
 .idea/
