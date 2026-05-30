@@ -169,12 +169,12 @@ func (h *Handler) GetSignupStatusHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// TODO: 实现状态查询逻辑
-	// 注意：只返回必要的状态信息，不要暴露敏感数据
+	status, err := h.verificationSvc.GetSignupStatus(signupID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to query signup status",
+		})
+	}
 
-	return c.JSON(fiber.Map{
-		"signup_id": signupID,
-		"status":    "pending_email_verification",
-		"message":   "Please check your email and enter the verification code",
-	})
+	return c.JSON(status)
 }

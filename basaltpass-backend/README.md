@@ -12,7 +12,7 @@
 ## 当前开发约定
 
 - 默认开发端口: `8101`
-- 默认开发配置来源: 仓库根目录 [`.env`](/c:/Users/Administrator/Desktop/WorkPlace/BasaltPass/.env)
+- 默认开发配置来源: 仓库根目录 `.env`
 - 默认本地 Docker 数据库: MySQL（compose 内服务名 `mysql`）
 
 ## 配置加载
@@ -29,12 +29,14 @@
 ```env
 JWT_SECRET=change-me
 OIDC_KEY_ENCRYPTION_SECRET=change-me-to-a-stable-32-byte-or-64-hex-secret
+BASALTPASS_VERIFICATION_PEPPER=change-me-to-a-stable-random-secret
 BASALTPASS_SERVER_ADDRESS=:8101
 BASALTPASS_DATABASE_DRIVER=mysql
 BASALTPASS_DATABASE_DSN=basaltpass:basaltpass@tcp(mysql:3306)/basaltpass?charset=utf8mb4&parseTime=True&loc=Local
 ```
 
 `OIDC_KEY_ENCRYPTION_SECRET` 用于加密持久化的 OIDC ID Token 签名私钥。生产环境应固定配置并妥善备份；未设置时会从 `JWT_SECRET` 派生。
+`BASALTPASS_VERIFICATION_PEPPER` 用于验证码和注册风控哈希，生产环境应固定配置并妥善保存。
 
 支持的主要字段:
 

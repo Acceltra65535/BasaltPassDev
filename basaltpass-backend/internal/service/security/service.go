@@ -252,13 +252,15 @@ func (s *Service) ChangePassword(userID uint, req *PasswordChangeRequest, client
 		return fmt.Errorf("密码更新失败: %v", err)
 	}
 
+	if err := s.revokeUserRefreshTokens(userID); err != nil {
+		return fmt.Errorf("刷新会话吊销失败: %v", err)
+	}
+
 	// 7. 记录成功的安全操作
 	s.recordSecurityOperation(userID, OpPasswordChange, clientIP, deviceHash, true)
 
 	// 8. 发送安全通知邮件
 	go s.sendPasswordChangeNotificationEmail(user.Email)
-
-	// TODO: 撤销其他会话 (需要会话管理系统)
 
 	return nil
 }
@@ -361,10 +363,31 @@ func (s *Service) ConfirmPasswordReset(req *PasswordResetConfirmRequest, clientI
 		// 发送密码重置成功通知
 		go s.sendPasswordResetSuccessEmail(resetToken.User.Email)
 
-		// TODO: 撤销所有会话
+		if err := s.revokeUserRefreshTokensTx(tx, resetToken.UserID); err != nil {
+			return err
+		}
 
 		return nil
 	})
+}
+
+func (s *Service) revokeUserRefreshTokens(userID uint) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		return s.revokeUserRefreshTokensTx(tx, userID)
+	})
+}
+
+func (s *Service) revokeUserRefreshTokensTx(tx *gorm.DB, userID uint) error {
+	now := time.Now()
+	if err := tx.Model(&model.AuthRefreshToken{}).
+		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Update("revoked_at", now).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("user_id = ?", userID).Delete(&model.OAuthRefreshToken{}).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 // 辅助方法

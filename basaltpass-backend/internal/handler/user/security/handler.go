@@ -18,6 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // SecurityStatus represents user's security status
@@ -126,8 +127,22 @@ func ChangePasswordHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "密码加密失败"})
 	}
 
-	// Update password
-	if err := common.DB().Model(&user).Update("password_hash", string(hashedPassword)).Error; err != nil {
+	// Update password and invalidate existing refresh sessions.
+	if err := common.DB().Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&user).Update("password_hash", string(hashedPassword)).Error; err != nil {
+			return err
+		}
+		now := time.Now()
+		if err := tx.Model(&model.AuthRefreshToken{}).
+			Where("user_id = ? AND revoked_at IS NULL", uid).
+			Update("revoked_at", now).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&model.OAuthRefreshToken{}).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "密码更新失败"})
 	}
 

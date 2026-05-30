@@ -5,6 +5,7 @@ import (
 	emailservice "basaltpass-backend/internal/service/email"
 	settingssvc "basaltpass-backend/internal/service/settings"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -314,6 +315,10 @@ BasaltPass 团队
 
 // sendPasswordChangeNotificationEmail 发送密码修改通知邮件
 func (s *Service) sendPasswordChangeNotificationEmail(email string) error {
+	if s.emailSvc == nil {
+		return errors.New("email service not configured")
+	}
+
 	subject := "🔐 BasaltPass 密码修改通知"
 
 	textBody := `

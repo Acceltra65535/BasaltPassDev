@@ -19,6 +19,7 @@ import (
 	"log"
 	"math/big"
 	mathrand "math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -26,13 +27,14 @@ import (
 )
 
 const (
-	ServerPepper = "basaltpass_verification_pepper_2024" // 全局胡椒值
+	defaultVerificationPepper = "basaltpass_verification_pepper_2024"
 )
 
 // Service 验证码服务
 type Service struct {
 	config   *RiskLevelConfig
 	emailSvc *emailservice.Service
+	pepper   string
 }
 
 // NewService 创建验证码服务
@@ -45,7 +47,15 @@ func NewService() *Service {
 	return &Service{
 		config:   DefaultConfig(),
 		emailSvc: emailSvc,
+		pepper:   resolveVerificationPepper(),
 	}
+}
+
+func resolveVerificationPepper() string {
+	if pepper := strings.TrimSpace(os.Getenv("BASALTPASS_VERIFICATION_PEPPER")); pepper != "" {
+		return pepper
+	}
+	return defaultVerificationPepper
 }
 
 // StartSignupRequest 开始注册请求
@@ -84,6 +94,12 @@ type VerifyCodeRequest struct {
 // CompleteSignupRequest 完成注册请求
 type CompleteSignupRequest struct {
 	SignupID string `json:"signup_id"`
+}
+
+type SignupStatusResponse struct {
+	SignupID string `json:"signup_id"`
+	Status   string `json:"status"`
+	Message  string `json:"message"`
 }
 
 // StartSignup 开始注册流程
@@ -473,6 +489,53 @@ func (s *Service) CompleteSignup(req CompleteSignupRequest) (*model.User, error)
 	return user, nil
 }
 
+// GetSignupStatus returns minimal state for a pending signup session.
+func (s *Service) GetSignupStatus(signupID string) (*SignupStatusResponse, error) {
+	signupID = strings.TrimSpace(signupID)
+	if signupID == "" {
+		return nil, errors.New("signup id required")
+	}
+
+	var pendingSignup model.PendingSignup
+	if err := common.DB().
+		Select("id", "status", "expires_at").
+		Where("id = ?", signupID).
+		First(&pendingSignup).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &SignupStatusResponse{
+				SignupID: signupID,
+				Status:   "unknown",
+				Message:  "Signup session not found or expired",
+			}, nil
+		}
+		return nil, err
+	}
+
+	if time.Now().After(pendingSignup.ExpiresAt) && pendingSignup.Status != model.SignupStatusExpired {
+		common.DB().Model(&pendingSignup).Update("status", model.SignupStatusExpired)
+		pendingSignup.Status = model.SignupStatusExpired
+	}
+
+	resp := &SignupStatusResponse{
+		SignupID: signupID,
+		Status:   strings.ToLower(string(pendingSignup.Status)),
+	}
+	switch pendingSignup.Status {
+	case model.SignupStatusPendingEmail:
+		resp.Message = "Please check your email and enter the verification code"
+	case model.SignupStatusPendingPhone:
+		resp.Message = "Please check your phone and enter the verification code"
+	case model.SignupStatusCompleted:
+		resp.Message = "Signup is ready to complete"
+	case model.SignupStatusExpired:
+		resp.Message = "Signup session expired"
+	default:
+		resp.Message = "Signup status unavailable"
+	}
+
+	return resp, nil
+}
+
 // 私有辅助方法
 
 // generateSignupID 生成随机的注册会话ID
@@ -548,7 +611,7 @@ func (s *Service) assessRisk(ip, userAgent, email string) string {
 
 // hashWithSalt 使用盐值哈希
 func (s *Service) hashWithSalt(data, salt string) string {
-	hash := sha256.Sum256([]byte(data + salt + ServerPepper))
+	hash := sha256.Sum256([]byte(data + salt + s.pepper))
 	return hex.EncodeToString(hash[:])
 }
 
@@ -575,7 +638,7 @@ func (s *Service) generateCode(length int, charset string) (string, error) {
 
 // hashCode 哈希验证码
 func (s *Service) hashCode(code, salt string) string {
-	hash := sha256.Sum256([]byte(code + salt + ServerPepper))
+	hash := sha256.Sum256([]byte(code + salt + s.pepper))
 	return hex.EncodeToString(hash[:])
 }
 

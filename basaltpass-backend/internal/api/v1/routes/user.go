@@ -91,15 +91,15 @@ func RegisterUserRoutes(v1 fiber.Router) {
 	teamGroup.Put("/:id/members/:member_id", userTeam.UpdateMemberRoleHandler)
 	teamGroup.Delete("/:id/members/:member_id", userTeam.RemoveMemberHandler)
 	teamGroup.Post("/:id/leave", userTeam.LeaveTeamHandler)
-	teamGroup.Post(":id/invitations", userInvitation.CreateHandler)
-	teamGroup.Get(":id/invitations", userInvitation.ListOutgoingHandler)
-	teamGroup.Delete(":id/invitations/:inv_id", userInvitation.RevokeHandler)
+	teamGroup.Post("/:id/invitations", userInvitation.CreateHandler)
+	teamGroup.Get("/:id/invitations", userInvitation.ListOutgoingHandler)
+	teamGroup.Delete("/:id/invitations/:inv_id", userInvitation.RevokeHandler)
 
 	// Invitation routes
 	inv := v1.Group("/invitations", middleware.JWTMiddleware())
 	inv.Get("/", userInvitation.ListIncomingHandler)
-	inv.Put(":id/accept", userInvitation.AcceptHandler)
-	inv.Put(":id/reject", userInvitation.RejectHandler)
+	inv.Put("/:id/accept", userInvitation.AcceptHandler)
+	inv.Put("/:id/reject", userInvitation.RejectHandler)
 
 	// ========== 钱包以及订阅系统路由 ==========
 
