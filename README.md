@@ -164,10 +164,10 @@ npm run build
 BasaltPass provides standalone SDK repositories for common integration
 environments:
 
-- [Go SDK](https://github.com/BasaltBase/BasaltPass_GoSDK)
-- [Java SDK](https://github.com/BasaltBase/BasaltPass_JavaSDK)
-- [JavaScript / TypeScript SDK](https://github.com/BasaltBase/BasaltPass_JSSDK)
-- [Python SDK](https://github.com/BasaltBase/BasaltPass_PythonSDK)
+- [Go SDK](https://github.com/BasaltBase/BasaltPass_Go_SDK)
+- [Java SDK](https://github.com/BasaltBase/BasaltPass_Java_SDK)
+- [JavaScript / TypeScript SDK](https://github.com/BasaltBase/BasaltPass_JSS_DK)
+- [Python SDK](https://github.com/BasaltBase/BasaltPass_Python_SDK)
 
 ## Testing
 
