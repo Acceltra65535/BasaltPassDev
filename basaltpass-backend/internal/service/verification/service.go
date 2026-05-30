@@ -5,6 +5,7 @@ import (
 	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/model"
 	emailservice "basaltpass-backend/internal/service/email"
+	"basaltpass-backend/internal/service/passwordpolicy"
 	settingssvc "basaltpass-backend/internal/service/settings"
 	tenantservice "basaltpass-backend/internal/service/tenant"
 	"basaltpass-backend/internal/service/wallet"
@@ -126,9 +127,8 @@ func (s *Service) StartSignup(req StartSignupRequest) (*StartSignupResponse, err
 		return nil, errors.New("password required")
 	}
 
-	// 密码强度检查
-	if len(req.Password) < 6 {
-		return nil, errors.New("password must be at least 6 characters")
+	if err := passwordpolicy.Validate(req.Password, req.Email, req.Phone, req.Username); err != nil {
+		return nil, err
 	}
 
 	// 标准化邮箱和手机号

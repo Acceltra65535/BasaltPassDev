@@ -70,12 +70,17 @@ func defaultItems() map[string]SettingItem {
 		"cache.redis.db":       {Value: 0, Category: "cache", Description: "Redis 数据库索引"},
 
 		// Auth
-		"auth.enable_register":                   {Value: true, Category: "auth", Description: "允许新用户注册"},
-		"auth.require_email_verification":        {Value: false, Category: "auth", Description: "注册后是否要求邮箱验证"},
-		"auth.password_policy.min_length":        {Value: 8, Category: "auth", Description: "密码最小长度"},
-		"auth.password_policy.require_numbers":   {Value: true, Category: "auth", Description: "密码需包含数字"},
-		"auth.password_policy.require_uppercase": {Value: false, Category: "auth", Description: "密码需包含大写字母"},
-		"auth.password_policy.require_special":   {Value: false, Category: "auth", Description: "密码需包含特殊字符"},
+		"auth.enable_register":                          {Value: true, Category: "auth", Description: "允许新用户注册"},
+		"auth.require_email_verification":               {Value: false, Category: "auth", Description: "注册后是否要求邮箱验证"},
+		"auth.password_policy.min_length":               {Value: 8, Category: "auth", Description: "密码最小长度"},
+		"auth.password_policy.require_numbers":          {Value: true, Category: "auth", Description: "密码需包含数字"},
+		"auth.password_policy.require_uppercase":        {Value: false, Category: "auth", Description: "密码需包含大写字母"},
+		"auth.password_policy.require_lowercase":        {Value: true, Category: "auth", Description: "密码需包含小写字母"},
+		"auth.password_policy.require_special":          {Value: false, Category: "auth", Description: "密码需包含特殊字符"},
+		"auth.password_policy.reject_common_passwords":  {Value: true, Category: "auth", Description: "拒绝常见弱密码"},
+		"auth.password_policy.reject_leaked_passwords":  {Value: true, Category: "auth", Description: "拒绝内置泄露密码库命中的密码"},
+		"auth.password_policy.reject_user_identifiers":  {Value: true, Category: "auth", Description: "拒绝包含邮箱、手机号、用户名等账号标识的密码"},
+		"auth.password_policy.reject_predictable_forms": {Value: true, Category: "auth", Description: "拒绝连续字符、重复字符等可预测密码"},
 
 		// 二次验证（2FA）方式开关
 		// 管理员可以在此处选择性地启用/禁用各种 2FA 方式。

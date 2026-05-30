@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/model"
 	emailservice "basaltpass-backend/internal/service/email"
+	"basaltpass-backend/internal/service/passwordpolicy"
 	smssvc "basaltpass-backend/internal/service/sms"
 	"crypto/rand"
 	"crypto/sha256"
@@ -453,33 +454,7 @@ func (s *Service) checkSecurityCooldown(userID uint, operation string) error {
 
 // validatePasswordStrength 验证密码强度
 func (s *Service) validatePasswordStrength(password string) error {
-	if len(password) < 8 {
-		return errors.New("密码长度至少8位")
-	}
-
-	// 简单的密码强度检查
-	hasUpper := false
-	hasLower := false
-	hasDigit := false
-
-	for _, char := range password {
-		switch {
-		case char >= 'A' && char <= 'Z':
-			hasUpper = true
-		case char >= 'a' && char <= 'z':
-			hasLower = true
-		case char >= '0' && char <= '9':
-			hasDigit = true
-		}
-	}
-
-	if !hasUpper || !hasLower || !hasDigit {
-		return errors.New("密码必须包含大写字母、小写字母和数字")
-	}
-
-	// TODO: 检查常见弱密码或泄露密码库
-
-	return nil
+	return passwordpolicy.Validate(password)
 }
 
 // SendPhoneVerificationSMS 向用户手机发送验证码短信。

@@ -55,6 +55,26 @@ settings:
         value: false
         category: auth
         description: 密码需包含大写字母
+    auth.password_policy.require_lowercase:
+        value: true
+        category: auth
+        description: 密码需包含小写字母
+    auth.password_policy.reject_common_passwords:
+        value: true
+        category: auth
+        description: 拒绝常见弱密码
+    auth.password_policy.reject_leaked_passwords:
+        value: true
+        category: auth
+        description: 拒绝内置泄露密码库命中的密码
+    auth.password_policy.reject_user_identifiers:
+        value: true
+        category: auth
+        description: 拒绝包含邮箱、手机号、用户名等账号标识的密码
+    auth.password_policy.reject_predictable_forms:
+        value: true
+        category: auth
+        description: 拒绝连续字符、重复字符等可预测密码
     auth.require_email_verification:
         value: false
         category: auth
