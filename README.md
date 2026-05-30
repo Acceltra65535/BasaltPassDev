@@ -159,6 +159,16 @@ npm run dev:admin
 npm run build
 ```
 
+## SDKs
+
+BasaltPass provides standalone SDK repositories for common integration
+environments:
+
+- [Go SDK](https://github.com/BasaltBase/BasaltPass_GoSDK)
+- [Java SDK](https://github.com/BasaltBase/BasaltPass_JavaSDK)
+- [JavaScript / TypeScript SDK](https://github.com/BasaltBase/BasaltPass_JSSDK)
+- [Python SDK](https://github.com/BasaltBase/BasaltPass_PythonSDK)
+
 ## Testing
 
 Backend unit/integration tests:
