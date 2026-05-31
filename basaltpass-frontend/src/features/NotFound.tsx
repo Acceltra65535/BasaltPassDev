@@ -1,10 +1,17 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ROUTES } from '@constants'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useI18n } from '@shared/i18n'
 
 export default function NotFound() {
   const { t } = useI18n()
+  const location = useLocation()
+  const homePath = location.pathname.startsWith(ROUTES.tenant.root)
+    ? ROUTES.tenant.dashboard
+    : location.pathname.startsWith(ROUTES.admin.root)
+      ? ROUTES.admin.dashboard
+      : ROUTES.user.dashboard
+
   return (
     <div className="min-h-screen bg-gray-100 relative flex items-center justify-center py-6 overflow-hidden">
       {/*  */}
@@ -17,7 +24,7 @@ export default function NotFound() {
         <ExclamationTriangleIcon className="h-20 w-20 text-blue-500 mb-4 animate-pulse" />
         <h1 className="text-9xl font-extrabold text-gray-900 mb-2">404</h1>
         <p className="text-3xl text-gray-700 mb-6">{t('notFound.message')}</p>
-        <Link to={ROUTES.user.dashboard} className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        <Link to={homePath} className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
           {t('notFound.backHome')}
         </Link>
       </div>

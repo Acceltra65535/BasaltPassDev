@@ -118,7 +118,8 @@ export default function AppRouter() {
       <Route path="/tenant/plans" element={<TenantRoute><TenantPlans /></TenantRoute>} />
       <Route path="/tenant/prices" element={<TenantRoute><TenantPrices /></TenantRoute>} />
       <Route path="/tenant/coupons" element={<TenantRoute><TenantCoupons /></TenantRoute>} />
-      <Route path="/tenant/invoices" element={<TenantRoute><TenantInvoices /></TenantRoute>} />
+      <Route path="/tenant/subscriptions/invoices" element={<TenantRoute><TenantInvoices /></TenantRoute>} />
+      <Route path="/tenant/invoices" element={<Navigate to="/tenant/subscriptions/invoices" replace />} />
 
       <Route path="/tenant/subscription-status" element={<TenantRoute><SubscriptionStatusManagement /></TenantRoute>} />
       <Route path="/tenant/subscriptions/coupons/manage" element={<TenantRoute><CouponManagement /></TenantRoute>} />

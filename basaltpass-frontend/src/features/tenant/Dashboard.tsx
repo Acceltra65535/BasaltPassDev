@@ -54,7 +54,7 @@ const quickActions: QuickAction[] = [
     descriptionKey: 'tenantDashboardPage.quickActions.apps.description',
     href: '/tenant/apps',
     icon: CubeIcon,
-    color: 'bg-blue-500'
+    color: 'bg-indigo-600'
   },
   {
     id: 'users',
@@ -62,7 +62,7 @@ const quickActions: QuickAction[] = [
     descriptionKey: 'tenantDashboardPage.quickActions.users.description',
     href: '/tenant/users',
     icon: UsersIcon,
-    color: 'bg-indigo-500'
+    color: 'bg-indigo-600'
   },
   {
     id: 'roles',
@@ -70,7 +70,7 @@ const quickActions: QuickAction[] = [
     descriptionKey: 'tenantDashboardPage.quickActions.roles.description',
     href: '/tenant/roles',
     icon: ShieldCheckIcon,
-    color: 'bg-green-500'
+    color: 'bg-indigo-600'
   },
   {
     id: 'subscriptions',
@@ -78,7 +78,7 @@ const quickActions: QuickAction[] = [
     descriptionKey: 'tenantDashboardPage.quickActions.subscriptions.description',
     href: '/tenant/subscriptions',
     icon: ChartBarIcon,
-    color: 'bg-indigo-500',
+    color: 'bg-indigo-600',
     requiresMarket: true
   },
   {
@@ -87,7 +87,7 @@ const quickActions: QuickAction[] = [
     descriptionKey: 'tenantDashboardPage.quickActions.products.description',
     href: '/tenant/subscriptions/products',
     icon: ServerIcon,
-    color: 'bg-yellow-500',
+    color: 'bg-indigo-600',
     requiresMarket: true
   },
   {
@@ -96,7 +96,7 @@ const quickActions: QuickAction[] = [
     descriptionKey: 'tenantDashboardPage.quickActions.coupons.description',
     href: '/tenant/subscriptions/coupons',
     icon: CreditCardIcon,
-    color: 'bg-red-500',
+    color: 'bg-indigo-600',
     requiresMarket: true
   }
 ]

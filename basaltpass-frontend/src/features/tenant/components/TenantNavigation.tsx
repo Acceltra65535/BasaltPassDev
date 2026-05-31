@@ -90,6 +90,7 @@ const navigationItems: NavigationItem[] = [
     children: [
       { key: 'tenantNav.subscriptionOverview', href: ROUTES.tenant.subscriptions, icon: ChartBarIcon },
       { key: 'tenantNav.productManagement', href: ROUTES.tenant.subscriptionProducts, icon: CubeIcon },
+      { key: 'tenantNav.subscriptionList', href: ROUTES.tenant.subscriptionsList, icon: UserPlusIcon },
       { key: 'tenantNav.planManagement', href: ROUTES.tenant.plans, icon: RocketLaunchIcon },
       { key: 'tenantNav.priceManagement', href: ROUTES.tenant.prices, icon: CurrencyDollarIcon },
       { key: 'tenantNav.couponManagement', href: ROUTES.tenant.coupons, icon: GiftIcon },

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CurrencyDollarIcon, EyeIcon, PencilIcon, UserGroupIcon, UsersIcon, WalletIcon } from '@heroicons/react/24/outline'
 import TenantLayout from '@features/tenant/components/TenantLayout'
 import { uiAlert } from '@contexts/DialogContext'
-import { PBadge, PButton, PCard, PInput, PSelect, PSkeleton, PTextarea } from '@ui'
+import { Modal, PAlert, PBadge, PButton, PCard, PInput, PPageHeader, PSelect, PSkeleton, PTextarea } from '@ui'
 import { tenantWalletApi, type TenantAdjustOwnerWalletRequest, type TenantCurrency, type TenantWallet, type TenantWalletTransaction } from '@api/tenant/wallet'
 import { tenantGiftCardApi, type GiftCardItem } from '@api/tenant/giftCard'
 import { useI18n } from '@shared/i18n'
@@ -15,6 +15,8 @@ export default function TenantWalletManagement() {
   const [currencies, setCurrencies] = useState<TenantCurrency[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false)
+  const [giftCardModalOpen, setGiftCardModalOpen] = useState(false)
   const [quickAdjustMode, setQuickAdjustMode] = useState<'delta' | 'target'>('delta')
   const [transactionsModalVisible, setTransactionsModalVisible] = useState(false)
   const [transactionWallet, setTransactionWallet] = useState<TenantWallet | null>(null)
@@ -152,6 +154,7 @@ export default function TenantWalletManagement() {
       })
       uiAlert(t('tenantWalletManagement.alerts.giftCardCreateSuccess'))
       setGiftCardForm({ currency_code: '', amount: 0, quantity: 10, expires_at: '', note: '' })
+      setGiftCardModalOpen(false)
       await loadGiftCards()
     } catch (error: any) {
       uiAlert(error.response?.data?.error || t('tenantWalletManagement.alerts.giftCardCreateFailed'))
@@ -221,6 +224,7 @@ export default function TenantWalletManagement() {
       uiAlert(t('tenantWalletManagement.alerts.adjustSuccess'))
       setQuickAdjustMode('delta')
       resetQuickAdjustForm()
+      setAdjustModalOpen(false)
       loadData()
     } catch (error: any) {
       uiAlert(error.response?.data?.error || t('tenantWalletManagement.alerts.adjustFailed'))
@@ -246,193 +250,31 @@ export default function TenantWalletManagement() {
 
   return (
     <TenantLayout title={t('tenantWalletManagement.layoutTitle')}>
-      <div className="space-y-6">
-        <PCard variant="bordered">
-          <div className="flex items-start justify-between gap-6 p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 text-white">
-                <WalletIcon className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{t('tenantWalletManagement.header.title')}</h1>
-                <p className="mt-1 text-sm text-gray-500">{t('tenantWalletManagement.header.description')}</p>
-              </div>
+      <div className="space-y-6 p-6">
+        <PPageHeader
+          title={t('tenantWalletManagement.header.title')}
+          description={t('tenantWalletManagement.header.description')}
+          icon={<WalletIcon className="h-8 w-8 text-indigo-600" />}
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <PButton variant="secondary" onClick={loadData} disabled={loading}>
+                {t('tenantWalletManagement.actions.refresh')}
+              </PButton>
+              <PButton variant="secondary" onClick={() => setGiftCardModalOpen(true)} leftIcon={<CurrencyDollarIcon className="h-4 w-4" />}>
+                {t('tenantWalletManagement.actions.createGiftCards')}
+              </PButton>
+              <PButton onClick={() => setAdjustModalOpen(true)} leftIcon={<PencilIcon className="h-4 w-4" />}>
+                {t('tenantWalletManagement.actions.adjustBalance')}
+              </PButton>
             </div>
-            <PButton variant="secondary" onClick={loadData} disabled={loading}>{t('tenantWalletManagement.actions.refresh')}</PButton>
-          </div>
-        </PCard>
+          }
+        />
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <div className="space-y-6">
-            <PCard variant="bordered">
-              <div className="p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-                  <PencilIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">{t('tenantWalletManagement.adjust.title')}</h2>
-                  <p className="text-sm text-gray-500">{t('tenantWalletManagement.adjust.description')}</p>
-                </div>
-              </div>
+        <PAlert variant="info" title={t('tenantWalletManagement.alerts.infoTitle')}>
+          {t('tenantWalletManagement.alerts.infoDescription')}
+        </PAlert>
 
-              <form onSubmit={handleQuickAdjust} className="space-y-4">
-                <PSelect
-                  label={t('tenantWalletManagement.adjust.modeLabel')}
-                  value={quickAdjustMode}
-                  onChange={(e) => setQuickAdjustMode((e.target as HTMLSelectElement).value as 'delta' | 'target')}
-                  variant="rounded"
-                >
-                  <option value="delta">{t('tenantWalletManagement.adjust.modeDelta')}</option>
-                  <option value="target">{t('tenantWalletManagement.adjust.modeTarget')}</option>
-                </PSelect>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <PSelect
-                    label={t('tenantWalletManagement.adjust.ownerTypeLabel')}
-                    value={quickAdjustForm.owner_type}
-                    onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, owner_type: (e.target as HTMLSelectElement).value as OwnerType })}
-                    variant="rounded"
-                  >
-                    <option value="user">{t('tenantWalletManagement.common.user')}</option>
-                    <option value="team">{t('tenantWalletManagement.common.team')}</option>
-                  </PSelect>
-                  <PInput
-                    type="number"
-                    label={t('tenantWalletManagement.adjust.ownerIdLabel', {
-                      owner: quickAdjustForm.owner_type === 'user' ? t('tenantWalletManagement.common.user') : t('tenantWalletManagement.common.team'),
-                    })}
-                    value={quickAdjustForm.owner_id || ''}
-                    onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, owner_id: e.target.value ? parseInt(e.target.value, 10) : undefined })}
-                    variant="rounded"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <PSelect
-                    label={t('tenantWalletManagement.adjust.currencyLabel')}
-                    value={quickAdjustForm.currency_code}
-                    onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, currency_code: (e.target as HTMLSelectElement).value })}
-                    variant="rounded"
-                  >
-                    <option value="">{t('tenantWalletManagement.adjust.selectCurrency')}</option>
-                    {currencies.map(currency => (
-                      <option key={currency.code} value={currency.code}>
-                        {currency.code} - {currency.name}
-                      </option>
-                    ))}
-                  </PSelect>
-                  <PInput
-                    type="number"
-                    step="0.01"
-                    label={quickAdjustMode === 'delta' ? t('tenantWalletManagement.adjust.amountLabel') : t('tenantWalletManagement.adjust.targetBalanceLabel')}
-                    value={quickAdjustForm.amount}
-                    onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, amount: parseFloat(e.target.value) || 0 })}
-                    placeholder={quickAdjustMode === 'delta' ? t('tenantWalletManagement.adjust.amountPlaceholder') : t('tenantWalletManagement.adjust.targetPlaceholder')}
-                    variant="rounded"
-                  />
-                </div>
-
-                <PTextarea
-                  label={t('tenantWalletManagement.adjust.reasonLabel')}
-                  value={quickAdjustForm.reason}
-                  onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, reason: e.target.value })}
-                  rows={3}
-                  required
-                />
-
-                <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={quickAdjustForm.create_if_missing !== false}
-                    onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, create_if_missing: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  {t('tenantWalletManagement.adjust.createIfMissing')}
-                </label>
-
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                  {quickAdjustMode === 'delta'
-                    ? t('tenantWalletManagement.adjust.deltaHint')
-                    : t('tenantWalletManagement.adjust.targetHint')}
-                </div>
-
-                <div className="flex justify-end gap-3">
-                  <PButton type="button" variant="secondary" onClick={resetQuickAdjustForm}>{t('tenantWalletManagement.actions.reset')}</PButton>
-                  <PButton type="submit" variant="primary" disabled={submitting} loading={submitting}>{t('tenantWalletManagement.actions.confirmAdjust')}</PButton>
-                </div>
-              </form>
-              </div>
-            </PCard>
-
-            <PCard variant="bordered">
-              <div className="p-6">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
-                    <CurrencyDollarIcon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{t('tenantWalletManagement.giftCard.title')}</h2>
-                    <p className="text-sm text-gray-500">{t('tenantWalletManagement.giftCard.description')}</p>
-                  </div>
-                </div>
-
-                <form onSubmit={handleCreateGiftCards} className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <PSelect
-                      label={t('tenantWalletManagement.giftCard.currencyLabel')}
-                      value={giftCardForm.currency_code}
-                      onChange={(e) => setGiftCardForm({ ...giftCardForm, currency_code: (e.target as HTMLSelectElement).value })}
-                      variant="rounded"
-                    >
-                      <option value="">{t('tenantWalletManagement.giftCard.selectCurrency')}</option>
-                      {currencies.map(currency => (
-                        <option key={currency.code} value={currency.code}>{currency.code} - {currency.name}</option>
-                      ))}
-                    </PSelect>
-                    <PInput
-                      type="number"
-                      step="0.01"
-                      label={t('tenantWalletManagement.giftCard.amountLabel')}
-                      value={giftCardForm.amount}
-                      onChange={(e) => setGiftCardForm({ ...giftCardForm, amount: parseFloat(e.target.value) || 0 })}
-                      variant="rounded"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <PInput
-                      type="number"
-                      label={t('tenantWalletManagement.giftCard.quantityLabel')}
-                      value={giftCardForm.quantity}
-                      onChange={(e) => setGiftCardForm({ ...giftCardForm, quantity: parseInt(e.target.value || '0', 10) || 0 })}
-                      variant="rounded"
-                    />
-                    <PInput
-                      type="datetime-local"
-                      label={t('tenantWalletManagement.giftCard.expiresAtLabel')}
-                      value={giftCardForm.expires_at}
-                      onChange={(e) => setGiftCardForm({ ...giftCardForm, expires_at: e.target.value })}
-                      variant="rounded"
-                    />
-                  </div>
-
-                  <PTextarea
-                    label={t('tenantWalletManagement.giftCard.noteLabel')}
-                    value={giftCardForm.note}
-                    onChange={(e) => setGiftCardForm({ ...giftCardForm, note: e.target.value })}
-                    rows={2}
-                  />
-
-                  <div className="flex justify-end">
-                    <PButton type="submit" variant="primary" loading={giftCardSubmitting} disabled={giftCardSubmitting}>{t('tenantWalletManagement.actions.createBatch')}</PButton>
-                  </div>
-                </form>
-              </div>
-            </PCard>
-          </div>
-
-          <PCard variant="bordered">
+        <PCard variant="bordered">
             <div className="border-b border-gray-200 p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
@@ -515,7 +357,10 @@ export default function TenantWalletManagement() {
             <div className="border-t border-gray-200 p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-base font-semibold text-gray-900">{t('tenantWalletManagement.giftCard.listTitle')}</h3>
-                <PButton variant="secondary" size="sm" onClick={loadGiftCards} disabled={giftCardLoading}>{t('tenantWalletManagement.actions.refresh')}</PButton>
+                <div className="flex gap-2">
+                  <PButton variant="secondary" size="sm" onClick={loadGiftCards} disabled={giftCardLoading}>{t('tenantWalletManagement.actions.refresh')}</PButton>
+                  <PButton size="sm" onClick={() => setGiftCardModalOpen(true)}>{t('tenantWalletManagement.actions.createBatch')}</PButton>
+                </div>
               </div>
               {giftCardLoading ? (
                 <PSkeleton.List items={3} />
@@ -555,8 +400,167 @@ export default function TenantWalletManagement() {
               )}
             </div>
           </PCard>
-        </div>
       </div>
+
+      {adjustModalOpen ? (
+        <Modal
+          open={adjustModalOpen}
+          onClose={() => setAdjustModalOpen(false)}
+          title={t('tenantWalletManagement.adjust.title')}
+          widthClass="max-w-2xl"
+        >
+          <form onSubmit={handleQuickAdjust} className="space-y-4">
+            <p className="text-sm text-gray-500">{t('tenantWalletManagement.adjust.description')}</p>
+            <PSelect
+              label={t('tenantWalletManagement.adjust.modeLabel')}
+              value={quickAdjustMode}
+              onChange={(e) => setQuickAdjustMode((e.target as HTMLSelectElement).value as 'delta' | 'target')}
+              variant="rounded"
+            >
+              <option value="delta">{t('tenantWalletManagement.adjust.modeDelta')}</option>
+              <option value="target">{t('tenantWalletManagement.adjust.modeTarget')}</option>
+            </PSelect>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <PSelect
+                label={t('tenantWalletManagement.adjust.ownerTypeLabel')}
+                value={quickAdjustForm.owner_type}
+                onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, owner_type: (e.target as HTMLSelectElement).value as OwnerType })}
+                variant="rounded"
+              >
+                <option value="user">{t('tenantWalletManagement.common.user')}</option>
+                <option value="team">{t('tenantWalletManagement.common.team')}</option>
+              </PSelect>
+              <PInput
+                type="number"
+                label={t('tenantWalletManagement.adjust.ownerIdLabel', {
+                  owner: quickAdjustForm.owner_type === 'user' ? t('tenantWalletManagement.common.user') : t('tenantWalletManagement.common.team'),
+                })}
+                value={quickAdjustForm.owner_id || ''}
+                onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, owner_id: e.target.value ? parseInt(e.target.value, 10) : undefined })}
+                variant="rounded"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <PSelect
+                label={t('tenantWalletManagement.adjust.currencyLabel')}
+                value={quickAdjustForm.currency_code}
+                onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, currency_code: (e.target as HTMLSelectElement).value })}
+                variant="rounded"
+              >
+                <option value="">{t('tenantWalletManagement.adjust.selectCurrency')}</option>
+                {currencies.map(currency => (
+                  <option key={currency.code} value={currency.code}>
+                    {currency.code} - {currency.name}
+                  </option>
+                ))}
+              </PSelect>
+              <PInput
+                type="number"
+                step="0.01"
+                label={quickAdjustMode === 'delta' ? t('tenantWalletManagement.adjust.amountLabel') : t('tenantWalletManagement.adjust.targetBalanceLabel')}
+                value={quickAdjustForm.amount}
+                onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, amount: parseFloat(e.target.value) || 0 })}
+                placeholder={quickAdjustMode === 'delta' ? t('tenantWalletManagement.adjust.amountPlaceholder') : t('tenantWalletManagement.adjust.targetPlaceholder')}
+                variant="rounded"
+              />
+            </div>
+
+            <PTextarea
+              label={t('tenantWalletManagement.adjust.reasonLabel')}
+              value={quickAdjustForm.reason}
+              onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, reason: e.target.value })}
+              rows={3}
+              required
+            />
+
+            <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={quickAdjustForm.create_if_missing !== false}
+                onChange={(e) => setQuickAdjustForm({ ...quickAdjustForm, create_if_missing: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              {t('tenantWalletManagement.adjust.createIfMissing')}
+            </label>
+
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              {quickAdjustMode === 'delta'
+                ? t('tenantWalletManagement.adjust.deltaHint')
+                : t('tenantWalletManagement.adjust.targetHint')}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
+              <PButton type="button" variant="secondary" onClick={resetQuickAdjustForm}>{t('tenantWalletManagement.actions.reset')}</PButton>
+              <PButton type="submit" variant="primary" disabled={submitting} loading={submitting}>{t('tenantWalletManagement.actions.confirmAdjust')}</PButton>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {giftCardModalOpen ? (
+        <Modal
+          open={giftCardModalOpen}
+          onClose={() => setGiftCardModalOpen(false)}
+          title={t('tenantWalletManagement.giftCard.title')}
+          widthClass="max-w-2xl"
+        >
+          <form onSubmit={handleCreateGiftCards} className="space-y-4">
+            <p className="text-sm text-gray-500">{t('tenantWalletManagement.giftCard.description')}</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <PSelect
+                label={t('tenantWalletManagement.giftCard.currencyLabel')}
+                value={giftCardForm.currency_code}
+                onChange={(e) => setGiftCardForm({ ...giftCardForm, currency_code: (e.target as HTMLSelectElement).value })}
+                variant="rounded"
+              >
+                <option value="">{t('tenantWalletManagement.giftCard.selectCurrency')}</option>
+                {currencies.map(currency => (
+                  <option key={currency.code} value={currency.code}>{currency.code} - {currency.name}</option>
+                ))}
+              </PSelect>
+              <PInput
+                type="number"
+                step="0.01"
+                label={t('tenantWalletManagement.giftCard.amountLabel')}
+                value={giftCardForm.amount}
+                onChange={(e) => setGiftCardForm({ ...giftCardForm, amount: parseFloat(e.target.value) || 0 })}
+                variant="rounded"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <PInput
+                type="number"
+                label={t('tenantWalletManagement.giftCard.quantityLabel')}
+                value={giftCardForm.quantity}
+                onChange={(e) => setGiftCardForm({ ...giftCardForm, quantity: parseInt(e.target.value || '0', 10) || 0 })}
+                variant="rounded"
+              />
+              <PInput
+                type="datetime-local"
+                label={t('tenantWalletManagement.giftCard.expiresAtLabel')}
+                value={giftCardForm.expires_at}
+                onChange={(e) => setGiftCardForm({ ...giftCardForm, expires_at: e.target.value })}
+                variant="rounded"
+              />
+            </div>
+
+            <PTextarea
+              label={t('tenantWalletManagement.giftCard.noteLabel')}
+              value={giftCardForm.note}
+              onChange={(e) => setGiftCardForm({ ...giftCardForm, note: e.target.value })}
+              rows={2}
+            />
+
+            <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
+              <PButton type="button" variant="secondary" onClick={() => setGiftCardModalOpen(false)}>{t('tenantWalletManagement.actions.close')}</PButton>
+              <PButton type="submit" variant="primary" loading={giftCardSubmitting} disabled={giftCardSubmitting}>{t('tenantWalletManagement.actions.createBatch')}</PButton>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
 
       {transactionsModalVisible && transactionWallet ? (
         <div className="fixed inset-0 !m-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">

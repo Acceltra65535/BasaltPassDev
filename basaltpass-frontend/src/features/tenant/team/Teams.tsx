@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { uiConfirm } from '@contexts/DialogContext'
 import TenantLayout from '@features/tenant/components/TenantLayout'
-import { PButton, PInput, PCard, PSelect } from '@ui'
+import { PButton, PInput, PCard, PPageHeader, PSelect } from '@ui'
 import { tenantTeamApi, TenantTeamBrief } from '@api/tenant/tenantTeam'
 import { PlusIcon, PencilIcon, TrashIcon, UsersIcon } from '@heroicons/react/24/outline'
 import { useI18n } from '@shared/i18n'
@@ -152,15 +152,18 @@ export default function TenantTeamsPage() {
   }
 
   return (
-    <TenantLayout
-      title={t('tenantTeams.layoutTitle')}
-      actions={
-        <PButton size="sm" leftIcon={<PlusIcon className="h-4 w-4" />} onClick={() => setShowCreate(true)}>
-          {t('tenantTeams.actions.createTeam')}
-        </PButton>
-      }
-    >
+    <TenantLayout title={t('tenantTeams.layoutTitle')}>
       <div className="space-y-6">
+        <PPageHeader
+          title={t('tenantTeams.layoutTitle')}
+          description={t('tenantTeams.description')}
+          actions={
+            <PButton size="sm" leftIcon={<PlusIcon className="h-4 w-4" />} onClick={() => setShowCreate(true)}>
+              {t('tenantTeams.actions.createTeam')}
+            </PButton>
+          }
+        />
+
         <div className="flex items-center space-x-4">
           <div className="w-64">
             <PInput

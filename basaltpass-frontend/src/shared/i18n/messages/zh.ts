@@ -1535,6 +1535,7 @@ const en = {
     subscriptionManagement: '订阅',
     subscriptionOverview: '概览',
     productManagement: '产品',
+    subscriptionList: '订阅列表',
     planManagement: '套餐',
     priceManagement: '价格',
     couponManagement: '优惠券',
@@ -2895,6 +2896,7 @@ const en = {
   },
   tenantTeams: {
     layoutTitle: 'Team Management',
+    description: 'Create teams, manage members, and assign ownership within this tenant.',
     search: {
       placeholder: 'Search by team name/description',
     },
@@ -3276,6 +3278,8 @@ const en = {
     actions: {
       refresh: 'Refresh',
       reset: 'Reset',
+      adjustBalance: 'Adjust Balance',
+      createGiftCards: 'Create Gift Cards',
       confirmAdjust: 'Confirm Adjustment',
       createBatch: 'Batch Create',
       viewTransactions: 'Transactions',
@@ -3341,6 +3345,8 @@ const en = {
       time: 'Time',
     },
     alerts: {
+      infoTitle: 'Wallet operations',
+      infoDescription: 'Use the table to review tenant wallets and open modals for balance adjustments or gift card creation. Balance changes should include a clear reason for auditability.',
       selectGiftCardCurrency: 'Please select gift card currency',
       invalidAmount: 'Please enter a valid amount',
       invalidQuantity: 'Please enter a valid quantity',
