@@ -125,7 +125,7 @@ export default function TenantAppList() {
 
   return (
     <TenantLayout title={t('tenantAppList.layoutTitle')}>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         {/*  */}
         <PPageHeader
           title={t('tenantAppList.title')}

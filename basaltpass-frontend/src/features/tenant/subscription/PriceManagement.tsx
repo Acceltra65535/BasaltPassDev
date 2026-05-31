@@ -168,14 +168,23 @@ const PriceManagement: React.FC<PriceManagementProps> = () => {
             { key: 'amount', title: t('tenantSubscriptionPriceManagement.table.price'), render: (row) => formatPrice(row.AmountCents, row.Currency) },
             { key: 'billing', title: t('tenantSubscriptionPriceManagement.table.billingPeriod'), render: (row) => formatBillingPeriod(row.BillingPeriod, row.BillingInterval) },
             { key: 'usage', title: t('tenantSubscriptionPriceManagement.table.usageType'), render: (row) => getUsageTypeText(row.UsageType) },
-            { key: 'trial', title: t('tenantSubscriptionPriceManagement.table.trialPeriod'), render: (row) => (row.TrialDays ? t('tenantSubscriptionPriceManagement.fields.trialDays', { days: row.TrialDays }) : '-') },
+            {
+              key: 'trial',
+              title: t('tenantSubscriptionPriceManagement.table.trialPeriod'),
+              render: (row) => row.TrialDays ? (
+                <span className="inline-flex items-center text-gray-700">
+                  <ClockIcon className="h-4 w-4 mr-1 text-gray-400" />
+                  {t('tenantSubscriptionPriceManagement.fields.trialDays', { days: row.TrialDays })}
+                </span>
+              ) : '-'
+            },
             { key: 'created', title: t('tenantSubscriptionPriceManagement.table.createdAt'), render: (row) => new Date(row.CreatedAt).toLocaleDateString(locale) },
             {
               key: 'deprecated',
               title: t('tenantSubscriptionPriceManagement.table.status'),
               render: (row) => row.DeprecatedAt
                 ? (<span className="inline-flex items-center text-red-600"><XCircleIcon className="h-4 w-4 mr-1" />{t('tenantSubscriptionPriceManagement.status.deprecated')}</span>)
-                : (<span className="text-gray-600">{t('tenantSubscriptionPriceManagement.status.normal')}</span>)
+                : (<span className="inline-flex items-center text-green-600"><CheckCircleIcon className="h-4 w-4 mr-1" />{t('tenantSubscriptionPriceManagement.status.normal')}</span>)
             },
           ];
 

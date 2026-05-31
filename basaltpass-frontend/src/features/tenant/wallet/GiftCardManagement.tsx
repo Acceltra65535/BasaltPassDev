@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CurrencyDollarIcon, DocumentDuplicateIcon, GiftIcon } from '@heroicons/react/24/outline'
 import TenantLayout from '@features/tenant/components/TenantLayout'
 import { uiAlert } from '@contexts/DialogContext'
-import { PBadge, PButton, PCard, PInput, PSelect, PSkeleton, PTextarea } from '@ui'
+import { Modal, PAlert, PBadge, PButton, PCard, PInput, PPageHeader, PSelect, PSkeleton, PTextarea } from '@ui'
 import { tenantGiftCardApi, type GiftCardItem } from '@api/tenant/giftCard'
 import { tenantWalletApi, type TenantCurrency } from '@api/tenant/wallet'
 import { useI18n } from '@shared/i18n'
@@ -13,6 +13,7 @@ export default function GiftCardManagement() {
   const [giftCards, setGiftCards] = useState<GiftCardItem[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
   const [filters, setFilters] = useState({
     code: '',
     status: '',
@@ -101,6 +102,7 @@ export default function GiftCardManagement() {
       })
       uiAlert(t('tenantGiftCardManagement.alerts.createSuccess'))
       setForm({ currency_code: '', amount: 0, quantity: 10, expires_at: '', note: '' })
+      setCreateModalOpen(false)
       await loadGiftCards()
     } catch (error: any) {
       uiAlert(error.response?.data?.error || t('tenantGiftCardManagement.alerts.createFailed'))
@@ -130,90 +132,26 @@ export default function GiftCardManagement() {
 
   return (
     <TenantLayout title={t('tenantGiftCardManagement.layoutTitle')}>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
+        <PPageHeader
+          title={t('tenantGiftCardManagement.header.title')}
+          description={t('tenantGiftCardManagement.header.description')}
+          icon={<GiftIcon className="h-8 w-8 text-indigo-600" />}
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <PButton variant="secondary" onClick={loadGiftCards} disabled={loading}>{t('tenantGiftCardManagement.actions.refresh')}</PButton>
+              <PButton onClick={() => setCreateModalOpen(true)} leftIcon={<CurrencyDollarIcon className="h-4 w-4" />}>
+                {t('tenantGiftCardManagement.actions.createBatch')}
+              </PButton>
+            </div>
+          }
+        />
+
+        <PAlert variant="info" title={t('tenantGiftCardManagement.alerts.infoTitle')}>
+          {t('tenantGiftCardManagement.alerts.infoDescription')}
+        </PAlert>
+
         <PCard variant="bordered">
-          <div className="flex items-start justify-between gap-6 p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white">
-                <GiftIcon className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{t('tenantGiftCardManagement.header.title')}</h1>
-                <p className="mt-1 text-sm text-gray-500">{t('tenantGiftCardManagement.header.description')}</p>
-              </div>
-            </div>
-            <PButton variant="secondary" onClick={loadGiftCards} disabled={loading}>{t('tenantGiftCardManagement.actions.refresh')}</PButton>
-          </div>
-        </PCard>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <PCard variant="bordered">
-            <div className="p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
-                  <CurrencyDollarIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">{t('tenantGiftCardManagement.batch.title')}</h2>
-                  <p className="text-sm text-gray-500">{t('tenantGiftCardManagement.batch.description')}</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleCreateBatch} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <PSelect
-                    label={t('tenantGiftCardManagement.form.currencyLabel')}
-                    value={form.currency_code}
-                    onChange={(e) => setForm({ ...form, currency_code: (e.target as HTMLSelectElement).value })}
-                    variant="rounded"
-                  >
-                    <option value="">{t('tenantGiftCardManagement.form.selectCurrency')}</option>
-                    {currencies.map(currency => (
-                      <option key={currency.code} value={currency.code}>{currency.code} - {currency.name}</option>
-                    ))}
-                  </PSelect>
-                  <PInput
-                    type="number"
-                    step="0.01"
-                    label={t('tenantGiftCardManagement.form.amountLabel')}
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
-                    variant="rounded"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <PInput
-                    type="number"
-                    label={t('tenantGiftCardManagement.form.quantityLabel')}
-                    value={form.quantity}
-                    onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value || '0', 10) || 0 })}
-                    variant="rounded"
-                  />
-                  <PInput
-                    type="datetime-local"
-                    label={t('tenantGiftCardManagement.form.expiresAtLabel')}
-                    value={form.expires_at}
-                    onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
-                    variant="rounded"
-                  />
-                </div>
-
-                <PTextarea
-                  label={t('tenantGiftCardManagement.form.noteLabel')}
-                  value={form.note}
-                  onChange={(e) => setForm({ ...form, note: e.target.value })}
-                  rows={2}
-                />
-
-                <div className="flex justify-end">
-                  <PButton type="submit" variant="primary" loading={submitting} disabled={submitting}>{t('tenantGiftCardManagement.actions.createBatch')}</PButton>
-                </div>
-              </form>
-            </div>
-          </PCard>
-
-          <PCard variant="bordered">
             <div className="border-b border-gray-200 p-6">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <PInput
@@ -292,8 +230,70 @@ export default function GiftCardManagement() {
               )}
             </div>
           </PCard>
-        </div>
       </div>
+
+      {createModalOpen ? (
+        <Modal
+          open={createModalOpen}
+          onClose={() => setCreateModalOpen(false)}
+          title={t('tenantGiftCardManagement.batch.title')}
+          widthClass="max-w-2xl"
+        >
+          <form onSubmit={handleCreateBatch} className="space-y-4">
+            <p className="text-sm text-gray-500">{t('tenantGiftCardManagement.batch.description')}</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <PSelect
+                label={t('tenantGiftCardManagement.form.currencyLabel')}
+                value={form.currency_code}
+                onChange={(e) => setForm({ ...form, currency_code: (e.target as HTMLSelectElement).value })}
+                variant="rounded"
+              >
+                <option value="">{t('tenantGiftCardManagement.form.selectCurrency')}</option>
+                {currencies.map(currency => (
+                  <option key={currency.code} value={currency.code}>{currency.code} - {currency.name}</option>
+                ))}
+              </PSelect>
+              <PInput
+                type="number"
+                step="0.01"
+                label={t('tenantGiftCardManagement.form.amountLabel')}
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
+                variant="rounded"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <PInput
+                type="number"
+                label={t('tenantGiftCardManagement.form.quantityLabel')}
+                value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value || '0', 10) || 0 })}
+                variant="rounded"
+              />
+              <PInput
+                type="datetime-local"
+                label={t('tenantGiftCardManagement.form.expiresAtLabel')}
+                value={form.expires_at}
+                onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+                variant="rounded"
+              />
+            </div>
+
+            <PTextarea
+              label={t('tenantGiftCardManagement.form.noteLabel')}
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              rows={2}
+            />
+
+            <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
+              <PButton type="button" variant="secondary" onClick={() => setCreateModalOpen(false)}>{t('tenantGiftCardManagement.actions.cancel')}</PButton>
+              <PButton type="submit" variant="primary" loading={submitting} disabled={submitting}>{t('tenantGiftCardManagement.actions.createBatch')}</PButton>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
     </TenantLayout>
   )
 }

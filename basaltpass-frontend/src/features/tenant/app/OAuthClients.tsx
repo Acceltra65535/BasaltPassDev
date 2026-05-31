@@ -77,7 +77,7 @@ export default function TenantOAuthClients() {
 
   return (
     <TenantLayout title={t('tenantOAuthClients.layoutTitle')}>
-      <div>
+      <div className="space-y-6 p-6">
         {/*  */}
         <PPageHeader
           title={t('tenantOAuthClients.title')}
@@ -94,7 +94,7 @@ export default function TenantOAuthClients() {
         />
 
         {/*  */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center">
           <form onSubmit={handleSearch} className="flex items-center space-x-2">
             <div className="min-w-[240px]">
               <PInput

@@ -3241,8 +3241,11 @@ const en = {
       createBatch: 'Batch Create',
       copyCode: 'Copy',
       invalidate: 'Set Invalid',
+      cancel: 'Cancel',
     },
     alerts: {
+      infoTitle: 'Gift card lifecycle',
+      infoDescription: 'Use this table to search, copy, and invalidate gift cards. Batch creation is handled in a modal so list review stays focused.',
       selectCurrency: 'Please select gift card currency',
       invalidAmount: 'Please enter a valid amount',
       invalidQuantity: 'Please enter a valid quantity',
