@@ -4,9 +4,11 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/aduit"
 	emailservice "basaltpass-backend/internal/service/email"
 	"basaltpass-backend/internal/service/passwordpolicy"
 	settingssvc "basaltpass-backend/internal/service/settings"
+	smssvc "basaltpass-backend/internal/service/sms"
 	tenantservice "basaltpass-backend/internal/service/tenant"
 	"basaltpass-backend/internal/service/tenantquota"
 	"basaltpass-backend/internal/service/wallet"
@@ -36,6 +38,7 @@ const (
 type Service struct {
 	config   *RiskLevelConfig
 	emailSvc *emailservice.Service
+	smsSvc   *smssvc.Service
 	pepper   string
 }
 
@@ -49,6 +52,7 @@ func NewService() *Service {
 	return &Service{
 		config:   DefaultConfig(),
 		emailSvc: emailSvc,
+		smsSvc:   smssvc.New(),
 		pepper:   resolveVerificationPepper(),
 	}
 }
@@ -439,13 +443,18 @@ func (s *Service) CompleteSignup(req CompleteSignupRequest) (*model.User, error)
 	if isFirstUser && pendingSignup.TenantID == 0 {
 		t := true
 		user.IsSystemAdmin = &t
-		// TODO: 实现setupFirstUserAsGlobalAdmin逻辑
-		// 暂时跳过，用户模型中已设置IsSystemAdmin
 	}
 
 	if err := tx.Create(user).Error; err != nil {
 		tx.Rollback()
 		return nil, err
+	}
+
+	if isFirstUser && pendingSignup.TenantID == 0 {
+		if err := s.setupFirstUserAsGlobalAdmin(tx, user); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 	}
 
 	// 自动处理租户邀请（如果用户存在未处理的邀请记录）
@@ -715,7 +724,7 @@ func (s *Service) handleResend(challenge *model.VerificationChallenge, config *V
 	if err := common.DB().Save(challenge).Error; err != nil {
 		return err
 	}
-	return s.sendVerificationEmail(challenge.Target, newCode, challenge.ExpiresAt)
+	return s.sendVerificationCode(challenge.Channel, challenge.Target, newCode, challenge.ExpiresAt)
 }
 
 // createNewChallenge 创建新的验证码挑战
@@ -751,13 +760,7 @@ func (s *Service) createNewChallenge(signupID string, channel model.ChallengeCha
 		return err
 	}
 
-	// 发送验证码
-	if channel == model.ChallengeChannelEmail {
-		return s.sendVerificationEmail(target, code, challenge.ExpiresAt)
-	}
-
-	// TODO: 实现短信发送
-	return errors.New("SMS sending not implemented yet")
+	return s.sendVerificationCode(channel, target, code, challenge.ExpiresAt)
 }
 
 // generateSalt 生成盐值
@@ -767,6 +770,34 @@ func (s *Service) generateSalt() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+func (s *Service) setupFirstUserAsGlobalAdmin(tx *gorm.DB, user *model.User) error {
+	if user == nil {
+		return errors.New("user required")
+	}
+	if err := tx.Model(user).Updates(map[string]interface{}{
+		"nickname":       "系统管理员",
+		"email_verified": true,
+	}).Error; err != nil {
+		return err
+	}
+	user.Nickname = "系统管理员"
+	user.EmailVerified = true
+
+	aduit.LogAudit(user.ID, "首位用户注册", "user", fmt.Sprint(user.ID), "", "")
+	return nil
+}
+
+func (s *Service) sendVerificationCode(channel model.ChallengeChannel, target, code string, expiresAt time.Time) error {
+	switch channel {
+	case model.ChallengeChannelEmail:
+		return s.sendVerificationEmail(target, code, expiresAt)
+	case model.ChallengeChannelSMS:
+		return s.sendVerificationSMS(target, code, expiresAt)
+	default:
+		return errors.New("unsupported verification channel")
+	}
 }
 
 // sendVerificationEmail 发送验证邮件
@@ -845,4 +876,15 @@ The BasaltPass Team
 	}
 	_, err := s.emailSvc.SendWithLogging(context.Background(), msg, nil, "email_verification")
 	return err
+}
+
+func (s *Service) sendVerificationSMS(phone, code string, expiresAt time.Time) error {
+	if s.smsSvc == nil {
+		return errors.New("sms service not configured")
+	}
+	minutes := int(time.Until(expiresAt).Minutes())
+	if minutes < 1 {
+		minutes = 1
+	}
+	return s.smsSvc.SendVerificationCode(phone, code, minutes)
 }

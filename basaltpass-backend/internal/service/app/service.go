@@ -151,7 +151,6 @@ type OAuthClientInfo struct {
 
 // CreateApp 创建应用
 func (s *AppService) CreateApp(tenantID, creatorUserID uint, req *CreateAppRequest) (*AppResponse, error) {
-	// 验证租户权限（TODO: 添加更详细的权限检查）
 	var tenant model.Tenant
 	if err := s.db.First(&tenant, tenantID).Error; err != nil {
 		return nil, errors.New("租户不存在")
@@ -159,6 +158,11 @@ func (s *AppService) CreateApp(tenantID, creatorUserID uint, req *CreateAppReque
 
 	if creatorUserID == 0 {
 		return nil, errors.New("无效的创建者")
+	}
+	if ok, err := s.canCreateApp(tenantID, creatorUserID); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, errors.New("无权创建应用")
 	}
 
 	// 创建应用
@@ -658,6 +662,54 @@ func (s *AppService) getAppStats(appID uint) *AppStats {
 	}
 
 	return stats
+}
+
+func (s *AppService) canCreateApp(tenantID, userID uint) (bool, error) {
+	var user model.User
+	if err := s.db.Select("id", "is_system_admin").First(&user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, errors.New("创建者不存在")
+		}
+		return false, err
+	}
+	if user.IsSuperAdmin() {
+		return true, nil
+	}
+
+	var tenantUser model.TenantUser
+	if err := s.db.Where("user_id = ? AND tenant_id = ?", userID, tenantID).First(&tenantUser).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	if tenantUser.Role == model.TenantRoleOwner || tenantUser.Role == model.TenantRoleAdmin {
+		return true, nil
+	}
+
+	var permissionCount int64
+	if err := s.db.Model(&model.TenantUserRbacRole{}).
+		Joins("JOIN tenant_role_permissions ON tenant_role_permissions.role_id = tenant_user_roles.role_id").
+		Joins("JOIN tenant_permissions ON tenant_permissions.id = tenant_role_permissions.permission_id").
+		Where("tenant_user_roles.user_id = ? AND tenant_user_roles.tenant_id = ?", userID, tenantID).
+		Where("tenant_permissions.tenant_id = ? AND tenant_permissions.code = ?", tenantID, "tenant.apps.create").
+		Where("tenant_user_roles.expires_at IS NULL OR tenant_user_roles.expires_at > ?", time.Now()).
+		Count(&permissionCount).Error; err != nil {
+		return false, err
+	}
+	if permissionCount > 0 {
+		return true, nil
+	}
+
+	if err := s.db.Model(&model.TenantUserRbacPermission{}).
+		Joins("JOIN tenant_permissions ON tenant_permissions.id = tenant_user_permissions.permission_id").
+		Where("tenant_user_permissions.user_id = ? AND tenant_user_permissions.tenant_id = ?", userID, tenantID).
+		Where("tenant_permissions.tenant_id = ? AND tenant_permissions.code = ?", tenantID, "tenant.apps.create").
+		Where("tenant_user_permissions.expires_at IS NULL OR tenant_user_permissions.expires_at > ?", time.Now()).
+		Count(&permissionCount).Error; err != nil {
+		return false, err
+	}
+	return permissionCount > 0, nil
 }
 
 // 系统级管理员方法

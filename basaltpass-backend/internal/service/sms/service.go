@@ -34,7 +34,11 @@ type Service struct {
 // configuration keys are added to the application config.
 func New() *Service {
 	p := strings.ToLower(strings.TrimSpace(os.Getenv("SMS_PROVIDER")))
+	env := strings.ToLower(strings.TrimSpace(os.Getenv("BASALTPASS_ENV")))
 	if p == "" {
+		if env == "production" || env == "prod" {
+			return &Service{provider: disabledProvider{reason: "SMS_PROVIDER is required in production"}}
+		}
 		p = "log"
 	}
 
@@ -43,11 +47,8 @@ func New() *Service {
 	case "log":
 		provider = &logProvider{}
 	default:
-		// Unrecognised provider — fall back to log in development, hard error
-		// in production so mis-configuration is caught early.
-		env := strings.ToLower(strings.TrimSpace(os.Getenv("BASALTPASS_ENV")))
 		if env == "production" || env == "prod" {
-			log.Printf("[sms] unknown SMS_PROVIDER=%q in production — falling back to log provider", p)
+			return &Service{provider: disabledProvider{reason: fmt.Sprintf("unknown SMS_PROVIDER=%q in production", p)}}
 		}
 		log.Printf("[sms] unknown SMS_PROVIDER=%q, falling back to log provider", p)
 		provider = &logProvider{}
@@ -78,4 +79,15 @@ type logProvider struct{}
 func (l *logProvider) Send(to, message string) error {
 	log.Printf("[sms/log] SMS to %s: %s", to, message)
 	return nil
+}
+
+type disabledProvider struct {
+	reason string
+}
+
+func (d disabledProvider) Send(_, _ string) error {
+	if d.reason == "" {
+		return errors.New("sms provider is disabled")
+	}
+	return errors.New(d.reason)
 }

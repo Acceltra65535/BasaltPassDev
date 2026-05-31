@@ -27,6 +27,11 @@ func setupAppServiceTestDB(t *testing.T) *gorm.DB {
 		&model.User{},
 		&model.Tenant{},
 		&model.TenantUser{},
+		&model.TenantRbacRole{},
+		&model.TenantRbacPermission{},
+		&model.TenantRbacRolePermission{},
+		&model.TenantUserRbacRole{},
+		&model.TenantUserRbacPermission{},
 		&model.App{},
 		&model.OAuthClient{},
 	); err != nil {
@@ -53,6 +58,10 @@ func TestCreateAppCreatesTenantUserWithUserRole(t *testing.T) {
 		Email:        "creator@example.com",
 		PasswordHash: "x",
 		TenantID:     tenant.ID,
+		IsSystemAdmin: func() *bool {
+			v := true
+			return &v
+		}(),
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -85,6 +94,106 @@ func TestCreateAppCreatesTenantUserWithUserRole(t *testing.T) {
 	}
 	if client.CreatedBy != user.ID {
 		t.Fatalf("expected oauth client created_by=%d, got %d", user.ID, client.CreatedBy)
+	}
+}
+
+func TestCreateAppRejectsUnauthorizedTenantUser(t *testing.T) {
+	db := setupAppServiceTestDB(t)
+
+	tenant := model.Tenant{
+		Name:   "Gamma",
+		Code:   "gamma-create-app",
+		Status: model.TenantStatusActive,
+	}
+	if err := db.Create(&tenant).Error; err != nil {
+		t.Fatalf("create tenant failed: %v", err)
+	}
+
+	user := model.User{
+		Email:        "member@example.com",
+		PasswordHash: "x",
+		TenantID:     tenant.ID,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{
+		UserID:   user.ID,
+		TenantID: tenant.ID,
+		Role:     model.TenantRoleMember,
+	}).Error; err != nil {
+		t.Fatalf("create tenant_user failed: %v", err)
+	}
+
+	svc := NewAppService()
+	_, err := svc.CreateApp(tenant.ID, user.ID, &CreateAppRequest{
+		Name:         "member-app",
+		RedirectURIs: []string{"https://example.com/callback"},
+	})
+	if err == nil {
+		t.Fatalf("expected unauthorized tenant member to be rejected")
+	}
+	if err.Error() != "无权创建应用" {
+		t.Fatalf("expected unauthorized error, got %v", err)
+	}
+}
+
+func TestCreateAppAllowsDirectTenantPermission(t *testing.T) {
+	db := setupAppServiceTestDB(t)
+
+	tenant := model.Tenant{
+		Name:   "Delta",
+		Code:   "delta-create-app",
+		Status: model.TenantStatusActive,
+	}
+	if err := db.Create(&tenant).Error; err != nil {
+		t.Fatalf("create tenant failed: %v", err)
+	}
+
+	user := model.User{
+		Email:        "direct-permission@example.com",
+		PasswordHash: "x",
+		TenantID:     tenant.ID,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{
+		UserID:   user.ID,
+		TenantID: tenant.ID,
+		Role:     model.TenantRoleMember,
+	}).Error; err != nil {
+		t.Fatalf("create tenant_user failed: %v", err)
+	}
+
+	permission := model.TenantRbacPermission{
+		Code:     "tenant.apps.create",
+		Name:     "Create apps",
+		Category: "apps",
+		TenantID: tenant.ID,
+	}
+	if err := db.Create(&permission).Error; err != nil {
+		t.Fatalf("create permission failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUserRbacPermission{
+		UserID:       user.ID,
+		TenantID:     tenant.ID,
+		PermissionID: permission.ID,
+		GrantedBy:    user.ID,
+	}).Error; err != nil {
+		t.Fatalf("create direct permission failed: %v", err)
+	}
+
+	svc := NewAppService()
+	appResp, err := svc.CreateApp(tenant.ID, user.ID, &CreateAppRequest{
+		Name:         "direct-permission-app",
+		RedirectURIs: []string{"https://example.com/callback"},
+	})
+	if err != nil {
+		t.Fatalf("CreateApp failed: %v", err)
+	}
+	if appResp.ID == 0 {
+		t.Fatalf("expected created app id")
 	}
 }
 
