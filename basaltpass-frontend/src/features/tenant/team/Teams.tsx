@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { uiConfirm } from '@contexts/DialogContext'
 import TenantLayout from '@features/tenant/components/TenantLayout'
-import { PButton, PInput, PCard, PPageHeader, PSelect } from '@ui'
+import { PButton, PInput, PCard, PPageHeader, PSelect, Modal } from '@ui'
 import { tenantTeamApi, TenantTeamBrief } from '@api/tenant/tenantTeam'
 import { PlusIcon, PencilIcon, TrashIcon, UsersIcon } from '@heroicons/react/24/outline'
 import { useI18n } from '@shared/i18n'
@@ -153,8 +153,9 @@ export default function TenantTeamsPage() {
 
   return (
     <TenantLayout title={t('tenantTeams.layoutTitle')}>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <PPageHeader
+          icon={<UsersIcon className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />}
           title={t('tenantTeams.layoutTitle')}
           description={t('tenantTeams.description')}
           actions={
@@ -164,32 +165,34 @@ export default function TenantTeamsPage() {
           }
         />
 
-        <div className="flex items-center space-x-4">
-          <div className="w-64">
-            <PInput
-              placeholder={t('tenantTeams.search.placeholder')}
-              value={keyword}
-              onChange={(e) => {
-                setPage(1)
-                setKeyword(e.target.value)
-              }}
-            />
+        <PCard variant="bordered">
+          <div className="p-4 sm:p-6">
+            <div className="max-w-sm">
+              <PInput
+                placeholder={t('tenantTeams.search.placeholder')}
+                value={keyword}
+                onChange={(e) => {
+                  setPage(1)
+                  setKeyword(e.target.value)
+                }}
+              />
+            </div>
           </div>
-        </div>
+        </PCard>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {!loading &&
             teams.map((team) => (
-              <PCard key={team.id} className="flex flex-col justify-between">
+              <PCard key={team.id} variant="bordered" className="flex flex-col justify-between">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">{team.name}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">{team.name}</h3>
                     <PButton size="sm" variant={team.is_active ? 'secondary' : 'primary'} onClick={() => toggleActive(team)}>
                       {team.is_active ? t('tenantTeams.actions.deactivate') : t('tenantTeams.actions.activate')}
                     </PButton>
                   </div>
-                  <p className="text-sm text-gray-500 line-clamp-2">{team.description}</p>
-                  <div className="text-xs text-gray-400">
+                  <p className="text-sm text-gray-500 line-clamp-2 dark:text-gray-400">{team.description}</p>
+                  <div className="text-xs text-gray-400 dark:text-gray-500">
                     {t('tenantTeams.card.meta', {
                       count: team.member_count,
                       date: new Date(team.created_at).toLocaleDateString(locale),
@@ -209,7 +212,15 @@ export default function TenantTeamsPage() {
                 </div>
               </PCard>
             ))}
-          {loading && <div className="text-sm text-gray-500">{t('tenantTeams.common.loading')}</div>}
+          {!loading && teams.length === 0 && (
+            <PCard variant="bordered" className="md:col-span-2 lg:col-span-3">
+              <div className="flex flex-col items-center justify-center p-8 text-center">
+                <UsersIcon className="h-10 w-10 text-gray-300 dark:text-gray-600" />
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{t('tenantTeams.empty.noTeams')}</p>
+              </div>
+            </PCard>
+          )}
+          {loading && <div className="text-sm text-gray-500 dark:text-gray-400">{t('tenantTeams.common.loading')}</div>}
         </div>
 
         {totalPages > 1 && (
@@ -219,7 +230,9 @@ export default function TenantTeamsPage() {
                 key={current}
                 onClick={() => setPage(current)}
                 className={`px-3 py-1 rounded-md text-sm ${
-                  current === page ? 'bg-indigo-600 text-white' : 'bg-white border text-gray-600'
+                  current === page
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/10'
                 }`}
               >
                 {current}
@@ -230,9 +243,8 @@ export default function TenantTeamsPage() {
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 space-y-4">
-            <h2 className="text-lg font-semibold">{t('tenantTeams.createModal.title')}</h2>
+        <Modal open={showCreate} title={t('tenantTeams.createModal.title')} onClose={() => setShowCreate(false)} widthClass="max-w-md">
+          <div className="space-y-4">
             <PInput
               placeholder={t('tenantTeams.createModal.namePlaceholder')}
               value={createForm.name}
@@ -255,13 +267,12 @@ export default function TenantTeamsPage() {
               <PButton onClick={handleCreate}>{t('tenantTeams.actions.create')}</PButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {editTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 space-y-4">
-            <h2 className="text-lg font-semibold">{t('tenantTeams.editModal.title')}</h2>
+        <Modal open={Boolean(editTeam)} title={t('tenantTeams.editModal.title')} onClose={() => setEditTeam(null)} widthClass="max-w-md">
+          <div className="space-y-4">
             <PInput
               placeholder={t('tenantTeams.editModal.namePlaceholder')}
               value={editForm.name}
@@ -277,7 +288,7 @@ export default function TenantTeamsPage() {
               value={editForm.avatar_url}
               onChange={(e) => setEditForm((form) => ({ ...form, avatar_url: e.target.value }))}
             />
-            <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
+            <div className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 dark:border-white/10 dark:text-gray-300">
               <span>
                 {t('tenantTeams.editModal.currentStatus')}:{' '}
                 {editForm.is_active ? t('tenantTeams.status.active') : t('tenantTeams.status.inactive')}
@@ -293,27 +304,22 @@ export default function TenantTeamsPage() {
               <PButton onClick={saveEdit}>{t('tenantTeams.actions.save')}</PButton>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {memberTeam && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-auto py-10">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{t('tenantTeams.membersModal.title', { teamName: memberTeam.name })}</h2>
-              <PButton
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setMemberTeam(null)
-                  setMembers([])
-                }}
-              >
-                {t('tenantTeams.actions.close')}
-              </PButton>
-            </div>
-            <div className="border rounded-md p-3 space-y-3">
-              <div className="flex space-x-2 items-end">
+        <Modal
+          open={Boolean(memberTeam)}
+          title={t('tenantTeams.membersModal.title', { teamName: memberTeam.name })}
+          onClose={() => {
+            setMemberTeam(null)
+            setMembers([])
+          }}
+          widthClass="max-w-3xl"
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg border border-gray-200 p-3 space-y-3 dark:border-white/10">
+              <div className="flex flex-wrap items-end gap-2">
                 <PInput
                   className="w-40"
                   placeholder={t('tenantTeams.membersModal.userIdPlaceholder')}
@@ -328,26 +334,26 @@ export default function TenantTeamsPage() {
                   {t('tenantTeams.actions.add')}
                 </PButton>
               </div>
-              <div className="text-sm text-gray-500">{t('tenantTeams.membersModal.memberCount', { count: members.length })}</div>
-              <div className="divide-y border rounded-md">
-                {memberLoading && <div className="p-4 text-sm text-gray-500">{t('tenantTeams.common.loading')}</div>}
+              <div className="text-sm text-gray-500 dark:text-gray-400">{t('tenantTeams.membersModal.memberCount', { count: members.length })}</div>
+              <div className="divide-y divide-gray-200 rounded-md border border-gray-200 dark:divide-white/10 dark:border-white/10">
+                {memberLoading && <div className="p-4 text-sm text-gray-500 dark:text-gray-400">{t('tenantTeams.common.loading')}</div>}
                 {!memberLoading &&
                   members.map((member) => (
-                    <div key={member.user_id} className="p-3 flex items-center justify-between">
+                    <div key={member.user_id} className="flex items-center justify-between gap-3 p-3">
                       <div className="space-y-1">
-                        <div className="font-medium text-sm">
+                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
                           UID {member.user_id}{' '}
                           {member.is_owner && (
-                            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600">{t('tenantTeams.roles.owner')}</span>
+                            <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-xs text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">{t('tenantTeams.roles.owner')}</span>
                           )}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {t('tenantTeams.membersModal.joinedAt', {
                             date: member.joined_at ? new Date(member.joined_at).toLocaleDateString(locale) : '-',
                           })}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         <PSelect
                           className="w-32 text-sm"
                           value={member.role}
@@ -373,11 +379,11 @@ export default function TenantTeamsPage() {
                       </div>
                     </div>
                   ))}
-                {!memberLoading && members.length === 0 && <div className="p-4 text-sm text-gray-500">{t('tenantTeams.membersModal.empty')}</div>}
+                {!memberLoading && members.length === 0 && <div className="p-4 text-sm text-gray-500 dark:text-gray-400">{t('tenantTeams.membersModal.empty')}</div>}
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </TenantLayout>
   )

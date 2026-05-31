@@ -1548,6 +1548,7 @@ const en = {
   tenantNotifications: {
     layoutTitle: 'Tenant Notification Management',
     title: 'Notifications',
+    description: 'Send tenant notifications, review delivery history, and manage notification records.',
     listTitle: 'Notification List',
     empty: 'No notification records',
     broadcastAll: 'Broadcast to all',
@@ -2899,6 +2900,9 @@ const en = {
     description: 'Create teams, manage members, and assign ownership within this tenant.',
     search: {
       placeholder: 'Search by team name/description',
+    },
+    empty: {
+      noTeams: 'No teams yet. Create a team to start assigning members and ownership.',
     },
     card: {
       meta: 'Members {{count}} · Created {{date}}',

@@ -174,6 +174,7 @@ const TenantNotifications: React.FC = () => {
       {/*  */}
       <PPageHeader
         title={t('tenantNotifications.title')}
+        description={t('tenantNotifications.description')}
         icon={<BellIcon className="w-8 h-8 text-blue-600" />}
         actions={
           <PButton onClick={() => setModalVisible(true)} leftIcon={<PlusIcon className="w-5 h-5" />}>{t('tenantNotifications.actions.send')}</PButton>
