@@ -24,10 +24,10 @@ import {
 } from '@heroicons/react/24/outline'
 
 const quickActionCardClass =
-  'relative flex items-center space-x-3 rounded-xl border border-gray-300 bg-white px-6 py-5 shadow-sm transition hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2'
+  'relative flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-4 shadow-sm transition-colors hover:border-indigo-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'
 
 const quickActionDisabledClass =
-  'relative flex items-center space-x-3 rounded-xl border border-gray-200 bg-gray-50 px-6 py-5 shadow-sm opacity-60 grayscale cursor-not-allowed'
+  'relative flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-5 py-4 shadow-sm opacity-60 grayscale cursor-not-allowed'
 
 interface RecentTransaction {
   id: string
@@ -213,7 +213,7 @@ export default function Dashboard() {
               hoverable
             >
               <dt>
-                <div className="absolute rounded-lg bg-blue-500 p-3">
+                <div className="absolute rounded-lg bg-indigo-600 p-3">
                   <item.icon className="h-6 w-6 text-white" />
                 </div>
                 <p className="ml-16 truncate text-sm font-medium text-gray-500">
@@ -329,7 +329,7 @@ export default function Dashboard() {
                   className={quickActionCardClass}
                 >
                   <div className="flex-shrink-0">
-                    <ClockIcon className="h-6 w-6 text-blue-600" />
+                    <ClockIcon className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="absolute inset-0" aria-hidden="true" />
@@ -344,7 +344,7 @@ export default function Dashboard() {
                 className={quickActionCardClass}
               >
                 <div className="flex-shrink-0">
-                  <ShieldCheckIcon className="h-6 w-6 text-purple-600" />
+                  <ShieldCheckIcon className="h-6 w-6 text-indigo-600" />
                   
                 </div>
                 <div className="flex-1 min-w-0">
@@ -374,7 +374,7 @@ export default function Dashboard() {
                   className={quickActionCardClass}
                 >
                   <div className="flex-shrink-0">
-                  <CreditCardIcon className="h-6 w-6 text-orange-600" />
+                  <CreditCardIcon className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="absolute inset-0" aria-hidden="true" />
@@ -390,7 +390,7 @@ export default function Dashboard() {
                   className={quickActionCardClass}
                 >
                   <div className="flex-shrink-0">
-                    <ShoppingCartIcon className="h-6 w-6 text-emerald-600" />
+                    <ShoppingCartIcon className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="absolute inset-0" aria-hidden="true" />
@@ -405,7 +405,7 @@ export default function Dashboard() {
                 className={quickActionCardClass}
               >
                 <div className="flex-shrink-0">
-                  <BellIcon className="h-6 w-6 text-yellow-600" />
+                  <BellIcon className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="absolute inset-0" aria-hidden="true" />
@@ -419,7 +419,7 @@ export default function Dashboard() {
                 className={quickActionCardClass}
               >
                 <div className="flex-shrink-0">
-                  <UserIcon className="h-6 w-6 text-blue-600" />
+                  <UserIcon className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="absolute inset-0" aria-hidden="true" />
@@ -447,7 +447,7 @@ export default function Dashboard() {
                 className={quickActionCardClass}
               >
                 <div className="flex-shrink-0">
-                  <QuestionMarkCircleIcon className="h-6 w-6 text-blue-600" />
+                  <QuestionMarkCircleIcon className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="absolute inset-0" aria-hidden="true" />
@@ -467,7 +467,7 @@ export default function Dashboard() {
             </h3>
               <Link
                 to={ROUTES.user.walletHistory}
-                className="text-sm font-medium text-blue-600 hover:text-indigo-700"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
               >
                 {t('pages.dashboard.recentTransactions.viewAll')}
               </Link>

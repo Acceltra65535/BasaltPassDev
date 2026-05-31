@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Layout from '@features/user/components/Layout';
-import { PButton, PSkeleton, PAlert, PBadge, PPageHeader } from '@ui';
+import { PButton, PSkeleton, PAlert, PBadge, PPageHeader, PCard } from '@ui';
 import PTable, { PTableColumn, PTableAction } from '@ui/PTable';
 import { teamApi, TeamMemberResponse } from '@api/user/team';
 import { useI18n } from '@shared/i18n';
@@ -110,18 +110,15 @@ const TeamMembers: React.FC = () => {
     <Layout>
       <div className="space-y-6">
         {/*  */}
-        <div className="flex items-center justify-between">
-          <PPageHeader title={t('pages.teamMembers.title')} description={t('pages.teamMembers.description')} />
-          <Link
-            to={`/teams/${id}`}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-          >
-            {t('pages.teamMembers.actions.backToTeam')}
-          </Link>
-        </div>
+        <PPageHeader
+          title={t('pages.teamMembers.title')}
+          description={t('pages.teamMembers.description')}
+          backTo={`/teams/${id}`}
+          backLabel={t('pages.teamMembers.actions.backToTeam')}
+        />
 
         {/*  */}
-        <div className="rounded-xl bg-white shadow-sm">
+        <PCard padding="none">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">{t('pages.teamMembers.memberListTitle')}</h3>
@@ -170,7 +167,7 @@ const TeamMembers: React.FC = () => {
                         value={member.role}
                         disabled={savingMemberId === member.id}
                         onChange={(event) => handleRoleChange(member, event.target.value as 'owner' | 'admin' | 'member')}
-                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
                       >
                         <option value="admin">{t('pages.teamDetail.roles.admin')}</option>
                         <option value="member">{t('pages.teamDetail.roles.member')}</option>
@@ -211,10 +208,10 @@ const TeamMembers: React.FC = () => {
               );
             })()}
           </div>
-        </div>
+        </PCard>
       </div>
     </Layout>
   );
 };
 
-export default TeamMembers; 
+export default TeamMembers;

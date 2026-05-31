@@ -7,7 +7,7 @@ import CurrencySelector from '@features/user/components/CurrencySelector'
 import { ROUTES } from '@constants'
 import { useConfig } from '@contexts/ConfigContext'
 import { useI18n } from '@shared/i18n'
-import { PSkeleton, PPageHeader, PBadge } from '@ui'
+import { PSkeleton, PPageHeader, PBadge, PCard } from '@ui'
 import { 
   WalletIcon, 
   ArrowUpIcon, 
@@ -147,8 +147,8 @@ export default function WalletIndex() {
         ? formatBalance(balance, selectedCurrency)
         : '--',
       icon: WalletIcon,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100'
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-100'
     },
     {
       name: t('pages.wallet.stats.monthlyIncome'),
@@ -196,11 +196,11 @@ export default function WalletIndex() {
         </div>
 
         {/*  */}
-        <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg">
+        <div className="rounded-lg bg-indigo-600 shadow-lg">
           <div className="px-6 py-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">
+                <p className="text-indigo-100 text-sm font-medium">
                   {selectedCurrency
                     ? t('pages.wallet.overview.currentBalanceWithCode', { code: selectedCurrency.code })
                     : t('pages.wallet.stats.currentBalance')}
@@ -211,7 +211,7 @@ export default function WalletIndex() {
                     : '--'
                   }
                 </p>
-                <p className="text-blue-100 text-sm mt-1">
+                <p className="text-indigo-100 text-sm mt-1">
                   {t('pages.wallet.overview.lastUpdated', { time: new Date().toLocaleString(locale) })}
                 </p>
               </div>
@@ -225,9 +225,9 @@ export default function WalletIndex() {
         {/*  */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {walletStats.map((stat) => (
-            <div
+            <PCard
               key={stat.name}
-              className="relative overflow-hidden rounded-xl bg-white px-4 py-5 shadow-sm sm:px-6"
+              className="relative overflow-hidden px-4 py-5 sm:px-6"
             >
               <dt>
                 <div className={`absolute rounded-lg ${stat.bgColor} p-3`}>
@@ -242,12 +242,12 @@ export default function WalletIndex() {
                   {stat.value}
                 </p>
               </dd>
-            </div>
+            </PCard>
           ))}
         </div>
 
         {/*  */}
-        <div className="rounded-xl bg-white shadow-sm">
+        <PCard padding="none">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
               {t('pages.wallet.quickActions.title')}
@@ -256,11 +256,11 @@ export default function WalletIndex() {
               {walletRechargeWithdrawEnabled ? (
                 <Link
                   to={ROUTES.user.walletRecharge}
-                  className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-green-400 hover:bg-green-50 focus-within:ring-2 focus-within:ring-green-500 focus-within:ring-offset-2 transition-colors"
+                  className="relative flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-4 shadow-sm transition-colors hover:border-indigo-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <ArrowUpIcon className="h-6 w-6 text-green-600" />
+                    <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <ArrowUpIcon className="h-6 w-6 text-indigo-600" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -290,11 +290,11 @@ export default function WalletIndex() {
               {walletRechargeWithdrawEnabled ? (
                 <Link
                   to={ROUTES.user.walletWithdraw}
-                  className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-red-400 hover:bg-red-50 focus-within:ring-2 focus-within:ring-red-500 focus-within:ring-offset-2 transition-colors"
+                  className="relative flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-4 shadow-sm transition-colors hover:border-indigo-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 bg-red-100 rounded-lg flex items-center justify-center">
-                      <ArrowDownIcon className="h-6 w-6 text-red-600" />
+                    <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <ArrowDownIcon className="h-6 w-6 text-indigo-600" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -323,11 +323,11 @@ export default function WalletIndex() {
 
               <Link
                 to={ROUTES.user.walletHistory}
-                className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-blue-400 hover:bg-blue-50 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 transition-colors"
+                className="relative flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-4 shadow-sm transition-colors hover:border-indigo-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               >
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <ClockIcon className="h-6 w-6 text-blue-600" />
+                  <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <ClockIcon className="h-6 w-6 text-indigo-600" />
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -339,11 +339,11 @@ export default function WalletIndex() {
 
               <Link
                 to={ROUTES.user.walletGiftCardRedeem}
-                className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-purple-400 hover:bg-purple-50 focus-within:ring-2 focus-within:ring-purple-500 focus-within:ring-offset-2 transition-colors"
+                className="relative flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-4 shadow-sm transition-colors hover:border-indigo-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               >
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <GiftIcon className="h-6 w-6 text-purple-600" />
+                  <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <GiftIcon className="h-6 w-6 text-indigo-600" />
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -354,10 +354,10 @@ export default function WalletIndex() {
               </Link>
             </div>
           </div>
-        </div>
+        </PCard>
 
         {/* （） */}
-        <div className="rounded-xl bg-white shadow-sm">
+        <PCard padding="none">
           <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium leading-6 text-gray-900">
@@ -365,7 +365,7 @@ export default function WalletIndex() {
               </h3>
               <Link
                 to={ROUTES.user.walletHistory}
-                className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
               >
                 {t('pages.wallet.recentTransactions.viewAll')}
               </Link>
@@ -431,7 +431,7 @@ export default function WalletIndex() {
               </div>
             )}
           </div>
-        </div>
+        </PCard>
       </div>
     </Layout>
   )

@@ -229,7 +229,7 @@ export default function Layout({ children }: LayoutProps) {
                 type="button"
                 className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                   isSelected
-                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200'
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200'
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white'
                 }`}
                 onClick={() => selectThemePreference(option.value)}
@@ -367,7 +367,7 @@ export default function Layout({ children }: LayoutProps) {
                         alt={user?.nickname || user?.email || 'User'}
                       />
                     ) : (
-                      <div className="h-7 w-7 flex-shrink-0 rounded-full bg-blue-600 flex items-center justify-center">
+                      <div className="h-7 w-7 flex-shrink-0 rounded-full bg-indigo-600 flex items-center justify-center">
                         <span className="text-xs font-medium text-white">{getUserInitial()}</span>
                       </div>
                     )}
@@ -405,7 +405,7 @@ export default function Layout({ children }: LayoutProps) {
                             setIsUserMenuOpen(false)
                             void switchToTenant()
                           }}
-                          className="flex w-full items-center justify-start rounded-none px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                          className="flex w-full items-center justify-start rounded-none px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
                         >
                           <ArrowsRightLeftIcon className="mr-3 h-4 w-4" />
                           {t('userLayout.tenantManagement')}
@@ -432,7 +432,7 @@ export default function Layout({ children }: LayoutProps) {
                           setShowAccountSwitcher(true)
                           setIsUserMenuOpen(false)
                         }}
-                        className="flex w-full items-center justify-start rounded-none px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                        className="flex w-full items-center justify-start rounded-none px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
                       >
                         <ArrowsRightLeftIcon className="mr-3 h-4 w-4" />
                         {t('common.switchAccount')}
@@ -497,7 +497,7 @@ export default function Layout({ children }: LayoutProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex w-full min-w-0 items-center justify-start rounded-lg bg-white px-1 py-1 text-sm focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-50"
+                    className="flex w-full min-w-0 items-center justify-start rounded-lg bg-white px-1 py-1 text-sm focus:ring-indigo-500 focus:ring-offset-2 hover:bg-gray-50"
                     title={t('common.openUserMenu')}
                   >
                     <span className="sr-only">{t('common.openUserMenu')}</span>
@@ -508,7 +508,7 @@ export default function Layout({ children }: LayoutProps) {
                         alt={user?.nickname || user?.email || 'User'}
                       />
                     ) : (
-                      <div className="h-7 w-7 flex-shrink-0 rounded-full bg-blue-600 flex items-center justify-center">
+                      <div className="h-7 w-7 flex-shrink-0 rounded-full bg-indigo-600 flex items-center justify-center">
                         <span className="text-xs font-medium text-white">{getUserInitial()}</span>
                       </div>
                     )}
@@ -546,7 +546,7 @@ export default function Layout({ children }: LayoutProps) {
                             setIsUserMenuOpen(false)
                             void switchToTenant()
                           }}
-                          className="flex w-full items-center justify-start rounded-none px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                          className="flex w-full items-center justify-start rounded-none px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
                         >
                           <ArrowsRightLeftIcon className="mr-3 h-4 w-4" />
                           {t('userLayout.tenantManagement')}
@@ -573,7 +573,7 @@ export default function Layout({ children }: LayoutProps) {
                           setShowAccountSwitcher(true)
                           setIsUserMenuOpen(false)
                         }}
-                        className="flex w-full items-center justify-start rounded-none px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                        className="flex w-full items-center justify-start rounded-none px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
                       >
                         <ArrowsRightLeftIcon className="mr-3 h-4 w-4" />
                         {t('common.switchAccount')}

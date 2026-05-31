@@ -1,5 +1,6 @@
 import React from 'react'
 import { InboxIcon } from '@heroicons/react/24/outline'
+import PButton from './PButton'
 
 interface PEmptyStateAction {
   label: string
@@ -64,18 +65,14 @@ const PEmptyState: React.FC<PEmptyStateProps> = ({
           {action.href ? (
             <a
               href={action.href}
-              className="inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors duration-150 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
               {action.label}
             </a>
           ) : (
-            <button
-              type="button"
-              onClick={action.onClick}
-              className="inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            >
+            <PButton type="button" onClick={action.onClick}>
               {action.label}
-            </button>
+            </PButton>
           )}
         </div>
       )}

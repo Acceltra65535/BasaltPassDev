@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom'
 import { 
   PlusIcon, 
   EyeIcon, 
-  PencilIcon, 
   TrashIcon,
   CubeIcon,
   KeyIcon,
@@ -24,6 +23,7 @@ import { useI18n } from '@shared/i18n'
 
 const actionButtonClass =
   'inline-flex items-center rounded-lg border p-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2'
+const neutralActionButtonClass = `${actionButtonClass} border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-indigo-500`
 
 export default function TenantAppList() {
   const { t, locale } = useI18n()
@@ -130,7 +130,7 @@ export default function TenantAppList() {
         <PPageHeader
           title={t('tenantAppList.title')}
           description={t('tenantAppList.description')}
-          icon={<CubeIcon className="h-8 w-8 text-blue-600" />}
+          icon={<CubeIcon className="h-8 w-8 text-indigo-600" />}
           actions={
             <Link to={ROUTES.tenant.appsNew}>
               <PButton leftIcon={<PlusIcon className="h-4 w-4" />}>{t('tenantAppList.actions.createApp')}</PButton>
@@ -158,8 +158,8 @@ export default function TenantAppList() {
                               alt={app.name}
                             />
                           ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
-                              <CubeIcon className="h-6 w-6 text-blue-600" />
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100">
+                              <CubeIcon className="h-6 w-6 text-indigo-600" />
                             </div>
                           )}
                         </div>
@@ -167,7 +167,7 @@ export default function TenantAppList() {
                           <div className="flex items-center">
                             <Link
                               to={`/tenant/apps/${app.id}`}
-                              className="text-lg font-medium text-gray-900 hover:text-blue-600 truncate"
+                              className="text-lg font-medium text-gray-900 hover:text-indigo-600 truncate"
                             >
                               {app.name}
                             </Link>
@@ -192,7 +192,7 @@ export default function TenantAppList() {
                                   href={app.homepage_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800"
+                                  className="text-indigo-600 hover:text-indigo-800"
                                 >
                                   {t('tenantAppList.homepage')}
                                 </a>
@@ -211,7 +211,7 @@ export default function TenantAppList() {
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
                               <span>{t('tenantAppList.stats.totalUsers')}: <span className="font-medium text-gray-900">{app.stats?.total_users || 0}</span></span>
                               <span>{t('tenantAppList.stats.activeUsers')}: <span className="font-medium text-green-600">{app.stats?.active_users || 0}</span></span>
-                              <span>{t('tenantAppList.stats.requestsToday')}: <span className="font-medium text-blue-600">{app.stats?.requests_today || 0}</span></span>
+                              <span>{t('tenantAppList.stats.requestsToday')}: <span className="font-medium text-indigo-600">{app.stats?.requests_today || 0}</span></span>
                             </div>
                           </div>
                         </div>
@@ -222,10 +222,11 @@ export default function TenantAppList() {
                         onClick={() => handleToggleStatus(app.id, app.status)}
                         className={`${actionButtonClass} ${
                           app.status === 'active'
-                            ? 'border-red-300 text-red-700 bg-white hover:bg-red-50 focus:ring-red-500'
-                            : 'border-green-300 text-green-700 bg-white hover:bg-green-50 focus:ring-green-500'
+                            ? 'border-amber-300 text-amber-700 bg-white hover:bg-amber-50 focus:ring-amber-500'
+                            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-indigo-500'
                         }`}
                         title={app.status === 'active' ? t('tenantAppList.actions.stopApp') : t('tenantAppList.actions.startApp')}
+                        aria-label={app.status === 'active' ? t('tenantAppList.actions.stopApp') : t('tenantAppList.actions.startApp')}
                       >
                         {app.status === 'active' ? (
                           <StopIcon className="h-4 w-4" />
@@ -235,36 +236,41 @@ export default function TenantAppList() {
                       </button>
                       <Link
                         to={`/tenant/apps/${app.id}/users`}
-                        className={`${actionButtonClass} border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 focus:ring-blue-500`}
+                        className={neutralActionButtonClass}
                         title={t('tenantAppList.actions.userPermissionManagement')}
+                        aria-label={t('tenantAppList.actions.userPermissionManagement')}
                       >
                         <UsersIcon className="h-4 w-4" />
                       </Link>
                       <Link
                         to={`/tenant/apps/${app.id}/roles`}
-                        className={`${actionButtonClass} border-green-300 bg-green-50 text-green-700 hover:bg-green-100 focus:ring-green-500`}
+                        className={neutralActionButtonClass}
                         title={t('tenantAppList.actions.roleManagement')}
+                        aria-label={t('tenantAppList.actions.roleManagement')}
                       >
                         <ShieldCheckIcon className="h-4 w-4" />
                       </Link>
                       <Link
                         to={`/tenant/apps/${app.id}`}
-                        className={`${actionButtonClass} border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-blue-500`}
+                        className={neutralActionButtonClass}
                         title={t('tenantAppList.actions.viewDetail')}
+                        aria-label={t('tenantAppList.actions.viewDetail')}
                       >
                         <EyeIcon className="h-4 w-4" />
                       </Link>
                       <Link
                         to={`/tenant/apps/${app.id}/stats`}
-                        className={`${actionButtonClass} border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-blue-500`}
+                        className={neutralActionButtonClass}
                         title={t('tenantAppList.actions.stats')}
+                        aria-label={t('tenantAppList.actions.stats')}
                       >
                         <ChartBarIcon className="h-4 w-4" />
                       </Link>
                       <Link
                         to={`/tenant/apps/${app.id}/settings`}
-                        className={`${actionButtonClass} border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-blue-500`}
+                        className={neutralActionButtonClass}
                         title={t('tenantAppList.actions.settings')}
+                        aria-label={t('tenantAppList.actions.settings')}
                       >
                         <Cog6ToothIcon className="h-4 w-4" />
                       </Link>
@@ -272,6 +278,7 @@ export default function TenantAppList() {
                         onClick={() => handleDeleteApp(app.id)}
                         className={`${actionButtonClass} border-red-300 bg-white text-red-700 hover:bg-red-50 focus:ring-red-500`}
                         title={t('tenantAppList.actions.delete')}
+                        aria-label={t('tenantAppList.actions.delete')}
                       >
                         <TrashIcon className="h-4 w-4" />
                       </button>
@@ -288,11 +295,7 @@ export default function TenantAppList() {
               icon={CubeIcon}
               title={t('tenantAppList.empty.title')}
               description={t('tenantAppList.empty.description')}
-            >
-              <Link to={ROUTES.tenant.appsNew}>
-                <PButton leftIcon={<PlusIcon className="h-4 w-4" />}>{t('tenantAppList.actions.createApp')}</PButton>
-              </Link>
-            </PEmptyState>
+            />
           )}
         </div>
 

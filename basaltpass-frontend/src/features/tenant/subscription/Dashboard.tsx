@@ -30,6 +30,9 @@ export default function TenantSubscriptionDashboard() {
     fetchStats()
   }, [])
 
+  const quickActionClass =
+    'inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'
+
   const fetchStats = async () => {
     try {
       setLoading(true)
@@ -52,42 +55,42 @@ export default function TenantSubscriptionDashboard() {
       description: t('tenantSubscriptionDashboard.management.products.description'),
       href: ROUTES.tenant.subscriptionProducts,
       icon: CubeIcon,
-      color: 'bg-blue-500',
+      color: 'bg-indigo-600',
     },
     {
       name: t('tenantSubscriptionDashboard.management.plans.name'),
       description: t('tenantSubscriptionDashboard.management.plans.description'),
       href: ROUTES.tenant.plans,
       icon: ChartBarIcon,
-      color: 'bg-green-500',
+      color: 'bg-indigo-600',
     },
     {
       name: t('tenantSubscriptionDashboard.management.prices.name'),
       description: t('tenantSubscriptionDashboard.management.prices.description'),
       href: ROUTES.tenant.prices,
       icon: CurrencyDollarIcon,
-      color: 'bg-yellow-500',
+      color: 'bg-indigo-600',
     },
     {
       name: t('tenantSubscriptionDashboard.management.subscriptions.name'),
       description: t('tenantSubscriptionDashboard.management.subscriptions.description'),
       href: ROUTES.tenant.subscriptionsList,
       icon: UserGroupIcon,
-      color: 'bg-indigo-500',
+      color: 'bg-indigo-600',
     },
     {
       name: t('tenantSubscriptionDashboard.management.invoices.name'),
       description: t('tenantSubscriptionDashboard.management.invoices.description'),
       href: ROUTES.tenant.invoices,
       icon: DocumentTextIcon,
-      color: 'bg-indigo-500',
+      color: 'bg-indigo-600',
     },
     {
       name: t('tenantSubscriptionDashboard.management.coupons.name'),
       description: t('tenantSubscriptionDashboard.management.coupons.description'),
       href: ROUTES.tenant.coupons,
       icon: TicketIcon,
-      color: 'bg-blue-500',
+      color: 'bg-indigo-600',
     },
   ]
 
@@ -233,28 +236,28 @@ export default function TenantSubscriptionDashboard() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Link
                 to={`${ROUTES.tenant.subscriptionProducts}?action=create`}
-                className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className={quickActionClass}
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 {t('tenantSubscriptionDashboard.actions.createProduct')}
               </Link>
               <Link
                 to={`${ROUTES.tenant.plans}?action=create`}
-                className="inline-flex items-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                className={quickActionClass}
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 {t('tenantSubscriptionDashboard.actions.createPlan')}
               </Link>
               <Link
                 to={`${ROUTES.tenant.prices}?action=create`}
-                className="inline-flex items-center rounded-lg bg-yellow-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
+                className={quickActionClass}
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 {t('tenantSubscriptionDashboard.actions.setPrice')}
               </Link>
               <Link
                 to={`${ROUTES.tenant.coupons}?action=create`}
-                className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                className={quickActionClass}
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 {t('tenantSubscriptionDashboard.actions.createCoupon')}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { setup2FA, verify2FA } from '@api/user/security'
 import { Link } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
-import { PInput, PButton, PSkeleton, PAlert } from '@ui'
+import { PInput, PButton, PSkeleton, PAlert, PPageHeader, PCard } from '@ui'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
 import { 
@@ -10,8 +10,7 @@ import {
   QrCodeIcon,
   KeyIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ArrowLeftIcon
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 
 export default function TwoFA() {
@@ -78,20 +77,11 @@ export default function TwoFA() {
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="space-y-6">
           {/*  */}
-          <div className="flex items-center">
-            <Link 
-              to={ROUTES.user.security} 
-              className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{t('pages.userTwoFA.header.title')}</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                {t('pages.userTwoFA.header.description')}
-              </p>
-            </div>
-          </div>
+          <PPageHeader
+            title={t('pages.userTwoFA.header.title')}
+            description={t('pages.userTwoFA.header.description')}
+            backTo={ROUTES.user.security}
+          />
 
           {/*  */}
           {msg && (
@@ -103,7 +93,7 @@ export default function TwoFA() {
 
           {msgType === 'success' && msg === t('pages.userTwoFA.success.enabled') ? (
             /*  */
-            <div className="rounded-xl bg-white shadow-sm">
+            <PCard padding="none">
               <div className="px-4 py-5 sm:p-6 text-center">
                 <CheckCircleIcon className="mx-auto h-12 w-12 text-green-500 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -118,49 +108,49 @@ export default function TwoFA() {
                   </Link>
                 </div>
               </div>
-            </div>
+            </PCard>
           ) : (
             /*  */
             <>
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/*  */}
-                <div className="rounded-xl bg-white shadow-sm">
+                <PCard padding="none">
                   <div className="px-4 py-5 sm:p-6">
                     <div className="flex items-center mb-4">
-                      <ShieldCheckIcon className="h-6 w-6 text-blue-600 mr-2" />
+                      <ShieldCheckIcon className="h-6 w-6 text-indigo-600 mr-2" />
                       <h3 className="text-lg font-medium text-gray-900">{t('pages.userTwoFA.setup.title')}</h3>
                     </div>
                     <div className="space-y-4 text-sm text-gray-600">
                       <div className="flex items-start">
-                        <div className="h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                          <span className="text-xs font-bold text-blue-600">1</span>
+                        <div className="h-6 w-6 bg-indigo-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                          <span className="text-xs font-bold text-indigo-600">1</span>
                         </div>
                         <p>{t('pages.userTwoFA.setup.step1')}</p>
                       </div>
                       <div className="flex items-start">
-                        <div className="h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                          <span className="text-xs font-bold text-blue-600">2</span>
+                        <div className="h-6 w-6 bg-indigo-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                          <span className="text-xs font-bold text-indigo-600">2</span>
                         </div>
                         <p>{t('pages.userTwoFA.setup.step2')}</p>
                       </div>
                       <div className="flex items-start">
-                        <div className="h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                          <span className="text-xs font-bold text-blue-600">3</span>
+                        <div className="h-6 w-6 bg-indigo-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                          <span className="text-xs font-bold text-indigo-600">3</span>
                         </div>
                         <p>{t('pages.userTwoFA.setup.step3')}</p>
                       </div>
                       <div className="flex items-start">
-                        <div className="h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                          <span className="text-xs font-bold text-blue-600">4</span>
+                        <div className="h-6 w-6 bg-indigo-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                          <span className="text-xs font-bold text-indigo-600">4</span>
                         </div>
                         <p>{t('pages.userTwoFA.setup.step4')}</p>
                       </div>
                     </div>
                   </div>
-                </div>
+                </PCard>
 
                 {/*  */}
-                <div className="rounded-xl bg-white shadow-sm">
+                <PCard padding="none">
                   <div className="px-4 py-5 sm:p-6">
                     <div className="flex items-center mb-4">
                       <KeyIcon className="h-6 w-6 text-green-600 mr-2" />
@@ -188,12 +178,12 @@ export default function TwoFA() {
                       </PButton>
                     </div>
                   </div>
-                </div>
+                </PCard>
               </div>
 
               {/*  */}
               {qr && (
-                <div className="rounded-xl bg-white shadow-sm">
+                <PCard padding="none">
                   <div className="px-4 py-5 sm:p-6">
                     <div className="flex items-center mb-4">
                       <QrCodeIcon className="h-6 w-6 text-indigo-600 mr-2" />
@@ -237,7 +227,7 @@ export default function TwoFA() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </PCard>
               )}
 
               {/*  */}

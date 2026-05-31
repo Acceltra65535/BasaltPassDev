@@ -275,7 +275,7 @@ export default function AppRoleManagement() {
           <PPageHeader
             title={t('tenantAppRoleManagement.title')}
             description={t('tenantAppRoleManagement.description', { name: app?.name || '-' })}
-            icon={<ShieldCheckIcon className="h-8 w-8 text-green-600" />}
+            icon={<ShieldCheckIcon className="h-8 w-8 text-indigo-600" />}
             actions={
               <div className="flex flex-wrap gap-2">
                 <PButton variant="secondary" onClick={() => navigate(`/tenant/apps/${appId}/permissions`)} leftIcon={<KeyIcon className="h-4 w-4" />}>{t('tenantAppRoleManagement.actions.permissionManagement')}</PButton>
@@ -300,9 +300,7 @@ export default function AppRoleManagement() {
                 icon={ShieldCheckIcon}
                 title={t('tenantAppRoleManagement.empty.title')}
                 description={searchTerm ? t('tenantAppRoleManagement.empty.searchNoResult') : t('tenantAppRoleManagement.empty.noRole')}
-              >
-                {!searchTerm ? <PButton onClick={handleCreateRole} leftIcon={<PlusIcon className="h-4 w-4" />}>{t('tenantAppRoleManagement.actions.createRole')}</PButton> : null}
-              </PEmptyState>
+              />
             </div>
           ) : (
             <>

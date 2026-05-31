@@ -2,7 +2,7 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import { history } from '@api/user/wallet'
 import { Link } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
-import { PInput, PSelect, PSkeleton, PBadge, PPageHeader, PEmptyState } from '@ui'
+import { PInput, PSelect, PSkeleton, PBadge, PPageHeader, PEmptyState, PCard } from '@ui'
 import useDebounce from '@hooks/useDebounce'
 import { ROUTES } from '@constants'
 import { useConfig } from '@contexts/ConfigContext'
@@ -179,7 +179,7 @@ export default function History() {
         />
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <PCard padding="none" className="overflow-hidden">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -193,9 +193,9 @@ export default function History() {
                 </div>
               </div>
             </div>
-          </div>
+          </PCard>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <PCard padding="none" className="overflow-hidden">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -211,9 +211,9 @@ export default function History() {
                 </div>
               </div>
             </div>
-          </div>
+          </PCard>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <PCard padding="none" className="overflow-hidden">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -229,13 +229,13 @@ export default function History() {
                 </div>
               </div>
             </div>
-          </div>
+          </PCard>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <PCard padding="none" className="overflow-hidden">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <ClockIcon className="h-6 w-6 text-blue-400" />
+                  <ClockIcon className="h-6 w-6 text-indigo-400" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -247,10 +247,10 @@ export default function History() {
                 </div>
               </div>
             </div>
-          </div>
+          </PCard>
         </div>
 
-        <div className="bg-white shadow rounded-lg">
+        <PCard padding="none">
           <div className="px-4 py-5 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center space-x-4">
@@ -280,9 +280,9 @@ export default function History() {
               </div>
             </div>
           </div>
-        </div>
+        </PCard>
 
-        <div className="bg-white shadow rounded-lg">
+        <PCard padding="none">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
               {t('pages.walletHistory.list.title', { count: filteredTxs.length })}
@@ -350,9 +350,9 @@ export default function History() {
               </div>
             )}
           </div>
-        </div>
+        </PCard>
 
-        <div className="bg-white shadow rounded-lg">
+        <PCard padding="none">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
               {t('pages.walletHistory.quickActions.title')}
@@ -361,11 +361,11 @@ export default function History() {
               {walletRechargeWithdrawEnabled ? (
                 <Link
                   to={ROUTES.user.walletRecharge}
-                  className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-green-400 hover:bg-green-50 focus-within:ring-2 focus-within:ring-green-500 focus-within:ring-offset-2 transition-colors"
+                  className="relative flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-4 shadow-sm transition-colors hover:border-indigo-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <ArrowUpIcon className="h-6 w-6 text-green-600" />
+                    <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <ArrowUpIcon className="h-6 w-6 text-indigo-600" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -395,11 +395,11 @@ export default function History() {
               {walletRechargeWithdrawEnabled ? (
                 <Link
                   to={ROUTES.user.walletWithdraw}
-                  className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-red-400 hover:bg-red-50 focus-within:ring-2 focus-within:ring-red-500 focus-within:ring-offset-2 transition-colors"
+                  className="relative flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-4 shadow-sm transition-colors hover:border-indigo-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 bg-red-100 rounded-lg flex items-center justify-center">
-                      <ArrowDownIcon className="h-6 w-6 text-red-600" />
+                    <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <ArrowDownIcon className="h-6 w-6 text-indigo-600" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -427,7 +427,7 @@ export default function History() {
               )}
             </div>
           </div>
-        </div>
+        </PCard>
       </div>
     </Layout>
   )

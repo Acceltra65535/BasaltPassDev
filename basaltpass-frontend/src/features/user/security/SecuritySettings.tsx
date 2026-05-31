@@ -103,7 +103,7 @@ export default function SecuritySettings() {
 
   const getSecurityLevel = (score: number) => {
     if (score >= 90) return { text: t('pages.userSecuritySettings.securityLevel.veryStrong'), color: 'text-green-600', bg: 'bg-green-100', bar: 'bg-green-500' }
-    if (score >= 70) return { text: t('pages.userSecuritySettings.securityLevel.strong'), color: 'text-blue-600', bg: 'bg-blue-100', bar: 'bg-blue-500' }
+    if (score >= 70) return { text: t('pages.userSecuritySettings.securityLevel.strong'), color: 'text-indigo-600', bg: 'bg-indigo-100', bar: 'bg-indigo-500' }
     if (score >= 50) return { text: t('pages.userSecuritySettings.securityLevel.medium'), color: 'text-yellow-600', bg: 'bg-yellow-100', bar: 'bg-yellow-500' }
     return { text: t('pages.userSecuritySettings.securityLevel.weak'), color: 'text-red-600', bg: 'bg-red-100', bar: 'bg-red-500' }
   }
@@ -217,7 +217,7 @@ export default function SecuritySettings() {
           {success && <PAlert variant="success" message={success} dismissible onDismiss={() => setSuccess('')} />}
 
           {/*  */}
-          <div className="rounded-xl bg-white shadow-sm">
+          <PCard padding="none">
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -244,10 +244,10 @@ export default function SecuritySettings() {
                 </div>
               </div>
             </div>
-          </div>
+          </PCard>
 
           {/*  */}
-          <div className="rounded-xl bg-white shadow-sm">
+          <PCard padding="none">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-6">
                 {t('pages.userSecuritySettings.authMethods.title')}
@@ -357,10 +357,10 @@ export default function SecuritySettings() {
                     {isPasskeySupported() && (
                       <Link
                         to={ROUTES.user.securityPasskey}
-                        className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                       >
-                        <CogIcon className="h-4 w-4 mr-1" />
-                        {t('pages.userSecuritySettings.passkey.manage')}
+                        <PButton variant="secondary" size="sm" leftIcon={<CogIcon className="h-4 w-4" />}>
+                          {t('pages.userSecuritySettings.passkey.manage')}
+                        </PButton>
                       </Link>
                     )}
                   </div>
@@ -403,10 +403,10 @@ export default function SecuritySettings() {
                 </div>
               </div>
             </div>
-          </div>
+          </PCard>
 
           {/*  */}
-          <div className="rounded-xl bg-white shadow-sm">
+          <PCard padding="none">
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -479,22 +479,12 @@ export default function SecuritySettings() {
               {/*  */}
               {showEmailChangeForm && (
                 <form onSubmit={handleEmailChange} className="mt-6 bg-gray-50 p-4 rounded-lg space-y-4">
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <ShieldCheckIcon className="h-5 w-5 text-blue-400" />
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-sm font-medium text-blue-800">{t('pages.userSecuritySettings.emailChange.flowTitle')}</h3>
-                        <div className="mt-2 text-sm text-blue-700">
-                          <p>{t('pages.userSecuritySettings.emailChange.step1')}</p>
-                          <p>{t('pages.userSecuritySettings.emailChange.step2')}</p>
-                          <p>{t('pages.userSecuritySettings.emailChange.step3')}</p>
-                          <p>{t('pages.userSecuritySettings.emailChange.step4')}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <PAlert variant="info" title={t('pages.userSecuritySettings.emailChange.flowTitle')}>
+                    <p>{t('pages.userSecuritySettings.emailChange.step1')}</p>
+                    <p>{t('pages.userSecuritySettings.emailChange.step2')}</p>
+                    <p>{t('pages.userSecuritySettings.emailChange.step3')}</p>
+                    <p>{t('pages.userSecuritySettings.emailChange.step4')}</p>
+                  </PAlert>
                   <PInput
                     type="email"
                     label={t('pages.userSecuritySettings.emailChange.newEmailLabel')}
@@ -532,37 +522,27 @@ export default function SecuritySettings() {
                 </form>
               )}
             </div>
-          </div>
+          </PCard>
 
           {/*  */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <ShieldCheckIcon className="h-5 w-5 text-blue-400" />
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">{t('pages.userSecuritySettings.tips.title')}</h3>
-                <div className="mt-2 text-sm text-blue-700">
-                  <ul className="list-disc list-inside space-y-1">
-                    {!securityStatus.two_fa_enabled && (
-                      <li>{t('pages.userSecuritySettings.tips.enable2fa')}</li>
-                    )}
-                    {(passkeys?.length || 0) === 0 && isPasskeySupported() && (
-                      <li>{t('pages.userSecuritySettings.tips.setupPasskey')}</li>
-                    )}
-                    {!securityStatus.email_verified && (
-                      <li>{t('pages.userSecuritySettings.tips.verifyEmail')}</li>
-                    )}
-                    {!securityStatus.phone && (
-                      <li>{t('pages.userSecuritySettings.tips.addPhone')}</li>
-                    )}
-                    <li>{t('pages.userSecuritySettings.tips.reviewSettings')}</li>
-                    <li>{t('pages.userSecuritySettings.tips.strongPassword')}</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PAlert variant="info" title={t('pages.userSecuritySettings.tips.title')}>
+            <ul className="list-disc list-inside space-y-1">
+              {!securityStatus.two_fa_enabled && (
+                <li>{t('pages.userSecuritySettings.tips.enable2fa')}</li>
+              )}
+              {(passkeys?.length || 0) === 0 && isPasskeySupported() && (
+                <li>{t('pages.userSecuritySettings.tips.setupPasskey')}</li>
+              )}
+              {!securityStatus.email_verified && (
+                <li>{t('pages.userSecuritySettings.tips.verifyEmail')}</li>
+              )}
+              {!securityStatus.phone && (
+                <li>{t('pages.userSecuritySettings.tips.addPhone')}</li>
+              )}
+              <li>{t('pages.userSecuritySettings.tips.reviewSettings')}</li>
+              <li>{t('pages.userSecuritySettings.tips.strongPassword')}</li>
+            </ul>
+          </PAlert>
 
           <div className="mt-8">
             <Link to={ROUTES.user.securityLoginHistory} className="block">

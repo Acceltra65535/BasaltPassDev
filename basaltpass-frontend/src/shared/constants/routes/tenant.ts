@@ -22,6 +22,6 @@ export const TENANT_ROUTES = {
   plans: '/tenant/plans',
   prices: '/tenant/prices',
   coupons: '/tenant/coupons',
-  invoices: '/tenant/invoices',
+  invoices: '/tenant/subscriptions/invoices',
   subscriptionStatus: '/tenant/subscription-status'
 } as const

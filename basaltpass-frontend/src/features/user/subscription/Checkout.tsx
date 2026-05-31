@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { uiAlert, uiConfirm, uiPrompt } from '@contexts/DialogContext'
 import { useNavigate } from 'react-router-dom';
 import Layout from '@features/user/components/Layout';
-import { PCard, PButton, PInput, PSelect } from '@ui';
+import { PCard, PButton, PInput, PAlert } from '@ui';
 import { subscriptionAPI, Product, Price, CheckoutResponse } from '@api/subscription/subscription';
 import { ROUTES } from '@constants';
 import { useI18n } from '@shared/i18n';
@@ -95,7 +95,7 @@ const SubscriptionCheckout: React.FC = () => {
       <h2 className="text-2xl font-bold text-gray-900">{t('pages.userSubscriptionCheckout.select.title')}</h2>
       
       {products.map((product) => (
-        <div key={product.id} className="bg-white border border-gray-200 rounded-lg p-6">
+        <PCard key={product.id} variant="bordered" padding="lg">
           <h3 className="text-xl font-semibold text-gray-900 mb-2">{product.name}</h3>
           <p className="text-gray-600 mb-4">{product.description}</p>
           
@@ -125,7 +125,7 @@ const SubscriptionCheckout: React.FC = () => {
                     key={price.id}
                     className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                       selectedPrice?.id === price.id
-                        ? 'border-blue-500 bg-blue-50'
+                        ? 'border-indigo-500 bg-indigo-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => setSelectedPrice(price)}
@@ -148,7 +148,7 @@ const SubscriptionCheckout: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+        </PCard>
       ))}
 
       {/*  */}
@@ -216,13 +216,12 @@ const SubscriptionCheckout: React.FC = () => {
 
   const renderCheckoutResult = () => (
     <div className="max-w-2xl mx-auto">
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <PCard variant="bordered" padding="lg">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('pages.userSubscriptionCheckout.result.successTitle')}</h2>
         
         {checkoutResponse && (
           <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">{t('pages.userSubscriptionCheckout.result.subscriptionInfo')}</h3>
+            <PAlert variant="info" title={t('pages.userSubscriptionCheckout.result.subscriptionInfo')}>
               <div className="space-y-2 text-sm">
                 <p><strong>{t('pages.userSubscriptionCheckout.result.subscriptionId')}</strong> {checkoutResponse.subscription.id}</p>
                 <p><strong>{t('pages.userSubscriptionCheckout.result.status')}</strong>
@@ -237,7 +236,7 @@ const SubscriptionCheckout: React.FC = () => {
                 <p><strong>{t('pages.userSubscriptionCheckout.result.startAt')}</strong> {new Date(checkoutResponse.subscription.start_at).toLocaleString(locale)}</p>
                 <p><strong>{t('pages.userSubscriptionCheckout.result.currentPeriod')}</strong> {new Date(checkoutResponse.subscription.current_period_start).toLocaleDateString(locale)} - {new Date(checkoutResponse.subscription.current_period_end).toLocaleDateString(locale)}</p>
               </div>
-            </div>
+            </PAlert>
 
             {checkoutResponse.payment_session && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -297,7 +296,7 @@ const SubscriptionCheckout: React.FC = () => {
             {t('pages.userSubscriptionCheckout.result.createAnother')}
           </PButton>
         </div>
-      </div>
+      </PCard>
     </div>
   );
 
@@ -316,4 +315,4 @@ const SubscriptionCheckout: React.FC = () => {
   );
 };
 
-export default SubscriptionCheckout; 
+export default SubscriptionCheckout;

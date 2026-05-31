@@ -1,9 +1,8 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
-import { PCard } from '@ui'
+import { PCard, PPageHeader } from '@ui'
 import { ROUTES } from '@constants'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { Link } from 'react-router-dom'
 import { buildInfo } from '@shared/generated/buildInfo'
 import { useI18n } from '@shared/i18n'
 
@@ -14,17 +13,12 @@ const About: React.FC = () => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-8">
-        <Link to={ROUTES.user.dashboard} className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-          <ArrowLeftIcon className="w-4 h-4 mr-1" />
-          {t('pages.about.back')}
-        </Link>
-
-        <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold text-gray-900">BasaltPass</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            {t('pages.about.subtitle')}
-          </p>
-        </div>
+        <PPageHeader
+          title="BasaltPass"
+          description={t('pages.about.subtitle')}
+          backTo={ROUTES.user.dashboard}
+          backLabel={t('pages.about.back')}
+        />
 
         <PCard>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('pages.about.coreFeaturesTitle')}</h2>
@@ -79,15 +73,15 @@ const About: React.FC = () => {
         </PCard>
 
         <div className="text-center text-sm text-gray-600 pb-8">
-          <Link to={ROUTES.user.copyright} className="text-blue-600 hover:underline">
+          <Link to={ROUTES.user.copyright} className="text-indigo-600 hover:underline">
             {t('pages.about.links.softwareCopyright')}
           </Link>
           {' · '}
-          <a href="https://github.com/BasaltBase/BasaltPass" className="text-blue-600 hover:underline">
+          <a href="https://github.com/BasaltBase/BasaltPass" className="text-indigo-600 hover:underline">
             GitHub
           </a>
           {' · '}
-          <a href="HollowData.com" className="text-blue-600 hover:underline">
+          <a href="HollowData.com" className="text-indigo-600 hover:underline">
             {t('pages.about.links.contactUs')}
           </a>
         </div>

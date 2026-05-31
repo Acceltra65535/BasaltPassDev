@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { uiAlert } from '@contexts/DialogContext'
 import Layout from '@features/user/components/Layout'
 import { invitationApi } from '@api/user/invitation'
-import { EntitySearchSelect, type BaseEntityItem, PButton, PTextarea } from '@ui'
+import { EntitySearchSelect, type BaseEntityItem, PButton, PTextarea, PPageHeader, PCard } from '@ui'
 import { useNavigate, useParams } from 'react-router-dom'
 import { DocumentTextIcon } from '@heroicons/react/24/outline'
 import { useI18n } from '@shared/i18n'
@@ -40,23 +40,14 @@ const Invite: React.FC = () => {
   return (
     <Layout>
       <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-start justify-between gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold text-gray-900">{t('pages.teamInvite.title')}</h1>
-            <p className="text-sm text-gray-500">
-              {t('pages.teamInvite.description')}
-            </p>
-          </div>
-          <PButton
-            onClick={() => navigate(`/teams/${teamId}`)}
-            variant="secondary"
-            size="sm"
-          >
-            {t('pages.teamInvite.actions.backToTeam')}
-          </PButton>
-        </div>
+        <PPageHeader
+          title={t('pages.teamInvite.title')}
+          description={t('pages.teamInvite.description')}
+          onBack={() => navigate(`/teams/${teamId}`)}
+          backLabel={t('pages.teamInvite.actions.backToTeam')}
+        />
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <PCard variant="bordered" padding="lg">
           <div className="mb-4 space-y-1">
             <h2 className="text-sm font-semibold text-gray-900">{t('pages.teamInvite.selectUsersTitle')}</h2>
             <p className="text-sm text-gray-500">{t('pages.teamInvite.selectUsersDescription')}</p>
@@ -70,9 +61,9 @@ const Invite: React.FC = () => {
             limit={10}
             variant="chips"
           />
-        </div>
+        </PCard>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <PCard variant="bordered" padding="lg">
           <div className="space-y-2">
             <label className="flex items-center text-sm font-semibold text-gray-700">
               <DocumentTextIcon className="mr-2 h-5 w-5 text-gray-400" />
@@ -86,7 +77,7 @@ const Invite: React.FC = () => {
               variant="rounded"
             />
           </div>
-        </div>
+        </PCard>
 
         <div className="flex justify-end space-x-3 border-t border-gray-200 pt-4">
           <PButton

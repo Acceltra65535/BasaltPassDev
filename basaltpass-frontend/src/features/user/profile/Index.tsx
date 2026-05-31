@@ -145,7 +145,7 @@ function Profile() {
             <PCard variant="bordered" size="lg">
               <div className="flex flex-col items-center">
                 <div className="relative">
-                  <div className="h-24 w-24 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
+                  <div className="h-24 w-24 bg-indigo-600 rounded-full flex items-center justify-center">
                     <UserIcon className="h-12 w-12 text-white" />
                   </div>
                 </div>
@@ -232,7 +232,7 @@ function Profile() {
                     {isEditing && (
                       <p className="text-xs text-gray-500">
                         {t('userProfilePage.emailEditHint.prefix')}{' '}
-                        <Link to={ROUTES.user.security} className="text-blue-600 hover:underline">
+                        <Link to={ROUTES.user.security} className="text-indigo-600 hover:underline">
                           {t('userProfilePage.emailEditHint.securitySettings')}
                         </Link>{' '}
                         {t('userProfilePage.emailEditHint.suffix')}
@@ -378,7 +378,7 @@ function Profile() {
                         href={userProfile.website} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline"
+                        className="text-sm text-indigo-600 hover:underline"
                       >
                         {userProfile.website}
                       </a>
@@ -397,7 +397,7 @@ function Profile() {
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <a 
                     href={ROUTES.user.settings}
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm text-indigo-600 hover:underline"
                   >
                     {t('userProfilePage.details.editInSettings')}
                   </a>
@@ -412,4 +412,3 @@ function Profile() {
 }
 
 export default Profile
-

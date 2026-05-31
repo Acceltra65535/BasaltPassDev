@@ -4,7 +4,7 @@ import { Currency } from '@api/user/currency'
 import { useNavigate } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
 import CurrencySelector from '@features/user/components/CurrencySelector'
-import { PButton, PInput } from '@ui'
+import { PButton, PInput, PPageHeader, PCard, PAlert } from '@ui'
 import { ROUTES } from '@constants'
 import { useConfig } from '@contexts/ConfigContext'
 import { useI18n } from '@shared/i18n'
@@ -13,10 +13,7 @@ import {
   CreditCardIcon,
   QrCodeIcon,
   BanknotesIcon,
-  ArrowLeftIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon
 } from '@heroicons/react/24/outline'
 
 const withdrawMethods = [
@@ -25,8 +22,8 @@ const withdrawMethods = [
     name: 'Alipay',
     icon: QrCodeIcon,
     description: 'Instant arrival',
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100'
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-100'
   },
   {
     id: 'bank',
@@ -41,8 +38,8 @@ const withdrawMethods = [
     name: 'WeChat Pay',
     icon: QrCodeIcon,
     description: 'Instant arrival',
-    color: 'text-green-600',
-    bgColor: 'bg-green-100'
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-100'
   }
 ]
 
@@ -146,54 +143,42 @@ export default function Withdraw() {
     <Layout>
       <div className="space-y-6">
         {/*  */}
-        <div className="flex items-center">
-          <PButton 
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(ROUTES.user.wallet)}
-            className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-          >
-            <ArrowLeftIcon className="h-5 w-5" />
-          </PButton>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('pages.walletWithdraw.header.title')}</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {t('pages.walletWithdraw.header.description')}
-            </p>
-          </div>
-        </div>
+        <PPageHeader
+          title={t('pages.walletWithdraw.header.title')}
+          description={t('pages.walletWithdraw.header.description')}
+          backTo={ROUTES.user.wallet}
+        />
 
         {walletOpsDisabled && (
-          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-            <p className="text-sm text-amber-900">{t('pages.walletWithdraw.notice.disabled')}</p>
-          </div>
+          <PAlert variant="warning" message={t('pages.walletWithdraw.notice.disabled')} />
         )}
 
         {/*  */}
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-red-800">{t('pages.walletWithdraw.errors.title')}</p>
-                <div className="mt-2 text-sm text-red-700">{error}</div>
-              </div>
-            </div>
-          </div>
+          <PAlert variant="error" title={t('pages.walletWithdraw.errors.title')} message={error} />
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/*  */}
-          <div className={`rounded-xl bg-white shadow-sm ${walletOpsDisabled ? 'opacity-50' : ''}`}>
+          <PCard padding="none" className={walletOpsDisabled ? 'opacity-60' : ''}>
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center mb-6">
-                <ArrowDownIcon className="h-6 w-6 text-red-600 mr-2" />
+                <ArrowDownIcon className="h-6 w-6 text-indigo-600 mr-2" />
                 <h3 className="text-lg font-medium text-gray-900">{t('pages.walletWithdraw.form.title')}</h3>
               </div>
               
               <form onSubmit={submit} className={`space-y-6 ${walletOpsDisabled ? 'pointer-events-none' : ''}`}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('pages.walletWithdraw.errors.selectCurrency')}
+                  </label>
+                  <CurrencySelector
+                    value={selectedCurrency?.code || ''}
+                    onChange={setSelectedCurrency}
+                    className="w-full"
+                  />
+                </div>
+
                 {/*  */}
                 <div>
                   <PInput
@@ -218,7 +203,7 @@ export default function Withdraw() {
                       <PButton
                         key={value}
                         type="button"
-                        variant={amount === value.toString() ? "danger" : "secondary"}
+                        variant={amount === value.toString() ? 'primary' : 'secondary'}
                         size="sm"
                         onClick={() => handleQuickAmount(value)}
                       >
@@ -239,7 +224,7 @@ export default function Withdraw() {
                         key={method.id}
                         className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
                           selectedMethod === method.id
-                            ? 'border-red-500 bg-red-50'
+                            ? 'border-indigo-500 bg-indigo-50'
                             : 'border-gray-300 bg-white hover:bg-gray-50'
                         }`}
                         onClick={() => setSelectedMethod(method.id)}
@@ -253,7 +238,7 @@ export default function Withdraw() {
                             <p className="text-sm text-gray-500">{t(`pages.walletWithdraw.methods.${method.id}.description`)}</p>
                           </div>
                           {selectedMethod === method.id && (
-                            <div className="h-5 w-5 bg-red-600 rounded-full flex items-center justify-center">
+                            <div className="h-5 w-5 bg-indigo-600 rounded-full flex items-center justify-center">
                               <CheckCircleIcon className="h-4 w-4 text-white" />
                             </div>
                           )}
@@ -278,69 +263,58 @@ export default function Withdraw() {
                 {/*  */}
                 <PButton
                   type="submit"
-                  variant="danger"
                   fullWidth
-                  disabled={walletOpsDisabled || isLoading || !amount || parseFloat(amount) <= 0 || !accountInfo.trim()}
+                  disabled={walletOpsDisabled || isLoading || !amount || parseFloat(amount) <= 0 || !selectedCurrency || !accountInfo.trim()}
                   loading={isLoading}
                 >
                   {isLoading ? t('pages.walletWithdraw.form.submitting') : t('pages.walletWithdraw.form.submitWithAmount', { amount: amount || '0.00' })}
                 </PButton>
               </form>
             </div>
-          </div>
+          </PCard>
 
           {/*  */}
           <div className="space-y-6">
             {/*  */}
-            <div className="rounded-xl bg-white shadow-sm">
+            <PCard padding="none">
               <div className="px-4 py-5 sm:p-6">
                 <div className="flex items-center mb-4">
-                  <BanknotesIcon className="h-6 w-6 text-red-600 mr-2" />
+                  <BanknotesIcon className="h-6 w-6 text-indigo-600 mr-2" />
                   <h3 className="text-lg font-medium text-gray-900">{t('pages.walletWithdraw.guide.title')}</h3>
                 </div>
                 <div className="space-y-3 text-sm text-gray-600">
                   <div className="flex items-start">
-                    <div className="h-2 w-2 bg-red-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-indigo-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     <p>{t('pages.walletWithdraw.guide.items.alipayWechat')}</p>
                   </div>
                   <div className="flex items-start">
-                    <div className="h-2 w-2 bg-red-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-indigo-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     <p>{t('pages.walletWithdraw.guide.items.bank')}</p>
                   </div>
                   <div className="flex items-start">
-                    <div className="h-2 w-2 bg-red-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-indigo-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     <p>{t('pages.walletWithdraw.guide.items.limit')}</p>
                   </div>
                   <div className="flex items-start">
-                    <div className="h-2 w-2 bg-red-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-indigo-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     <p>{t('pages.walletWithdraw.guide.items.fee')}</p>
                   </div>
                 </div>
               </div>
-            </div>
+            </PCard>
 
             {/*  */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <InformationCircleIcon className="h-5 w-5 text-yellow-400" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">{t('pages.walletWithdraw.important.title')}</h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>{t('pages.walletWithdraw.important.items.account')}</li>
-                      <li>{t('pages.walletWithdraw.important.items.noCancel')}</li>
-                      <li>{t('pages.walletWithdraw.important.items.support')}</li>
-                      <li>{t('pages.walletWithdraw.important.items.worktime')}</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PAlert variant="warning" title={t('pages.walletWithdraw.important.title')}>
+              <ul className="list-disc list-inside space-y-1">
+                <li>{t('pages.walletWithdraw.important.items.account')}</li>
+                <li>{t('pages.walletWithdraw.important.items.noCancel')}</li>
+                <li>{t('pages.walletWithdraw.important.items.support')}</li>
+                <li>{t('pages.walletWithdraw.important.items.worktime')}</li>
+              </ul>
+            </PAlert>
 
             {/*  */}
-            <div className="rounded-xl bg-white shadow-sm">
+            <PCard padding="none">
               <div className="px-4 py-5 sm:p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">{t('pages.walletWithdraw.faq.title')}</h3>
                 <div className="space-y-3 text-sm">
@@ -362,26 +336,16 @@ export default function Withdraw() {
                   </div>
                 </div>
               </div>
-            </div>
+            </PCard>
 
             {/*  */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <BanknotesIcon className="h-5 w-5 text-blue-400" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">Security Tips</h3>
-                  <div className="mt-2 text-sm text-blue-700">
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>Please operate in a secure network environment</li>
-                      <li>Do not share account information with others</li>
-                      <li>Review withdrawal records regularly</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PAlert variant="info" title="Security Tips">
+              <ul className="list-disc list-inside space-y-1">
+                <li>Please operate in a secure network environment</li>
+                <li>Do not share account information with others</li>
+                <li>Review withdrawal records regularly</li>
+              </ul>
+            </PAlert>
           </div>
         </div>
       </div>

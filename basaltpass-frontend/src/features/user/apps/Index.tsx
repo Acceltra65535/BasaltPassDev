@@ -4,7 +4,7 @@ import Layout from '@features/user/components/Layout'
 import { userAppsApi, UserApp } from '@api/user/apps'
 import { Link } from 'react-router-dom'
 import { CubeIcon, ClockIcon, TrashIcon } from '@heroicons/react/24/outline'
-import { PSkeleton, PAlert, PEmptyState, PPageHeader, PButton } from '@ui'
+import { PSkeleton, PAlert, PEmptyState, PPageHeader, PButton, PCard } from '@ui'
 import { useI18n } from '@shared/i18n'
 
 export default function UserAppsIndex() {
@@ -62,13 +62,13 @@ export default function UserAppsIndex() {
               </div>
             ) : (
               apps.map((app) => (
-                <div key={app.id} className="bg-white rounded-lg shadow p-6 flex flex-col">
+                <PCard key={app.id} className="flex flex-col">
                   <div className="flex items-center space-x-4">
                     {app.app_icon_url ? (
                       <img src={app.app_icon_url} alt={app.app_name} className="h-12 w-12 rounded" />
                     ) : (
-                      <div className="h-12 w-12 rounded bg-blue-50 flex items-center justify-center">
-                        <CubeIcon className="h-6 w-6 text-blue-600" />
+                      <div className="h-12 w-12 rounded-lg bg-indigo-50 flex items-center justify-center">
+                        <CubeIcon className="h-6 w-6 text-indigo-600" />
                       </div>
                     )}
                     <div className="flex-1">
@@ -89,13 +89,13 @@ export default function UserAppsIndex() {
                       <div className="text-xs text-gray-400">{t('userAppsIndex.scopes')}</div>
                       <div className="mt-1 flex flex-wrap gap-2">
                         {app.scopes.split(/[ ,]+/).filter(Boolean).map((s) => (
-                          <span key={s} className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">{s}</span>
+                          <span key={s} className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-600/20">{s}</span>
                         ))}
                       </div>
                     </div>
                   )}
                   <div className="mt-6 flex items-center justify-between">
-                    <Link to={`/my-apps/${app.app_id}`} className="text-sm text-blue-600 hover:text-blue-700">{t('userAppsIndex.actions.viewApp')}</Link>
+                    <Link to={`/my-apps/${app.app_id}`} className="text-sm font-medium text-indigo-600 hover:text-indigo-700">{t('userAppsIndex.actions.viewApp')}</Link>
                     <PButton
                       onClick={() => revoke(app)}
                       disabled={revokingId === app.app_id}
@@ -107,7 +107,7 @@ export default function UserAppsIndex() {
                       {t('userAppsIndex.actions.revoke')}
                     </PButton>
                   </div>
-                </div>
+                </PCard>
               ))
             )}
           </div>

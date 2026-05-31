@@ -73,7 +73,7 @@ const Notifications: React.FC = () => {
       case 'error':
         return <XCircleIcon className="h-5 w-5 text-red-500" />
       default:
-        return <InformationCircleIcon className="h-5 w-5 text-blue-500" />
+        return <InformationCircleIcon className="h-5 w-5 text-indigo-500" />
     }
   }
 
@@ -136,7 +136,7 @@ const Notifications: React.FC = () => {
                 onClick={() => setFilter('all')}
                 className={`px-3 py-2 text-sm font-medium rounded-md ${
                   filter === 'all'
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-indigo-100 text-indigo-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -146,7 +146,7 @@ const Notifications: React.FC = () => {
                 onClick={() => setFilter('unread')}
                 className={`px-3 py-2 text-sm font-medium rounded-md ${
                   filter === 'unread'
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-indigo-100 text-indigo-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -156,7 +156,7 @@ const Notifications: React.FC = () => {
                 onClick={() => setFilter('read')}
                 className={`px-3 py-2 text-sm font-medium rounded-md ${
                   filter === 'read'
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-indigo-100 text-indigo-700'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -185,7 +185,7 @@ const Notifications: React.FC = () => {
                 <div
                   key={notification.id}
                   className={`p-6 hover:bg-gray-50 ${
-                    !notification.is_read ? 'bg-blue-50' : ''
+                    !notification.is_read ? 'bg-indigo-50' : ''
                   }`}
                 >
                   <div className="flex items-start space-x-4">
@@ -256,4 +256,4 @@ const Notifications: React.FC = () => {
   )
 }
 
-export default Notifications 
+export default Notifications

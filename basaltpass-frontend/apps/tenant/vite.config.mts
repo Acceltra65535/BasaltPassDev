@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/admin/',
+  base: '/tenant/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '../../src'),
@@ -24,7 +24,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 5103,
+    port: 5102,
     strictPort: true,
     fs: {
       allow: [path.resolve(__dirname, '../..')],
@@ -33,5 +33,30 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replaceAll('\\', '/')
+          if (normalizedId.includes('/node_modules/react') || normalizedId.includes('/node_modules/scheduler')) {
+            return 'vendor-react'
+          }
+          if (normalizedId.includes('/node_modules/@heroicons') || normalizedId.includes('/node_modules/lucide-react')) {
+            return 'vendor-icons'
+          }
+          if (normalizedId.includes('/node_modules/')) {
+            return 'vendor'
+          }
+          if (normalizedId.includes('/src/shared/ui/')) {
+            return 'shared-ui'
+          }
+          if (normalizedId.includes('/src/shared/api/')) {
+            return 'shared-api'
+          }
+          if (normalizedId.includes('/src/features/tenant/subscription/')) {
+            return 'tenant-subscription'
+          }
+        },
+      },
+    },
   },
 })

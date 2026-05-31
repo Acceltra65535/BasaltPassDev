@@ -274,7 +274,7 @@ export default function AppPermissionManagement() {
           <PPageHeader
             title={t('tenantAppPermissionManagement.title')}
             description={t('tenantAppPermissionManagement.description', { name: app?.name || '-' })}
-            icon={<KeyIcon className="h-8 w-8 text-blue-600" />}
+            icon={<KeyIcon className="h-8 w-8 text-indigo-600" />}
             actions={
               <div className="flex flex-wrap gap-2">
                 <PButton variant="secondary" onClick={() => navigate(`/tenant/apps/${appId}/roles`)}>{t('tenantAppPermissionManagement.actions.roleManagement')}</PButton>
@@ -315,9 +315,6 @@ export default function AppPermissionManagement() {
           rowKey={(row) => String(row.id)}
           loading={loading}
           emptyText={searchTerm || selectedCategory ? t('tenantAppPermissionManagement.empty.searchNoResult') : t('tenantAppPermissionManagement.empty.noPermission')}
-          emptyContent={!searchTerm && !selectedCategory ? (
-            <PButton onClick={handleCreatePermission} leftIcon={<PlusIcon className="h-4 w-4" />}>{t('tenantAppPermissionManagement.actions.createPermission')}</PButton>
-          ) : undefined}
           size="md"
           striped
           defaultSort={{ key: 'created_at', order: 'desc' }}

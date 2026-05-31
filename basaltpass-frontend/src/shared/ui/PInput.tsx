@@ -29,28 +29,24 @@ const PInput = forwardRef<HTMLInputElement, PInputProps>(
     const isPassword = type === 'password';
     const inputType = isPassword && showPassword ? 'text' : type;
 
-    // translatedstyle
     const baseStyles = `
-      block w-full border transition-all duration-200 
+      block w-full border text-gray-900 placeholder-gray-400 transition-colors duration-150
       focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
       disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed
     `;
 
-    // translatedstyle
     const variantStyles = {
       default: 'border-gray-300 rounded-lg shadow-sm bg-white',
-      rounded: 'border-gray-200 rounded-xl shadow-sm bg-white',
+      rounded: 'border-gray-300 rounded-lg shadow-sm bg-white',
       minimal: 'border-gray-200 rounded-lg bg-gray-50'
     };
 
-    // translatedstyle
     const sizeStyles = {
-      sm: 'px-2 py-1 text-sm',
-      md: 'px-3 py-2 text-sm',
-      lg: 'px-4 py-3 text-base'
+      sm: 'px-2.5 py-1.5 text-sm min-h-8',
+      md: 'px-3 py-2 text-sm min-h-10',
+      lg: 'px-4 py-2.5 text-base min-h-11'
     };
 
-    // translatedandpasswordtranslatedpaddingtranslated
     const paddingStyles = icon && (isPassword && onTogglePassword) 
       ? 'pl-10 pr-10' 
       : icon 
@@ -94,7 +90,7 @@ const PInput = forwardRef<HTMLInputElement, PInputProps>(
               type="button"
               className="absolute inset-y-0 right-0 pr-3 flex items-center"
               onClick={onTogglePassword}
-              aria-label={showPassword ? 'translatedpassword' : 'translatedpassword'}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? (
                 <EyeSlashIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />

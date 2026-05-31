@@ -176,7 +176,7 @@ export default function TenantPermissionManagement() {
       title: t('tenantPermissionManagement.table.code'),
       key: 'code',
       render: (permission) => (
-        <div className="font-mono text-sm text-blue-600">{permission.code}</div>
+        <div className="font-mono text-sm text-indigo-600">{permission.code}</div>
       )
     },
     {
@@ -258,7 +258,7 @@ export default function TenantPermissionManagement() {
           <PPageHeader
             title={t('tenantPermissionManagement.header.title')}
             description={t('tenantPermissionManagement.header.description')}
-            icon={<KeyIcon className="h-8 w-8 text-blue-600" />}
+            icon={<KeyIcon className="h-8 w-8 text-indigo-600" />}
             actions={
               <div className="flex space-x-3">
                 <PButton variant="secondary" onClick={() => navigate(ROUTES.tenant.roles)} leftIcon={<ShieldCheckIcon className="h-4 w-4" />}>{t('tenantPermissionManagement.actions.roleManagement')}</PButton>
@@ -304,11 +304,6 @@ export default function TenantPermissionManagement() {
           rowKey={(row) => String(row.id)}
           loading={loading}
           emptyText={searchTerm || selectedCategory ? t('tenantPermissionManagement.empty.filtered') : t('tenantPermissionManagement.empty.noData')}
-          emptyContent={!searchTerm && !selectedCategory ? (
-            <PButton onClick={handleCreatePermission} leftIcon={<PlusIcon className="h-4 w-4" />}>
-              {t('tenantPermissionManagement.actions.createPermission')}
-            </PButton>
-          ) : undefined}
           size="md"
           striped
           defaultSort={{ key: 'created_at', order: 'desc' }}

@@ -192,9 +192,6 @@ const PlanManagement: React.FC<PlanManagementProps> = () => {
               rowKey={(row) => row.ID}
               actions={actions}
               emptyText={t('tenantSubscriptionPlanManagement.empty.noPlans')}
-              emptyContent={
-                <PButton type="button" onClick={handleCreatePlan} leftIcon={<PlusIcon className="h-5 w-5" />}>{t('tenantSubscriptionPlanManagement.actions.createPlan')}</PButton>
-              }
               striped
               size="md"
             />

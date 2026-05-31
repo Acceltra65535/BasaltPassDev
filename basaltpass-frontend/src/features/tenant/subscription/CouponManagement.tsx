@@ -278,11 +278,7 @@ const CouponManagement: React.FC<CouponManagementProps> = () => {
             icon={GiftIcon}
             title={searchTerm || filterStatus !== 'all' ? t('tenantCouponManagement.empty.noMatchTitle') : t('tenantCouponManagement.empty.noCouponsTitle')}
             description={searchTerm || filterStatus !== 'all' ? t('tenantCouponManagement.empty.noMatchDescription') : t('tenantCouponManagement.empty.noCouponsDescription')}
-          >
-            {!searchTerm && filterStatus === 'all' && (
-              <PButton onClick={handleCreateCoupon} leftIcon={<PlusIcon className="h-5 w-5" />}>{t('tenantCouponManagement.actions.createCoupon')}</PButton>
-            )}
-          </PEmptyState>
+          />
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredCoupons.map((coupon, index) => {

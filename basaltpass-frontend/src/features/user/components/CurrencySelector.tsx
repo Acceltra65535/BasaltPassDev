@@ -37,7 +37,7 @@ export default function CurrencySelector({ value, onChange, className = '' }: Cu
 
   if (loading) {
     return (
-      <div className={`animate-pulse bg-gray-200 rounded-md h-10 ${className}`}></div>
+      <div className={`h-10 animate-pulse rounded-lg bg-gray-200 ${className}`}></div>
     )
   }
 
@@ -46,7 +46,9 @@ export default function CurrencySelector({ value, onChange, className = '' }: Cu
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        className="relative min-h-10 w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left text-sm shadow-sm transition-colors duration-150 hover:border-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
       >
         <span className="flex items-center">
           {selectedCurrency ? (
@@ -60,22 +62,24 @@ export default function CurrencySelector({ value, onChange, className = '' }: Cu
             <span className="block truncate text-gray-400">Select currency</span>
           )}
         </span>
-        <span className="ml-3 absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+        <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-3">
           <ChevronDownIcon className="h-5 w-5 text-gray-400" />
         </span>
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-56 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+        <div className="absolute z-10 mt-2 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 text-sm shadow-lg focus:outline-none" role="listbox">
           {currencies.map((currency) => (
             <div
               key={currency.id}
+              role="option"
+              aria-selected={value === currency.code}
               onClick={() => {
                 onChange(currency)
                 setIsOpen(false)
               }}
-              className={`cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 ${
-                value === currency.code ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+              className={`relative cursor-pointer select-none py-2 pl-3 pr-9 transition-colors hover:bg-gray-100 ${
+                value === currency.code ? 'bg-indigo-50 text-indigo-700' : 'text-gray-900'
               }`}
             >
               <div className="flex items-center">
@@ -84,12 +88,12 @@ export default function CurrencySelector({ value, onChange, className = '' }: Cu
                   {currency.name_cn || currency.name} ({currency.code})
                 </span>
                 {currency.type === 'crypto' && (
-                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                  <span className="ml-2 inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
                     Crypto
                   </span>
                 )}
                 {currency.type === 'points' && (
-                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                  <span className="ml-2 inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800">
                     Points
                   </span>
                 )}

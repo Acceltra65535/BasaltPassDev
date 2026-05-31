@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { uiAlert, uiConfirm, uiPrompt } from '@contexts/DialogContext'
-import { Link } from 'react-router-dom'
 import { listPasskeys, createPasskey, deletePasskey, PasskeyInfo } from '@api/oauth/passkey'
 import { isPasskeySupported } from '@utils/webauthn'
 import Layout from '@features/user/components/Layout'
@@ -11,11 +10,10 @@ import {
   ShieldCheckIcon, 
   DevicePhoneMobileIcon, 
   ComputerDesktopIcon,
-  ArrowLeftIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
-import { PSkeleton, PAlert, PButton, PInput } from '@ui'
+import { PSkeleton, PAlert, PButton, PInput, PPageHeader, PCard } from '@ui'
 import { useI18n } from '@shared/i18n'
 
 function PasskeyManagement() {
@@ -110,20 +108,11 @@ function PasskeyManagement() {
         <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <div className="space-y-6">
             {/*  */}
-            <div className="flex items-center">
-              <Link 
-                to={ROUTES.user.security} 
-                className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{t('pages.userPasskey.header.title')}</h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  {t('pages.userPasskey.header.description')}
-                </p>
-              </div>
-            </div>
+            <PPageHeader
+              title={t('pages.userPasskey.header.title')}
+              description={t('pages.userPasskey.header.description')}
+              backTo={ROUTES.user.security}
+            />
             
             <PAlert variant="warning" title={t('pages.userPasskey.unsupported.title')} message={t('pages.userPasskey.unsupported.message')} />
           </div>
@@ -137,20 +126,11 @@ function PasskeyManagement() {
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="space-y-6">
           {/*  */}
-          <div className="flex items-center">
-            <Link 
-              to={ROUTES.user.security} 
-              className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{t('pages.userPasskey.header.title')}</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                {t('pages.userPasskey.header.description')}
-              </p>
-            </div>
-          </div>
+          <PPageHeader
+            title={t('pages.userPasskey.header.title')}
+            description={t('pages.userPasskey.header.description')}
+            backTo={ROUTES.user.security}
+          />
 
           {/*  */}
           {error && <PAlert variant="error" message={error} dismissible onDismiss={() => setError('')} />}
@@ -160,7 +140,7 @@ function PasskeyManagement() {
           <PAlert variant="info" title={t('pages.userPasskey.info.title')} message={t('pages.userPasskey.info.message')} />
 
           {/* Passkey */}
-          <div className="bg-white shadow sm:rounded-lg">
+          <PCard padding="none">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
                 {t('pages.userPasskey.create.title')}
@@ -213,10 +193,10 @@ function PasskeyManagement() {
                 )}
               </div>
             </div>
-          </div>
+          </PCard>
 
           {/* Passkey */}
-          <div className="bg-white shadow sm:rounded-lg">
+          <PCard padding="none">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
                 {t('pages.userPasskey.list.title')}
@@ -279,11 +259,11 @@ function PasskeyManagement() {
                 </div>
               )}
             </div>
-          </div>
+          </PCard>
         </div>
       </div>
     </Layout>
   )
 }
 
-export default PasskeyManagement 
+export default PasskeyManagement

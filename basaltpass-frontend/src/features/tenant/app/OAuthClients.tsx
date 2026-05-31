@@ -126,9 +126,6 @@ export default function TenantOAuthClients() {
           ) : !apps || apps.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-gray-500">{t('tenantOAuthClients.empty.noApps')}</p>
-              <PButton onClick={() => setShowCreateModal(true)} className="mt-2">
-                {t('tenantOAuthClients.actions.createFirstClient')}
-              </PButton>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
@@ -147,10 +144,7 @@ export default function TenantOAuthClients() {
                   {!app.oauth_clients || app.oauth_clients.length === 0 ? (
                     <div className="rounded-xl bg-gray-50 py-8 text-center">
                       <KeyIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500 mb-4">{t('tenantOAuthClients.empty.noClientsForApp')}</p>
-                      <PButton onClick={() => setShowCreateModal(true)}>
-                        {t('tenantOAuthClients.actions.createClient')}
-                      </PButton>
+                      <p className="text-gray-500">{t('tenantOAuthClients.empty.noClientsForApp')}</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">

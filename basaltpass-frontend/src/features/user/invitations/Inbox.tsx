@@ -2,9 +2,9 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { uiAlert, uiConfirm, uiPrompt } from '@contexts/DialogContext'
 import { Link } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
-import { PButton, PSkeleton, PBadge, PEmptyState, PPagination } from '@ui'
+import { PButton, PSkeleton, PBadge, PEmptyState, PPagination, PPageHeader, PCard } from '@ui'
 import { invitationApi, Invitation } from '@api/user/invitation'
-import { CheckIcon, XMarkIcon, ClockIcon, UserGroupIcon, EnvelopeIcon, CalendarIcon, UserIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { CheckIcon, XMarkIcon, ClockIcon, UserGroupIcon, EnvelopeIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '@contexts/AuthContext'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
@@ -101,29 +101,23 @@ const Inbox: React.FC = () => {
     return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
-        {/*  */}
-        <div className="flex items-center">
-          <Link
-            to={ROUTES.user.teams}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-          >
-            <ArrowLeftIcon className="w-4 h-4 mr-2" />
-            {t('userInvitationsInbox.actions.backToTeams')}
-          </Link>
-        </div>
+        <PPageHeader
+          title={t('userInvitationsInbox.title')}
+          description={t('userInvitationsInbox.description')}
+          backTo={ROUTES.user.teams}
+          backLabel={t('userInvitationsInbox.actions.backToTeams')}
+        />
 
         {/*  */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100">
+        <PCard variant="bordered" padding="lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl shadow-lg">
+              <div className="bg-indigo-600 p-3 rounded-lg shadow-sm">
                 <EnvelopeIcon className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{t('userInvitationsInbox.title')}</h1>
-                <p className="mt-2 text-lg text-gray-600">
-                  {t('userInvitationsInbox.description')}
-                </p>
+                <h2 className="text-lg font-semibold text-gray-900">{t('userInvitationsInbox.totalCount', { count: invitations.length })}</h2>
+                <p className="mt-1 text-sm text-gray-500">{t('userInvitationsInbox.description')}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200">
@@ -135,7 +129,7 @@ const Inbox: React.FC = () => {
           </div>
           
  
-        </div>
+        </PCard>
 
         {/*  */}
         {loading ? (
@@ -158,7 +152,7 @@ const Inbox: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start space-x-4">
                         <div className="flex-shrink-0">
-                          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 w-12 h-12 rounded-xl flex items-center justify-center shadow-lg">
+                          <div className="bg-indigo-600 w-12 h-12 rounded-lg flex items-center justify-center shadow-sm">
                             <UserGroupIcon className="w-6 h-6 text-white" />
                           </div>
                         </div>
@@ -182,7 +176,7 @@ const Inbox: React.FC = () => {
                           </div>
                           
                           {inv.remark && (
-                            <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg p-3 border-l-4 border-blue-500">
+                            <div className="bg-gray-50 rounded-lg p-3 border-l-4 border-indigo-500">
                               <p className="text-sm text-gray-700 italic">
                                 "{inv.remark}"
                               </p>
@@ -233,4 +227,4 @@ const Inbox: React.FC = () => {
   )
 }
 
-export default Inbox 
+export default Inbox

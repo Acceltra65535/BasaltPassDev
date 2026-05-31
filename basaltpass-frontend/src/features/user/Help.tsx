@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import Layout from '@features/user/components/Layout'
-import { PInput, PButton } from '@ui'
+import { PInput, PButton, PCard } from '@ui'
 import { useI18n } from '@shared/i18n'
 import { 
   QuestionMarkCircleIcon,
@@ -13,7 +13,7 @@ import {
 // FAQ
 const faqCategories = [
   { id: 'all', nameKey: 'userHelp.categories.all', color: 'bg-gray-100 text-gray-800' },
-  { id: 'account', nameKey: 'userHelp.categories.account', color: 'bg-blue-100 text-blue-800' },
+  { id: 'account', nameKey: 'userHelp.categories.account', color: 'bg-indigo-100 text-indigo-800' },
   { id: 'security', nameKey: 'userHelp.categories.security', color: 'bg-green-100 text-green-800' },
   { id: 'payment', nameKey: 'userHelp.categories.payment', color: 'bg-indigo-100 text-indigo-800' },
   { id: 'wallet', nameKey: 'userHelp.categories.wallet', color: 'bg-yellow-100 text-yellow-800' },
@@ -157,10 +157,10 @@ export default function Help() {
         </div>
 
         {/*  */}
-        <div className="bg-white shadow-lg rounded-xl">
+        <PCard padding="none">
           <div className="px-6 py-8">
             <div className="flex items-center mb-6">
-              <MagnifyingGlassIcon className="h-6 w-6 text-blue-500 mr-3" />
+              <MagnifyingGlassIcon className="h-6 w-6 text-indigo-500 mr-3" />
               <h3 className="text-xl font-semibold text-gray-900">{t('userHelp.search.title')}</h3>
             </div>
             <div className="max-w-2xl mx-auto">
@@ -174,10 +174,10 @@ export default function Help() {
               />
             </div>
           </div>
-        </div>
+        </PCard>
 
         {/*  */}
-        <div className="bg-white shadow-lg rounded-xl">
+        <PCard padding="none">
           <div className="px-6 py-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('userHelp.categories.title')}</h3>
             <div className="flex flex-wrap gap-3">
@@ -194,10 +194,10 @@ export default function Help() {
               ))}
             </div>
           </div>
-        </div>
+        </PCard>
 
         {/*  */}
-        <div className="bg-white shadow-lg rounded-xl">
+        <PCard padding="none">
           <div className="px-6 py-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">
@@ -295,10 +295,10 @@ export default function Help() {
               </div>
             )}
           </div>
-        </div>
+        </PCard>
 
         {/*  */}
-        <div className="bg-white shadow-lg rounded-xl">
+        <PCard padding="none">
           <div className="px-6 py-6">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -345,7 +345,7 @@ export default function Help() {
               </div>
             </div>
           </div>
-        </div>
+        </PCard>
 
         <div className="px-4 pb-2 text-center text-sm text-gray-500">
           <p>

@@ -146,21 +146,16 @@ const TeamDetail: React.FC = () => {
     <Layout>
       <div className="space-y-6">
         {/*  */}
-        <div className="flex items-center justify-between">
-          <PPageHeader title={team.name} description={team.description || t('pages.teamDetail.header.defaultDescription')} />
-          <div className="flex items-center space-x-3">
-            {team.user_role && getRoleBadge(team.user_role)}
-            <Link
-              to={ROUTES.user.teams}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-            >
-              {t('pages.teamDetail.header.backToList')}
-            </Link>
-          </div>
-        </div>
+        <PPageHeader
+          title={team.name}
+          description={team.description || t('pages.teamDetail.header.defaultDescription')}
+          backTo={ROUTES.user.teams}
+          backLabel={t('pages.teamDetail.header.backToList')}
+          actions={team.user_role ? getRoleBadge(team.user_role) : undefined}
+        />
 
         {/*  */}
-        <div className="rounded-xl bg-white shadow-sm">
+        <PCard padding="none">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">{t('pages.teamDetail.sections.teamInfo')}</h3>
           </div>
@@ -194,10 +189,10 @@ const TeamDetail: React.FC = () => {
               </div>
             </dl>
           </div>
-        </div>
+        </PCard>
 
         {/*  */}
-        <div className="rounded-xl bg-white shadow-sm">
+        <PCard padding="none">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">{t('pages.teamDetail.sections.teamActions')}</h3>
           </div>
@@ -245,11 +240,11 @@ const TeamDetail: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </PCard>
 
         {/*  */}
         {showInvitations && (team.user_role === 'owner' || team.user_role === 'admin') && (
-          <div className="rounded-xl bg-white shadow-sm">
+          <PCard padding="none">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">{t('pages.teamDetail.sections.outgoingInvitations')}</h3>
             </div>
@@ -295,7 +290,7 @@ const TeamDetail: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+          </PCard>
         )}
       </div>
 

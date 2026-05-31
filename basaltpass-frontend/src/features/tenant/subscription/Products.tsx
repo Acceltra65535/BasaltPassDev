@@ -161,7 +161,7 @@ export default function TenantProducts() {
                     <div className="flex-1">
                       <div className="flex items-center">
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-blue-600 truncate">
+                          <p className="text-sm font-medium text-indigo-600 truncate">
                             {product.Name}
                           </p>
                           <p className="mt-1 text-sm text-gray-500">
@@ -181,8 +181,9 @@ export default function TenantProducts() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEdit(product)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-gray-600 hover:text-indigo-700"
                         title={t('tenantSubscriptionProducts.actions.editProduct')}
+                        aria-label={t('tenantSubscriptionProducts.actions.editProduct')}
                       >
                         <PencilIcon className="h-5 w-5" />
                       </PButton>
@@ -192,6 +193,7 @@ export default function TenantProducts() {
                         onClick={() => handleDeleteClick(product)}
                         className="text-red-600 hover:text-red-700"
                         title={t('tenantSubscriptionProducts.actions.deleteProduct')}
+                        aria-label={t('tenantSubscriptionProducts.actions.deleteProduct')}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </PButton>
@@ -217,13 +219,6 @@ export default function TenantProducts() {
                   </svg>
                   <h3 className="mt-2 text-sm font-medium text-gray-900">{t('tenantSubscriptionProducts.empty.title')}</h3>
                   <p className="mt-1 text-sm text-gray-500">{t('tenantSubscriptionProducts.empty.description')}</p>
-                  <div className="mt-6">
-                    <PButton onClick={() => setShowModal(true)}>
-                      <span className="inline-flex items-center gap-2">
-                        <PlusIcon className="h-5 w-5" /> {t('tenantSubscriptionProducts.actions.createProduct')}
-                      </span>
-                    </PButton>
-                  </div>
                 </div>
               </li>
             )}

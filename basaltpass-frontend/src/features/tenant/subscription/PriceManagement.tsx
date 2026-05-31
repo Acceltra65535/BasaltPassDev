@@ -199,7 +199,6 @@ const PriceManagement: React.FC<PriceManagementProps> = () => {
               rowKey={(row) => row.ID}
               actions={actions}
               emptyText={t('tenantSubscriptionPriceManagement.empty.noPrices')}
-              emptyContent={<PButton type="button" onClick={handleCreatePrice} leftIcon={<PlusIcon className="h-5 w-5" />}>{t('tenantSubscriptionPriceManagement.actions.createPrice')}</PButton>}
               striped
               size="md"
             />

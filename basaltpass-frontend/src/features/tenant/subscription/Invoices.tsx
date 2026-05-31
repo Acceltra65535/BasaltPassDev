@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import TenantLayout from '@features/tenant/components/TenantLayout'
 import {
-  ChevronRightIcon,
   PlusIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline'
@@ -15,7 +14,6 @@ import {
 import { useI18n } from '@shared/i18n'
 import { PInput, PSelect, PButton, PSkeleton, PBadge, Modal, PPageHeader } from '@ui'
 import PTable, { PTableColumn } from '@ui/PTable'
-import { ROUTES } from '@constants'
 
 export default function TenantInvoices() {
   const { t, locale } = useI18n()
@@ -181,9 +179,6 @@ export default function TenantInvoices() {
                   data={invoices}
                   rowKey={(row) => row.id}
                   emptyText={t('tenantSubscriptionInvoices.empty.noData')}
-                  emptyContent={
-                    <PButton type="button" onClick={() => setShowModal(true)} leftIcon={<PlusIcon className="h-5 w-5" />}>{t('tenantSubscriptionInvoices.actions.createInvoice')}</PButton>
-                  }
                   striped
                   size="md"
                 />

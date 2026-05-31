@@ -5,7 +5,7 @@ import { Currency } from '@api/user/currency'
 import { useNavigate } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
 import CurrencySelector from '@features/user/components/CurrencySelector'
-import { PInput, PButton } from '@ui'
+import { PInput, PButton, PPageHeader, PCard, PAlert } from '@ui'
 import { ROUTES } from '@constants'
 import { useConfig } from '@contexts/ConfigContext'
 import { useI18n } from '@shared/i18n'
@@ -14,9 +14,7 @@ import {
   CreditCardIcon,
   QrCodeIcon,
   BanknotesIcon,
-  ArrowLeftIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 
 const paymentMethods = [
@@ -25,16 +23,16 @@ const paymentMethods = [
     name: 'Alipay',
     icon: QrCodeIcon,
     description: 'Scan to pay',
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100'
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-100'
   },
   {
     id: 'wechat',
     name: 'WeChat Pay',
     icon: QrCodeIcon,
     description: 'Scan to pay',
-    color: 'text-green-600',
-    bgColor: 'bg-green-100'
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-100'
   },
   {
     id: 'bank',
@@ -171,34 +169,21 @@ export default function Recharge() {
     <Layout>
       <div className="space-y-6">
         {/*  */}
-        <div className="flex items-center">
-          <PButton 
-            onClick={() => navigate(ROUTES.user.wallet)}
-            variant="ghost"
-            size="sm"
-            className="mr-2"
-            leftIcon={<ArrowLeftIcon className="h-5 w-5" />}
-          >
-            {t('pages.walletRecharge.header.back')}
-          </PButton>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('pages.walletRecharge.header.title')}</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {t('pages.walletRecharge.header.description')}
-            </p>
-          </div>
-        </div>
+        <PPageHeader
+          title={t('pages.walletRecharge.header.title')}
+          description={t('pages.walletRecharge.header.description')}
+          backTo={ROUTES.user.wallet}
+          backLabel={t('pages.walletRecharge.header.back')}
+        />
 
         {walletOpsDisabled && (
-          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-            <p className="text-sm text-amber-900">{t('pages.walletRecharge.notice.disabled')}</p>
-          </div>
+          <PAlert variant="warning" message={t('pages.walletRecharge.notice.disabled')} />
         )}
 
-        <div className={`rounded-xl bg-white shadow-sm ${walletOpsDisabled ? 'opacity-50' : ''}`}>
+        <PCard padding="none" className={walletOpsDisabled ? 'opacity-60' : ''}>
           <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center mb-4">
-              <CreditCardIcon className="h-6 w-6 text-purple-600 mr-2" />
+              <CreditCardIcon className="h-6 w-6 text-indigo-600 mr-2" />
               <h3 className="text-lg font-medium text-gray-900">{t('pages.walletRecharge.giftCard.title')}</h3>
             </div>
             <form onSubmit={handleRedeemGiftCard} className={`space-y-4 ${walletOpsDisabled ? 'pointer-events-none' : ''}`}>
@@ -214,29 +199,19 @@ export default function Recharge() {
               </PButton>
             </form>
           </div>
-        </div>
+        </PCard>
 
         {/*  */}
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-red-800">{t('pages.walletRecharge.errors.title')}</p>
-                <div className="mt-2 text-sm text-red-700">{error}</div>
-              </div>
-            </div>
-          </div>
+          <PAlert variant="error" title={t('pages.walletRecharge.errors.title')} message={error} />
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/*  */}
-          <div className={`rounded-xl bg-white shadow-sm ${walletOpsDisabled ? 'opacity-50' : ''}`}>
+          <PCard padding="none" className={walletOpsDisabled ? 'opacity-60' : ''}>
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center mb-6">
-                <ArrowUpIcon className="h-6 w-6 text-green-600 mr-2" />
+                <ArrowUpIcon className="h-6 w-6 text-indigo-600 mr-2" />
                 <h3 className="text-lg font-medium text-gray-900">{t('pages.walletRecharge.form.title')}</h3>
               </div>
               
@@ -300,7 +275,7 @@ export default function Recharge() {
                         key={method.id}
                         className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
                           selectedMethod === method.id
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-indigo-500 bg-indigo-50'
                             : 'border-gray-300 bg-white hover:bg-gray-50'
                         }`}
                         onClick={() => setSelectedMethod(method.id)}
@@ -339,59 +314,49 @@ export default function Recharge() {
                 </PButton>
               </form>
             </div>
-          </div>
+          </PCard>
 
           {/*  */}
           <div className="space-y-6">
             {/*  */}
-            <div className="rounded-xl bg-white shadow-sm">
+            <PCard padding="none">
               <div className="px-4 py-5 sm:p-6">
                 <div className="flex items-center mb-4">
-                  <BanknotesIcon className="h-6 w-6 text-blue-600 mr-2" />
+                  <BanknotesIcon className="h-6 w-6 text-indigo-600 mr-2" />
                   <h3 className="text-lg font-medium text-gray-900">{t('pages.walletRecharge.guide.title')}</h3>
                 </div>
                 <div className="space-y-3 text-sm text-gray-600">
                   <div className="flex items-start">
-                    <div className="h-2 w-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-indigo-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     <p>{t('pages.walletRecharge.guide.items.realtime')}</p>
                   </div>
                   <div className="flex items-start">
-                    <div className="h-2 w-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-indigo-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     <p>{t('pages.walletRecharge.guide.items.methods')}</p>
                   </div>
                   <div className="flex items-start">
-                    <div className="h-2 w-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-indigo-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     <p>{t('pages.walletRecharge.guide.items.limit')}</p>
                   </div>
                   <div className="flex items-start">
-                    <div className="h-2 w-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    <div className="h-2 w-2 bg-indigo-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     <p>{t('pages.walletRecharge.guide.items.fee')}</p>
                   </div>
                 </div>
               </div>
-            </div>
+            </PCard>
 
             {/*  */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <BanknotesIcon className="h-5 w-5 text-blue-400" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">{t('pages.walletRecharge.security.title')}</h3>
-                  <div className="mt-2 text-sm text-blue-700">
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>{t('pages.walletRecharge.security.items.network')}</li>
-                      <li>{t('pages.walletRecharge.security.items.password')}</li>
-                      <li>{t('pages.walletRecharge.security.items.support')}</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PAlert variant="info" title={t('pages.walletRecharge.security.title')}>
+              <ul className="list-disc list-inside space-y-1">
+                <li>{t('pages.walletRecharge.security.items.network')}</li>
+                <li>{t('pages.walletRecharge.security.items.password')}</li>
+                <li>{t('pages.walletRecharge.security.items.support')}</li>
+              </ul>
+            </PAlert>
 
             {/*  */}
-            <div className="rounded-xl bg-white shadow-sm">
+            <PCard padding="none">
               <div className="px-4 py-5 sm:p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">{t('pages.walletRecharge.faq.title')}</h3>
                 <div className="space-y-3 text-sm">
@@ -409,7 +374,7 @@ export default function Recharge() {
                   </div>
                 </div>
               </div>
-            </div>
+            </PCard>
           </div>
         </div>
       </div>

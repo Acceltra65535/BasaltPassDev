@@ -19,22 +19,25 @@ const PTextarea = forwardRef<HTMLTextAreaElement, PTextareaProps>(
     rows = 3,
     ...props
   }, ref) => {
+    const generatedId = React.useId();
+    const textareaId = props.id || generatedId;
+
     const baseStyles = `
-      block border transition-all duration-200
+      block border text-gray-900 placeholder-gray-400 transition-colors duration-150
       focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
       disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed
     `;
 
     const variantStyles = {
       default: 'border-gray-300 rounded-lg shadow-sm bg-white',
-      rounded: 'border-gray-200 rounded-xl shadow-sm bg-white',
+      rounded: 'border-gray-300 rounded-lg shadow-sm bg-white',
       minimal: 'border-gray-200 rounded-lg bg-gray-50'
     } as const;
 
     const sizeStyles = {
-      sm: 'px-2 py-1 text-sm',
+      sm: 'px-2.5 py-1.5 text-sm',
       md: 'px-3 py-2 text-sm',
-      lg: 'px-4 py-3 text-base'
+      lg: 'px-4 py-2.5 text-base'
     } as const;
 
     const widthStyles = fullWidth ? 'w-full' : '';
@@ -51,12 +54,13 @@ const PTextarea = forwardRef<HTMLTextAreaElement, PTextareaProps>(
     return (
       <div className="space-y-1">
         {label && (
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor={textareaId} className="block text-sm font-medium text-gray-700">
             {label}
           </label>
         )}
         <textarea
           ref={ref}
+          id={textareaId}
           className={textareaClasses}
           rows={rows}
           {...props}

@@ -17,7 +17,6 @@ import {
 } from '@api/tenant/subscription'
 import { PInput, PSelect, PButton, PSkeleton, Modal, PPageHeader } from '@ui'
 import PTable, { PTableColumn, PTableAction } from '@ui/PTable'
-import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
 
 export default function TenantPlans() {
@@ -180,7 +179,6 @@ export default function TenantPlans() {
                   rowKey={(row) => row.ID}
                   actions={actions}
                   emptyText={t('tenantSubscriptionPlans.empty.table')}
-                  emptyContent={<PButton type="button" onClick={() => setShowModal(true)} leftIcon={<PlusIcon className="h-5 w-5" />}>{t('tenantSubscriptionPlans.actions.createPlan')}</PButton>}
                   striped
                   size="md"
                 />

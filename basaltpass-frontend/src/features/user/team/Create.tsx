@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@features/user/components/Layout';
-import { PCard, PButton, PInput } from '@ui';
+import { PCard, PButton, PInput, PTextarea, PPageHeader, PAlert } from '@ui';
 import { teamApi, CreateTeamRequest } from '@api/user/team';
 import { UserGroupIcon, DocumentTextIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { ROUTES } from '@constants';
@@ -54,29 +54,16 @@ const CreateTeam: React.FC = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('pages.teamCreate.title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {t('pages.teamCreate.description')}
-          </p>
-        </div>
+        <PPageHeader
+          title={t('pages.teamCreate.title')}
+          description={t('pages.teamCreate.description')}
+          backTo={ROUTES.user.teams}
+        />
 
         <PCard variant="bordered" size="lg">
           <form onSubmit={handleSubmit} className="space-y-8">
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">{t('pages.teamCreate.errors.title')}</h3>
-                    <div className="mt-2 text-sm text-red-700">{error}</div>
-                  </div>
-                </div>
-              </div>
+              <PAlert variant="error" title={t('pages.teamCreate.errors.title')} message={error} />
             )}
 
             <div className="space-y-2">
@@ -101,13 +88,14 @@ const CreateTeam: React.FC = () => {
                 <DocumentTextIcon className="h-5 w-5 mr-2 text-indigo-500" />
                 {t('pages.teamCreate.fields.description')}
               </label>
-              <textarea
+              <PTextarea
                 id="description"
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={4}
-                className="block w-full px-4 py-3 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-gray-900 placeholder-gray-400 bg-white hover:border-gray-300 resize-none"
+                size="lg"
+                className="resize-none"
                 placeholder={t('pages.teamCreate.placeholders.description')}
               />
             </div>
@@ -162,4 +150,4 @@ const CreateTeam: React.FC = () => {
   );
 };
 
-export default CreateTeam; 
+export default CreateTeam;

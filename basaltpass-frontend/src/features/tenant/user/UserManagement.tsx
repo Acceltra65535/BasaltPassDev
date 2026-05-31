@@ -243,6 +243,23 @@ export default function TenantUserManagement() {
     }
   }
 
+  const isInvalidTenantDate = (value?: string | null) => {
+    if (!value || value.startsWith('0001-') || value.startsWith('0000-')) {
+      return true
+    }
+    return Number.isNaN(new Date(value).getTime())
+  }
+
+  const getTenantDateTime = (value?: string | null) => {
+    return isInvalidTenantDate(value) ? 0 : new Date(value).getTime()
+  }
+
+  const formatTenantDate = (value?: string | null) => {
+    return isInvalidTenantDate(value)
+      ? t('tenantUserManagement.table.notAvailable')
+      : new Date(value).toLocaleDateString(locale)
+  }
+
   const filteredApps = apps.filter(app => {
     const matchesSearch = debouncedSearchTerm === '' || 
       app.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
@@ -291,6 +308,11 @@ export default function TenantUserManagement() {
 
   const handleUpdateUser = async () => {
     if (!editingUser) return
+
+    if (editingUser.status !== 'suspended' && editFormData.status === 'suspended') {
+      const confirmed = await uiConfirm(t('tenantUserManagement.confirm.suspendUser', { user: editingUser.nickname || editingUser.email }))
+      if (!confirmed) return
+    }
     
     try {
       setSubmitting(true)
@@ -443,7 +465,8 @@ export default function TenantUserManagement() {
       title: t('tenantUserManagement.table.joinedAt'),
       dataIndex: 'created_at',
       sortable: true,
-      sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      sorter: (a, b) => getTenantDateTime(a.created_at) - getTenantDateTime(b.created_at),
+      render: (user) => <span className="text-sm text-gray-500">{formatTenantDate(user.created_at)}</span>
     },
     {
       key: 'actions',
@@ -457,8 +480,9 @@ export default function TenantUserManagement() {
                 variant="ghost"
                 size="sm"
                 onClick={() => handleEditUser(user)}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-gray-600 hover:text-indigo-700"
                 title={t('tenantUserManagement.actions.editUser')}
+                aria-label={t('tenantUserManagement.actions.editUser')}
               >
                 <PencilIcon className="h-4 w-4" />
               </PButton>
@@ -468,6 +492,7 @@ export default function TenantUserManagement() {
                 onClick={() => handleRemoveUser(user)}
                 className="text-red-600 hover:text-red-800"
                 title={t('tenantUserManagement.actions.removeUser')}
+                aria-label={t('tenantUserManagement.actions.removeUser')}
               >
                 <TrashIcon className="h-4 w-4" />
               </PButton>
@@ -478,8 +503,9 @@ export default function TenantUserManagement() {
               variant="ghost"
               size="sm"
               onClick={() => handleResendInvitation(user)}
-              className="text-green-600 hover:text-green-800"
+              className="text-gray-600 hover:text-indigo-700"
               title={t('tenantUserManagement.actions.resendInvitation')}
+              aria-label={t('tenantUserManagement.actions.resendInvitation')}
             >
               <EnvelopeIcon className="h-4 w-4" />
             </PButton>
@@ -498,8 +524,8 @@ export default function TenantUserManagement() {
           {app.logo_url ? (
             <img className="h-10 w-10 rounded-lg object-cover" src={app.logo_url} alt={app.name} />
           ) : (
-            <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <CubeIcon className="h-6 w-6 text-blue-600" />
+            <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <CubeIcon className="h-6 w-6 text-indigo-600" />
             </div>
           )}
           <div className="ml-4">
@@ -553,7 +579,7 @@ export default function TenantUserManagement() {
       render: (app) => (
         <Link
           to={`/tenant/apps/${app.id}/users`}
-          className="inline-flex items-center rounded-md border border-transparent bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-200"
+          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           <EyeIcon className="h-4 w-4 mr-1" />
           {t('tenantUserManagement.appTable.manageUsers')}
@@ -611,7 +637,7 @@ export default function TenantUserManagement() {
           <PPageHeader
             title={t('tenantUserManagement.page.title')}
             description={t('tenantUserManagement.page.subtitle')}
-            icon={<UsersIcon className="h-8 w-8 text-blue-600" />}
+            icon={<UsersIcon className="h-8 w-8 text-indigo-600" />}
             actions={activeTab === 'users' ? (
               <PButton onClick={() => setShowInviteModal(true)} leftIcon={<UserPlusIcon className="w-5 h-5" />}>{t('tenantUserManagement.actions.inviteUser')}</PButton>
             ) : undefined}
@@ -624,7 +650,7 @@ export default function TenantUserManagement() {
                 onClick={() => setActiveTab('users')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'users'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -635,7 +661,7 @@ export default function TenantUserManagement() {
                 onClick={() => setActiveTab('apps')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'apps'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -710,11 +736,6 @@ export default function TenantUserManagement() {
             rowKey={(row) => row.id}
             defaultSort={{ key: 'created_at', order: 'desc' }}
             emptyText={searchTerm ? t('tenantUserManagement.empty.noUserMatch') : t('tenantUserManagement.empty.noUsersYet')}
-            emptyContent={!searchTerm ? (
-              <PButton onClick={() => setShowInviteModal(true)} leftIcon={<UserPlusIcon className="h-4 w-4" />}>
-                {t('tenantUserManagement.actions.inviteUser')}
-              </PButton>
-            ) : undefined}
             pagination={userListPaginationBar}
           />
         ) : (
@@ -723,11 +744,6 @@ export default function TenantUserManagement() {
             columns={appColumns}
             rowKey={(row) => row.id}
             emptyText={searchTerm ? t('tenantUserManagement.appUsers.noAppMatch') : t('tenantUserManagement.appUsers.noAppsYet')}
-            emptyContent={!searchTerm ? (
-              <Link to={ROUTES.tenant.appsNew}>
-                <PButton>{t('tenantUserManagement.appUsers.createApp')}</PButton>
-              </Link>
-            ) : undefined}
           />
         )}
 

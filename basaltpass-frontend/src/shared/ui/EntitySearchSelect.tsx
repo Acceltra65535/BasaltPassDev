@@ -4,6 +4,7 @@ import { userApi, UserSearchResult } from '@api/user/user'
 import { adminUserApi, AdminUser, UserListParams } from '@api/admin/user'
 import { adminTenantApi, AdminTenantResponse } from '@api/admin/tenant'
 import { appApi } from '@api/admin/app'
+import { tenantNotificationApi } from '@api/tenant/notification'
 
 // translatedtype
 export type EntityType = 'user' | 'tenant' | 'app'
@@ -86,8 +87,6 @@ const EntitySearchSelect: React.FC<EntitySearchSelectProps> = ({
               }
             })
           } else if (context === 'tenant') {
-            // Import tenantNotificationApi dynamically if needed, or ensure it's imported at the top
-            const { tenantNotificationApi } = await import('@api/tenant/notification');
             const res = await tenantNotificationApi.searchTenantUsers(q);
             items = (res.data.data || []).map((u: any): BaseEntityItem => ({
               id: u.id,

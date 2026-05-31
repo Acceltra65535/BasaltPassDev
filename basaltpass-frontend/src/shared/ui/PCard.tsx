@@ -71,7 +71,7 @@ const PCard = forwardRef<HTMLDivElement, PCardProps>(
     // translatedhastranslated
     const combinedClasses = [
       // translatedstyle：translatedandtranslated
-      'rounded-xl',
+      'rounded-lg',
       'max-w-full',
       'overflow-x-auto',
       // translatedstyle

@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { userGiftCardApi } from '@api/user/giftCard'
 import Layout from '@features/user/components/Layout'
 import { ROUTES } from '@constants'
-import { PPageHeader, PInput, PButton } from '@ui'
+import { PPageHeader, PInput, PButton, PCard, PAlert } from '@ui'
 import { useI18n } from '@shared/i18n'
 import {
   CheckCircleIcon,
-  ExclamationTriangleIcon,
   GiftIcon
 } from '@heroicons/react/24/outline'
 
@@ -67,10 +66,10 @@ export default function RedeemGiftCard() {
           backTo={ROUTES.user.wallet}
         />
 
-        <div className="rounded-xl bg-white shadow-sm">
+        <PCard padding="none">
           <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center mb-4">
-              <GiftIcon className="h-6 w-6 text-purple-600 mr-2" />
+              <GiftIcon className="h-6 w-6 text-indigo-600 mr-2" />
               <h3 className="text-lg font-medium text-gray-900">{t('pages.walletRedeem.form.title')}</h3>
             </div>
 
@@ -91,15 +90,10 @@ export default function RedeemGiftCard() {
             </form>
 
             {error && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
-                <div className="flex">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
-                  <p className="ml-3 text-sm text-red-700">{error}</p>
-                </div>
-              </div>
+              <PAlert className="mt-4" variant="error" message={error} />
             )}
           </div>
-        </div>
+        </PCard>
       </div>
     </Layout>
   )

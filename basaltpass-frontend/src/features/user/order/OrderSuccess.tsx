@@ -3,10 +3,11 @@ import { useParams, Link, useLocation } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
 import { getOrder } from '@api/subscription/payment/order'
 import { OrderResponse } from '@api/subscription/payment/order'
-import { CheckCircleIcon, SparklesIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import { CreditCardIcon, DocumentTextIcon, HomeIcon } from '@heroicons/react/24/outline'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
+import { PAlert, PButton, PCard } from '@ui'
 
 export default function OrderSuccessPage() {
   const { t, locale } = useI18n()
@@ -67,7 +68,7 @@ export default function OrderSuccessPage() {
 
         {order && (
           <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg">
-            <div className="bg-white py-8 px-6 shadow-lg rounded-lg sm:px-10">
+            <PCard padding="lg" className="sm:px-10">
               {/*  */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
@@ -112,45 +113,29 @@ export default function OrderSuccessPage() {
               </div>
 
               {/*  */}
-              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-start">
-                  <SparklesIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
-                  <div>
-                    <h4 className="text-sm font-medium text-blue-900 mb-1">{t('userOrderSuccess.nextStep.title')}</h4>
-                    <p className="text-sm text-blue-700">
-                      {t('userOrderSuccess.nextStep.description')}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <PAlert className="mb-6" variant="info" title={t('userOrderSuccess.nextStep.title')} message={t('userOrderSuccess.nextStep.description')} />
 
               {/*  */}
               <div className="space-y-3">
-                <Link
-                  to={ROUTES.user.subscriptions}
-                  className="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <CreditCardIcon className="h-4 w-4 mr-2" />
-                  {t('userOrderSuccess.actions.viewSubscriptions')}
+                <Link to={ROUTES.user.subscriptions}>
+                  <PButton fullWidth leftIcon={<CreditCardIcon className="h-4 w-4" />}>
+                    {t('userOrderSuccess.actions.viewSubscriptions')}
+                  </PButton>
                 </Link>
                 
-                <Link
-                  to={ROUTES.user.dashboard}
-                  className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <HomeIcon className="h-4 w-4 mr-2" />
-                  {t('userOrderSuccess.actions.backToConsole')}
+                <Link to={ROUTES.user.dashboard}>
+                  <PButton fullWidth variant="secondary" leftIcon={<HomeIcon className="h-4 w-4" />}>
+                    {t('userOrderSuccess.actions.backToConsole')}
+                  </PButton>
                 </Link>
                 
-                <Link
-                  to={ROUTES.user.products}
-                  className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <DocumentTextIcon className="h-4 w-4 mr-2" />
-                  {t('userOrderSuccess.actions.viewMoreProducts')}
+                <Link to={ROUTES.user.products}>
+                  <PButton fullWidth variant="secondary" leftIcon={<DocumentTextIcon className="h-4 w-4" />}>
+                    {t('userOrderSuccess.actions.viewMoreProducts')}
+                  </PButton>
                 </Link>
               </div>
-            </div>
+            </PCard>
             
             {/*  */}
             <div className="mt-6 text-center">
@@ -167,4 +152,4 @@ export default function OrderSuccessPage() {
       </div>
     </Layout>
   )
-} 
+}

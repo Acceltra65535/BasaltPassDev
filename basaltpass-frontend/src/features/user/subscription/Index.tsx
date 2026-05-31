@@ -177,7 +177,7 @@ export default function SubscriptionIndex() {
               to={ROUTES.user.help}
               className="flex items-center rounded-lg bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
             >
-              <QuestionMarkCircleIcon className="h-5 w-5 text-blue-600 mr-3" />
+              <QuestionMarkCircleIcon className="h-5 w-5 text-indigo-600 mr-3" />
               <div>
                 <p className="text-sm font-medium text-gray-900">{t('pages.userSubscriptionIndex.links.helpTitle')}</p>
                 <p className="text-xs text-gray-500">{t('pages.userSubscriptionIndex.links.helpDesc')}</p>

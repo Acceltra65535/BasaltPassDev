@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import Layout from '@features/user/components/Layout'
-import { Link } from 'react-router-dom'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import client from '@api/client'
 import { ROUTES } from '@constants'
-import { PButton, PPageHeader } from '@ui'
+import { PButton, PPageHeader, PCard } from '@ui'
 import { useI18n } from '@shared/i18n'
 
 interface LoginHistoryItem {
@@ -93,12 +91,12 @@ export default function LoginHistory() {
           <td colSpan={4} className="px-4 py-6 text-center text-red-500">
             <div className="space-y-3">
               <p>{error}</p>
-              <button
+              <PButton
                 onClick={() => fetchLoginHistory(pagination.page)}
-                className="inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                size="sm"
               >
                 {t('pages.userLoginHistory.actions.retry')}
-              </button>
+              </PButton>
             </div>
           </td>
         </tr>
@@ -142,17 +140,13 @@ export default function LoginHistory() {
     <Layout>
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="space-y-6">
-          <div className="flex items-center">
-            <Link
-              to={ROUTES.user.security}
-              className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <PPageHeader title={t('pages.userLoginHistory.header.title')} description={t('pages.userLoginHistory.header.description')} />
-          </div>
+          <PPageHeader
+            title={t('pages.userLoginHistory.header.title')}
+            description={t('pages.userLoginHistory.header.description')}
+            backTo={ROUTES.user.security}
+          />
 
-          <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+          <PCard padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -179,24 +173,26 @@ export default function LoginHistory() {
                   })}
                 </p>
                 <div className="space-x-2">
-                  <button
+                  <PButton
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1 || isLoading}
-                    className="rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                    variant="secondary"
+                    size="sm"
                   >
                     {t('pages.userLoginHistory.pagination.prev')}
-                  </button>
-                  <button
+                  </PButton>
+                  <PButton
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.total_pages > 0 && pagination.page >= pagination.total_pages || isLoading}
-                    className="rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                    variant="secondary"
+                    size="sm"
                   >
                     {t('pages.userLoginHistory.pagination.next')}
-                  </button>
+                  </PButton>
                 </div>
               </div>
             )}
-          </div>
+          </PCard>
         </div>
       </div>
     </Layout>

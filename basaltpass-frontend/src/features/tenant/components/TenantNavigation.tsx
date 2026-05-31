@@ -93,6 +93,7 @@ const navigationItems: NavigationItem[] = [
       { key: 'tenantNav.planManagement', href: ROUTES.tenant.plans, icon: RocketLaunchIcon },
       { key: 'tenantNav.priceManagement', href: ROUTES.tenant.prices, icon: CurrencyDollarIcon },
       { key: 'tenantNav.couponManagement', href: ROUTES.tenant.coupons, icon: GiftIcon },
+      { key: 'tenantNav.invoiceManagement', href: ROUTES.tenant.invoices, icon: DocumentTextIcon },
       { key: 'tenantNav.statusManagement', href: ROUTES.tenant.subscriptionStatus, icon: CreditCardIcon },
     ]
   },
@@ -137,7 +138,7 @@ export default function TenantNavigation() {
     const isCurrent = item.href ? isCurrentPath(item.href) : false
     const hasCurrentChild = item.children?.some(child => child.href && isCurrentPath(child.href))
     const sharedStateClass = hasCurrentChild || isCurrent
-      ? 'bg-blue-100 text-blue-900 shadow-sm'
+      ? 'bg-indigo-100 text-indigo-900 shadow-sm'
       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
 
     const fontWeightClass = depth === 0 ? 'font-medium' : 'font-light'
@@ -176,7 +177,7 @@ export default function TenantNavigation() {
         to={item.href!}
         className={`flex items-center px-3 py-2 text-sm ${fontWeightClass} rounded-lg transition-colors ${
           isCurrent
-            ? 'bg-blue-100 text-blue-900 shadow-sm'
+            ? 'bg-indigo-100 text-indigo-900 shadow-sm'
             : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
         }`}
         style={{ paddingLeft: `${0.75 + depth * 1}rem` }}

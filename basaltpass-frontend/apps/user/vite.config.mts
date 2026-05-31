@@ -33,5 +33,39 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replaceAll('\\', '/')
+          if (normalizedId.includes('/node_modules/react') || normalizedId.includes('/node_modules/scheduler')) {
+            return 'vendor-react'
+          }
+          if (normalizedId.includes('/node_modules/@heroicons') || normalizedId.includes('/node_modules/lucide-react')) {
+            return 'vendor-icons'
+          }
+          if (normalizedId.includes('/node_modules/')) {
+            return 'vendor'
+          }
+          if (normalizedId.includes('/src/shared/ui/')) {
+            return 'shared-ui'
+          }
+          if (normalizedId.includes('/src/shared/api/')) {
+            return 'shared-api'
+          }
+          if (normalizedId.includes('/src/features/user/wallet/')) {
+            return 'user-wallet'
+          }
+          if (normalizedId.includes('/src/features/user/team/')) {
+            return 'user-team'
+          }
+          if (normalizedId.includes('/src/features/user/security/')) {
+            return 'user-security'
+          }
+          if (normalizedId.includes('/src/features/user/subscription/')) {
+            return 'user-subscription'
+          }
+        },
+      },
+    },
   },
 })

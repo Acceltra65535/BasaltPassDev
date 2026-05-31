@@ -1,14 +1,12 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { uiAlert, uiConfirm, uiPrompt } from '@contexts/DialogContext'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
 import { userAppsApi, UserApp } from '@api/user/apps'
-import { PCard, PSkeleton, PAlert, PButton } from '@ui'
+import { PCard, PSkeleton, PAlert, PButton, PPageHeader } from '@ui'
 import { useI18n } from '@shared/i18n'
 import { 
-  ArrowLeftIcon, 
   CubeIcon, 
-  ClockIcon, 
   TrashIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline'
@@ -74,11 +72,13 @@ export default function UserAppDetail() {
     return (
       <Layout>
         <div className="space-y-6">
-          <Link to="/my-apps" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-            <ArrowLeftIcon className="w-4 h-4 mr-1" />
-            {t('userAppDetail.actions.back')}
-          </Link>
-          <PAlert variant="error" title={t('userAppDetail.errors.title')} message={error || t('userAppDetail.errors.notFound')} actions={[{ label: t('userAppDetail.actions.retry'), onClick: load }]} />
+          <PPageHeader title={t('userAppDetail.errors.title')} backTo="/my-apps" backLabel={t('userAppDetail.actions.back')} />
+          <PAlert
+            variant="error"
+            title={t('userAppDetail.errors.title')}
+            message={error || t('userAppDetail.errors.notFound')}
+            actions={<PButton size="sm" onClick={load}>{t('userAppDetail.actions.retry')}</PButton>}
+          />
         </div>
       </Layout>
     )
@@ -87,11 +87,7 @@ export default function UserAppDetail() {
   return (
     <Layout>
       <div className="space-y-6 max-w-4xl mx-auto">
-        {/*  */}
-        <Link to="/my-apps" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-          <ArrowLeftIcon className="w-4 h-4 mr-1" />
-          {t('userAppDetail.actions.backToMyApps')}
-        </Link>
+        <PPageHeader title={app.app_name} backTo="/my-apps" backLabel={t('userAppDetail.actions.backToMyApps')} />
 
         {/*  */}
         <PCard>
@@ -99,12 +95,12 @@ export default function UserAppDetail() {
             {app.app_icon_url ? (
               <img src={app.app_icon_url} alt={app.app_name} className="h-20 w-20 rounded-lg" />
             ) : (
-              <div className="h-20 w-20 rounded-lg bg-blue-50 flex items-center justify-center">
-                <CubeIcon className="h-10 w-10 text-blue-600" />
+              <div className="h-20 w-20 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <CubeIcon className="h-10 w-10 text-indigo-600" />
               </div>
             )}
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">{app.app_name}</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">{app.app_name}</h1>
               <p className="mt-2 text-gray-600">{app.app_description || t('userAppDetail.noDescription')}</p>
             </div>
           </div>
@@ -146,7 +142,7 @@ export default function UserAppDetail() {
               {app.scopes.split(/[ ,]+/).filter(Boolean).map((scope) => (
                 <span 
                   key={scope} 
-                  className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20"
+                  className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 ring-1 ring-inset ring-indigo-600/20"
                 >
                   {scope}
                 </span>

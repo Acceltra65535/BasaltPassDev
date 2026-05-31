@@ -1,8 +1,6 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import Layout from '@features/user/components/Layout'
-import { PCard } from '@ui'
+import { PCard, PPageHeader } from '@ui'
 import { ROUTES } from '@constants'
 import { buildInfo } from '@shared/generated/buildInfo'
 import { useI18n } from '@shared/i18n'
@@ -14,17 +12,12 @@ const SoftwareCopyright: React.FC = () => {
   return (
     <Layout>
       <div className="mx-auto max-w-4xl space-y-6">
-        <Link to={ROUTES.user.dashboard} className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-          <ArrowLeftIcon className="mr-1 h-4 w-4" />
-          {t('pages.softwareCopyright.back')}
-        </Link>
-
-        <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">{t('pages.softwareCopyright.title')}</h1>
-          <p className="mx-auto max-w-2xl text-sm text-gray-500">
-            {t('pages.softwareCopyright.description')}
-          </p>
-        </div>
+        <PPageHeader
+          title={t('pages.softwareCopyright.title')}
+          description={t('pages.softwareCopyright.description')}
+          backTo={ROUTES.user.dashboard}
+          backLabel={t('pages.softwareCopyright.back')}
+        />
 
         <PCard>
           <div className="grid gap-6 md:grid-cols-2">
@@ -59,7 +52,7 @@ const SoftwareCopyright: React.FC = () => {
 
         <PCard>
           <div className="space-y-3 text-sm text-gray-600">
-            <p>{t('pages.softwareCopyright.poweredByPrefix', { startYear: buildInfo.copyrightStartYear, currentYear })} <a href="https://hollowdata.com" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">HollowData</a></p>
+            <p>{t('pages.softwareCopyright.poweredByPrefix', { startYear: buildInfo.copyrightStartYear, currentYear })} <a href="https://hollowdata.com" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">HollowData</a></p>
             <p>{t('pages.softwareCopyright.versionRule')}</p>
           </div>
         </PCard>

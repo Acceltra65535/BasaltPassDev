@@ -108,7 +108,7 @@ export default function ProductsPage() {
 
   const getPriceColor = (index: number) => {
     const colors = [
-      'text-blue-600 bg-blue-50 border-blue-200',
+      'text-indigo-600 bg-indigo-50 border-indigo-200',
       'text-green-600 bg-green-50 border-green-200',
       'text-indigo-600 bg-indigo-50 border-indigo-200',
       'text-yellow-600 bg-yellow-50 border-yellow-200'
@@ -278,7 +278,7 @@ export default function ProductsPage() {
               to={ROUTES.user.help}
               className="flex items-center rounded-lg bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
             >
-              <QuestionMarkCircleIcon className="h-5 w-5 text-blue-600 mr-3" />
+              <QuestionMarkCircleIcon className="h-5 w-5 text-indigo-600 mr-3" />
               <div>
                 <p className="text-sm font-medium text-gray-900">{t('pages.userSubscriptionProducts.links.helpTitle')}</p>
                 <p className="text-xs text-gray-500">{t('pages.userSubscriptionProducts.links.helpDesc')}</p>

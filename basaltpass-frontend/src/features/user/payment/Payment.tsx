@@ -211,7 +211,7 @@ const Payment: React.FC = () => {
             </h3>
             <div className="space-y-2 text-sm">
               <p><strong>{t('pages.payment.mockResponse.requestUrl')}</strong> <code className="bg-gray-200 px-2 py-1 rounded">{stripeResponse.request_url}</code></p>
-              <p><strong>{t('pages.payment.mockResponse.requestMethod')}</strong> <span className="text-blue-600">{stripeResponse.request_method}</span></p>
+              <p><strong>{t('pages.payment.mockResponse.requestMethod')}</strong> <span className="text-indigo-600">{stripeResponse.request_method}</span></p>
               <p><strong>{t('pages.payment.mockResponse.timestamp')}</strong> {new Date(stripeResponse.timestamp).toLocaleString(locale)}</p>
             </div>
             
@@ -240,4 +240,4 @@ const Payment: React.FC = () => {
   );
 };
 
-export default Payment; 
+export default Payment;

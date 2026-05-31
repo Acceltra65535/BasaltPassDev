@@ -1538,6 +1538,7 @@ const en = {
     planManagement: 'Plans',
     priceManagement: 'Prices',
     couponManagement: 'Coupons',
+    invoiceManagement: 'Invoices',
     statusManagement: 'Status',
   },
   tenantRoute: {
@@ -3074,6 +3075,7 @@ const en = {
     },
     confirm: {
       removeUser: 'Are you sure you want to remove "{{user}}"?',
+      suspendUser: 'Suspend "{{user}}"? This will block the user from normal tenant access until reactivated.',
     },
     errors: {
       fetchTenantUsersFailed: 'Failed to fetch tenant users',
