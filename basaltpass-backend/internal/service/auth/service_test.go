@@ -3,6 +3,8 @@ package auth
 import (
 	"errors"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"basaltpass-backend/internal/common"
@@ -146,6 +148,57 @@ func TestRefreshRotatesAndRejectsReuse(t *testing.T) {
 	}
 	if _, err := svc.Refresh(rotated.RefreshToken); err == nil {
 		t.Fatalf("token family should be revoked after reuse detection")
+	}
+}
+
+func TestConsumeRefreshTokenAllowsOnlyOneConcurrentConsumer(t *testing.T) {
+	db := setupAuthLoginTestDB(t)
+
+	user := model.User{
+		TenantID:      0,
+		Email:         "refresh-race@example.com",
+		PasswordHash:  mustPasswordHash(t, "pass-refresh-race"),
+		Nickname:      "refresh-race-user",
+		EmailVerified: true,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+
+	pair, err := GenerateTokenPairWithTenantAndScope(user.ID, 0, ConsoleScopeUser)
+	if err != nil {
+		t.Fatalf("generate token pair failed: %v", err)
+	}
+
+	token, err := ParseToken(pair.RefreshToken)
+	if err != nil || token == nil || !token.Valid {
+		t.Fatalf("parse refresh token failed: %v", err)
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		t.Fatalf("unexpected claims type: %T", token.Claims)
+	}
+	jti, _ := claims["jti"].(string)
+	familyID, _ := claims["fam"].(string)
+	if jti == "" || familyID == "" {
+		t.Fatalf("refresh token missing jti/fam claims: %+v", claims)
+	}
+
+	var successCount int64
+	var wg sync.WaitGroup
+	for i := 0; i < 12; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := consumeRefreshToken(jti, familyID, pair.RefreshToken); err == nil {
+				atomic.AddInt64(&successCount, 1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt64(&successCount); got != 1 {
+		t.Fatalf("expected exactly one concurrent refresh token consumer, got %d", got)
 	}
 }
 

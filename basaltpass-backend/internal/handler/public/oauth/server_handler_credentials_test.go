@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"context"
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
@@ -121,5 +122,33 @@ func TestTryUserIDFromAccessTokenCookie_RejectsRefreshCookie(t *testing.T) {
 	}
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected 401 so refresh cookie is not treated as login state, got %d", resp.StatusCode)
+	}
+}
+
+func TestValidateClientJWKSURIRequiresHTTPS(t *testing.T) {
+	if err := validateClientJWKSURI("http://keys.example.com/jwks.json"); err == nil {
+		t.Fatalf("expected http client_jwks_uri to be rejected")
+	}
+}
+
+func TestValidateClientJWKSURIRejectsDangerousIPLiteral(t *testing.T) {
+	dangerousURIs := []string{
+		"https://127.0.0.1/jwks.json",
+		"https://10.0.0.10/jwks.json",
+		"https://172.16.0.10/jwks.json",
+		"https://192.168.1.10/jwks.json",
+		"https://169.254.169.254/latest/meta-data/",
+		"https://[::1]/jwks.json",
+	}
+	for _, uri := range dangerousURIs {
+		if err := validateClientJWKSURI(uri); err == nil {
+			t.Fatalf("expected dangerous client_jwks_uri %q to be rejected", uri)
+		}
+	}
+}
+
+func TestSafeResolveRemoteJWKSHostRejectsLocalhost(t *testing.T) {
+	if _, err := safeResolveRemoteJWKSHost(context.Background(), "localhost"); err == nil {
+		t.Fatalf("expected localhost DNS resolution to be rejected")
 	}
 }

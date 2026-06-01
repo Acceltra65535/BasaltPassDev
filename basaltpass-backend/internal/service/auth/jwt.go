@@ -15,6 +15,7 @@ import (
 	tenantservice "basaltpass-backend/internal/service/tenant"
 
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 func mustGetEnv(key string) string {
@@ -204,26 +205,43 @@ func consumeRefreshToken(jti, familyID, rawToken string) error {
 	}
 
 	now := time.Now()
+	tokenHash := tokenSHA256(rawToken)
+	consume := db.Model(&model.AuthRefreshToken{}).
+		Where("jti = ? AND token_hash = ? AND family_id = ?", jti, tokenHash, familyID).
+		Where("consumed_at IS NULL AND revoked_at IS NULL AND expires_at > ?", now).
+		Updates(map[string]interface{}{
+			"consumed_at": now,
+			"revoked_at":  now,
+		})
+	if consume.Error != nil {
+		return consume.Error
+	}
+	if consume.RowsAffected == 1 {
+		return nil
+	}
+
 	var record model.AuthRefreshToken
-	if err := db.Where("jti = ? AND token_hash = ?", jti, tokenSHA256(rawToken)).First(&record).Error; err != nil {
+	if err := db.Where("jti = ? AND token_hash = ?", jti, tokenHash).First(&record).Error; err != nil {
 		return errors.New("invalid refresh token")
 	}
 	if record.FamilyID != familyID {
 		return errors.New("invalid refresh token family")
 	}
 	if record.RevokedAt != nil || record.ConsumedAt != nil {
-		_ = db.Model(&model.AuthRefreshToken{}).
-			Where("family_id = ? AND revoked_at IS NULL", record.FamilyID).
-			Update("revoked_at", now).Error
+		_ = revokeRefreshTokenFamily(db, record.FamilyID, now)
 		return errors.New("refresh token reuse detected")
 	}
-	if now.After(record.ExpiresAt) {
+	if !record.ExpiresAt.After(now) {
 		return errors.New("refresh token expired")
 	}
-	return db.Model(&record).Updates(map[string]interface{}{
-		"consumed_at": now,
-		"revoked_at":  now,
-	}).Error
+
+	return errors.New("invalid refresh token state")
+}
+
+func revokeRefreshTokenFamily(db *gorm.DB, familyID string, revokedAt time.Time) error {
+	return db.Model(&model.AuthRefreshToken{}).
+		Where("family_id = ? AND revoked_at IS NULL", familyID).
+		Update("revoked_at", revokedAt).Error
 }
 
 func normalizeAuthMethods(methods []string) []string {

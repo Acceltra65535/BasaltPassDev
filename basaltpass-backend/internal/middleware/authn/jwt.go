@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/middleware/transport"
 	serviceauth "basaltpass-backend/internal/service/auth"
+	"crypto/subtle"
 	"errors"
 	"strconv"
 	"strings"
@@ -20,6 +21,66 @@ func ExtractBearerToken(c *fiber.Ctx) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+}
+
+func ExtractAccessToken(c *fiber.Ctx) (string, bool) {
+	if token := ExtractBearerToken(c); token != "" {
+		return token, false
+	}
+
+	scope := normalizeCookieScope(c.Get("X-Auth-Scope"))
+	cookieNames := []string{"access_token"}
+	if scope != "user" {
+		cookieNames = []string{"access_token_" + scope, "access_token"}
+	}
+	for _, name := range cookieNames {
+		if token := strings.TrimSpace(c.Cookies(name)); token != "" {
+			return token, true
+		}
+	}
+	return "", false
+}
+
+func normalizeCookieScope(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "tenant":
+		return "tenant"
+	case "admin":
+		return "admin"
+	default:
+		return "user"
+	}
+}
+
+func requiresCSRF(method string) bool {
+	switch method {
+	case fiber.MethodGet, fiber.MethodHead, fiber.MethodOptions:
+		return false
+	default:
+		return true
+	}
+}
+
+func validateCSRFFromCookie(c *fiber.Ctx) bool {
+	scope := normalizeCookieScope(c.Get("X-Auth-Scope"))
+	cookieNames := []string{"csrf_token"}
+	if scope != "user" {
+		cookieNames = []string{"csrf_token_" + scope, "csrf_token"}
+	}
+	var csrfCookie string
+	for _, name := range cookieNames {
+		csrfCookie = strings.TrimSpace(c.Cookies(name))
+		if csrfCookie != "" {
+			break
+		}
+	}
+	csrfHeader := strings.TrimSpace(c.Get("X-CSRF-Token"))
+	if csrfHeader == "" {
+		csrfHeader = strings.TrimSpace(c.Get("X-XSRF-TOKEN"))
+	}
+	return csrfCookie != "" &&
+		csrfHeader != "" &&
+		subtle.ConstantTimeCompare([]byte(csrfCookie), []byte(csrfHeader)) == 1
 }
 
 func ParseJWTToken(tokenStr string, ignoreClaimsValidation bool) (*jwt.Token, jwt.MapClaims, error) {
@@ -61,9 +122,12 @@ func ParseJWTToken(tokenStr string, ignoreClaimsValidation bool) (*jwt.Token, jw
 
 func JWTMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		tokenStr := ExtractBearerToken(c)
+		tokenStr, fromCookie := ExtractAccessToken(c)
 		if tokenStr == "" {
 			return transport.APIErrorResponse(c, fiber.StatusUnauthorized, "auth_missing_token", "[Basalt Auth] missing token")
+		}
+		if fromCookie && requiresCSRF(c.Method()) && !validateCSRFFromCookie(c) {
+			return transport.APIErrorResponse(c, fiber.StatusForbidden, "csrf_invalid", "[Basalt Auth] invalid csrf token")
 		}
 
 		token, claims, err := ParseJWTToken(tokenStr, false)

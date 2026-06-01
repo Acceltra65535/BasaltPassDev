@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"log"
 	"strings"
@@ -344,6 +345,8 @@ func ConsoleExchangeHandler(c *fiber.Ctx) error {
 	isProd := config.IsProduction()
 	refreshCookie := "refresh_token_" + scope
 	accessCookie := "access_token_" + scope
+	csrfCookie := "csrf_token_" + scope
+	csrfToken := newConsoleCSRFToken()
 	c.Cookie(&fiber.Cookie{
 		Name:     refreshCookie,
 		Value:    tokens.RefreshToken,
@@ -364,9 +367,29 @@ func ConsoleExchangeHandler(c *fiber.Ctx) error {
 		MaxAge:   15 * 60,
 		Domain:   "",
 	})
+	if csrfToken != "" {
+		c.Cookie(&fiber.Cookie{
+			Name:     csrfCookie,
+			Value:    csrfToken,
+			HTTPOnly: false,
+			Secure:   isProd,
+			SameSite: "Lax",
+			Path:     "/",
+			MaxAge:   7 * 24 * 60 * 60,
+			Domain:   "",
+		})
+	}
 
 	return c.JSON(fiber.Map{
 		"access_token": tokens.AccessToken,
 		"scope":        scope,
 	})
+}
+
+func newConsoleCSRFToken() string {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(buf)
 }

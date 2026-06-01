@@ -252,6 +252,9 @@ export default function ConsoleAccountSwitcherModal({
 
     setSwitchingId(action.id)
     try {
+      if (!session.token) {
+        throw new Error(t('consoleSwitcher.errors.sessionExpired'))
+      }
       const { code } = await authorizeConsoleWithToken(session.token, action.target, action.tenantId)
       window.location.href = action.href.replace('__CODE__', encodeURIComponent(code))
     } catch (error: any) {
