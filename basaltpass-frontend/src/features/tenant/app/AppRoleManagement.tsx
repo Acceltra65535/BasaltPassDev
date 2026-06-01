@@ -19,6 +19,7 @@ import useManagedPaginationBar from '@hooks/useManagedPaginationBar'
 import { PSkeleton, PPageHeader, PEmptyState, PButton, PInput, PTextarea, PBadge, PManagementFilterCard, PManagedTableSection, PManagementPageContainer } from '@ui'
 import { type PTableAction, type PTableColumn } from '@ui/PTable'
 import { useI18n } from '@shared/i18n'
+import { displayAccessCategory, displayAccessDescription, displayAccessName } from '@features/tenant/utils/accessDisplay'
 
 export default function AppRoleManagement() {
   const { t, locale } = useI18n()
@@ -191,9 +192,9 @@ export default function AppRoleManagement() {
       title: t('tenantAppRoleManagement.table.roleInfo'),
       render: (role) => (
         <div>
-          <div className="text-sm font-medium text-gray-900">{role.name}</div>
+          <div className="text-sm font-medium text-gray-900">{displayAccessName(role.name, role.code)}</div>
           <div className="text-xs text-gray-500">{role.code}</div>
-          {role.description ? <div className="mt-1 text-xs text-gray-400">{role.description}</div> : null}
+          {role.description ? <div className="mt-1 text-xs text-gray-400">{displayAccessDescription(role.description, role.code)}</div> : null}
         </div>
       )
     },
@@ -437,7 +438,7 @@ const RoleModal: React.FC<{
                   <div key={category} className="mb-4">
                     <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center">
                       <KeyIcon className="h-4 w-4 mr-2 text-blue-600" />
-                      {category}
+                      {displayAccessCategory(category)}
                     </h4>
                     <div className="space-y-2 ml-6">
                       {categoryPermissions.map((permission) => (
@@ -462,10 +463,10 @@ const RoleModal: React.FC<{
                           />
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900">
-                              {permission.name}
+                              {displayAccessName(permission.name, permission.code)}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {permission.description}
+                              {displayAccessDescription(permission.description, permission.code)}
                             </div>
                           </div>
                         </label>

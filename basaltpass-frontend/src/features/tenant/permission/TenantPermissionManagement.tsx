@@ -31,6 +31,7 @@ import {
 } from '@api/tenant/tenantPermission'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
+import { displayAccessCategory, displayAccessDescription, displayAccessName } from '@features/tenant/utils/accessDisplay'
 
 export default function TenantPermissionManagement() {
   const navigate = useNavigate()
@@ -183,14 +184,14 @@ export default function TenantPermissionManagement() {
       title: t('tenantPermissionManagement.table.name'),
       key: 'name',
       render: (permission) => (
-        <div className="font-medium text-gray-900">{permission.name}</div>
+        <div className="font-medium text-gray-900">{displayAccessName(permission.name, permission.code)}</div>
       )
     },
     {
       title: t('tenantPermissionManagement.table.category'),
       key: 'category',
       render: (permission) => (
-        <PBadge variant="info" icon={<TagIcon className="h-3 w-3" />}>{permission.category}</PBadge>
+        <PBadge variant="info" icon={<TagIcon className="h-3 w-3" />}>{displayAccessCategory(permission.category, permission.code)}</PBadge>
       )
     },
     {
@@ -198,7 +199,7 @@ export default function TenantPermissionManagement() {
       key: 'description',
       render: (permission) => (
         <div className="text-sm text-gray-600 max-w-md truncate">
-          {permission.description || '-'}
+          {displayAccessDescription(permission.description, permission.code)}
         </div>
       )
     },
@@ -289,7 +290,7 @@ export default function TenantPermissionManagement() {
                 >
                   <option value="">{t('tenantPermissionManagement.search.allCategories')}</option>
                   {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
+                    <option key={category} value={category}>{displayAccessCategory(category)}</option>
                   ))}
                 </PSelect>
               </div>
@@ -415,7 +416,7 @@ const PermissionModal: React.FC<{
                   >
                     <option value="">{t('tenantPermissionManagement.modal.selectCategory')}</option>
                     {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat} value={cat}>{displayAccessCategory(cat)}</option>
                     ))}
                     <option value="__new__">{t('tenantPermissionManagement.modal.newCategory')}</option>
                   </PSelect>

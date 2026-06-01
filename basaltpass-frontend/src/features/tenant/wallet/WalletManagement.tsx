@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CurrencyDollarIcon, EyeIcon, PencilIcon, UserGroupIcon, UsersIcon, WalletIcon } from '@heroicons/react/24/outline'
 import TenantLayout from '@features/tenant/components/TenantLayout'
-import { uiAlert } from '@contexts/DialogContext'
+import { uiAlert, uiConfirm } from '@contexts/DialogContext'
 import { Modal, PAlert, PBadge, PButton, PCard, PInput, PPageHeader, PSelect, PSkeleton, PTextarea } from '@ui'
 import { tenantWalletApi, type TenantAdjustOwnerWalletRequest, type TenantCurrency, type TenantWallet, type TenantWalletTransaction } from '@api/tenant/wallet'
 import { tenantGiftCardApi, type GiftCardItem } from '@api/tenant/giftCard'
@@ -164,6 +164,10 @@ export default function TenantWalletManagement() {
   }
 
   const handleInvalidateGiftCard = async (id: number) => {
+    if (!await uiConfirm(t('tenantWalletManagement.confirm.invalidateGiftCard'))) {
+      return
+    }
+
     try {
       await tenantGiftCardApi.invalidate(id)
       uiAlert(t('tenantWalletManagement.alerts.giftCardInvalidated'))
@@ -359,7 +363,6 @@ export default function TenantWalletManagement() {
                 <h3 className="text-base font-semibold text-gray-900">{t('tenantWalletManagement.giftCard.listTitle')}</h3>
                 <div className="flex gap-2">
                   <PButton variant="secondary" size="sm" onClick={loadGiftCards} disabled={giftCardLoading}>{t('tenantWalletManagement.actions.refresh')}</PButton>
-                  <PButton size="sm" onClick={() => setGiftCardModalOpen(true)}>{t('tenantWalletManagement.actions.createBatch')}</PButton>
                 </div>
               </div>
               {giftCardLoading ? (

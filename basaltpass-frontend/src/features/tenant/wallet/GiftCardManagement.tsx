@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CurrencyDollarIcon, DocumentDuplicateIcon, GiftIcon } from '@heroicons/react/24/outline'
 import TenantLayout from '@features/tenant/components/TenantLayout'
-import { uiAlert } from '@contexts/DialogContext'
+import { uiAlert, uiConfirm } from '@contexts/DialogContext'
 import { Modal, PAlert, PBadge, PButton, PCard, PInput, PPageHeader, PSelect, PSkeleton, PTextarea } from '@ui'
 import { tenantGiftCardApi, type GiftCardItem } from '@api/tenant/giftCard'
 import { tenantWalletApi, type TenantCurrency } from '@api/tenant/wallet'
@@ -112,6 +112,10 @@ export default function GiftCardManagement() {
   }
 
   const handleInvalidate = async (id: number) => {
+    if (!await uiConfirm(t('tenantGiftCardManagement.confirm.invalidate'))) {
+      return
+    }
+
     try {
       await tenantGiftCardApi.invalidate(id)
       uiAlert(t('tenantGiftCardManagement.alerts.inactivated'))

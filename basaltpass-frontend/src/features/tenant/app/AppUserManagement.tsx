@@ -25,6 +25,7 @@ import useManagedPaginationBar from '@hooks/useManagedPaginationBar'
 import { PSkeleton, PBadge, PPageHeader, PButton, PManagementFilterCard, PManagedTableSection, PSelect, PManagementPageContainer, PTextarea } from '@ui'
 import { type PTableColumn } from '@ui/PTable'
 import { useI18n } from '@shared/i18n'
+import { displayAccessDescription, displayAccessName } from '@features/tenant/utils/accessDisplay'
 
 export default function AppUserManagement() {
   const { t, locale } = useI18n()
@@ -227,6 +228,14 @@ export default function AppUserManagement() {
 
   const executeUserAction = async () => {
     if (!selectedUser || !appId) return
+
+    if (actionType === 'ban' || actionType === 'suspend') {
+      const confirmed = await uiConfirm(t('tenantAppUserManagement.confirm.userAction', {
+        action: getActionText(actionType),
+        user: selectedUser.user_nickname || selectedUser.user_email,
+      }))
+      if (!confirmed) return
+    }
 
     try {
       setProcessingAction(true)
@@ -748,10 +757,10 @@ export default function AppUserManagement() {
                                     />
                                     <div className="ml-3 flex-1">
                                       <div className="text-sm font-medium">
-                                        {permission.name}
+                                        {displayAccessName(permission.name, permission.code)}
                                       </div>
                                       <div className="text-xs text-gray-500">
-                                        {permission.description}
+                                        {displayAccessDescription(permission.description, permission.code)}
                                       </div>
                                     </div>
                                     {hasPermission && (
@@ -815,10 +824,10 @@ export default function AppUserManagement() {
                                     />
                                     <div className="ml-3 flex-1">
                                       <div className="text-sm font-medium">
-                                        {role.name}
+                                        {displayAccessName(role.name, role.code)}
                                       </div>
                                       <div className="text-xs text-gray-500">
-                                        {role.description}
+                                        {displayAccessDescription(role.description, role.code)}
                                       </div>
                                       <div className="text-xs text-blue-500 mt-1">
                                         {t('tenantAppUserManagement.permissionModal.includesPermissions', { count: role.permissions?.length || 0 })}

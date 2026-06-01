@@ -2222,6 +2222,7 @@ const en = {
       revokePermission: 'Are you sure you want to revoke this permission?',
       revokeRole: 'Are you sure you want to revoke this role?',
       revokeAuthorization: 'Are you sure you want to revoke app authorization for user {{user}}?',
+      userAction: 'Confirm {{action}} for {{user}}? This changes the user access status immediately.',
     },
     modal: {
       userActionTitle: '{{action}} user',
@@ -3260,6 +3261,9 @@ const en = {
       copySuccess: 'Card code copied',
       copyFailed: 'Copy failed, please copy manually',
     },
+    confirm: {
+      invalidate: 'Invalidate this gift card? It can no longer be redeemed after this action.',
+    },
     empty: {
       noGiftCards: 'No gift cards',
     },
@@ -3370,6 +3374,9 @@ const en = {
       adjustSuccess: 'Balance adjusted successfully',
       adjustFailed: 'Failed to adjust balance',
       loadTransactionsFailed: 'Failed to load transaction records',
+    },
+    confirm: {
+      invalidateGiftCard: 'Invalidate this gift card? It can no longer be redeemed after this action.',
     },
     logs: {
       loadDataFailed: 'Failed to load tenant wallet data:',

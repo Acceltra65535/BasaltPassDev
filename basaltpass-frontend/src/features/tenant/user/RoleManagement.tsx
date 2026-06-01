@@ -29,6 +29,7 @@ import { PTableColumn } from '@ui/PTable';
 import useDebounce from '@hooks/useDebounce';
 import useManagedPaginationBar from '@hooks/useManagedPaginationBar';
 import { useI18n } from '@shared/i18n';
+import { displayAccessDescription, displayAccessName } from '@features/tenant/utils/accessDisplay';
 
 const TenantRoleManagement: React.FC = () => {
   const { t } = useI18n();
@@ -289,10 +290,10 @@ const TenantRoleManagement: React.FC = () => {
                   title: t('tenantRoleManagement.table.roleInfo'),
                   render: (role: Role) => (
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{role.name}</div>
+                      <div className="text-sm font-medium text-gray-900">{displayAccessName(role.name, role.code)}</div>
                       <div className="text-sm text-gray-500">{role.code}</div>
                       {role.description && (
-                        <div className="text-xs text-gray-400 mt-1">{role.description}</div>
+                        <div className="text-xs text-gray-400 mt-1">{displayAccessDescription(role.description, role.code)}</div>
                       )}
                     </div>
                   )
@@ -532,12 +533,12 @@ const TenantRoleManagement: React.FC = () => {
                                 />
                                 <div className="flex-1">
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-medium text-gray-900">{role.name}</span>
+                                    <span className="text-sm font-medium text-gray-900">{displayAccessName(role.name, role.code)}</span>
                                     <PBadge variant={getRoleTypeVariant(role.is_system) as any}>{getRoleTypeText(role.is_system)}</PBadge>
                                   </div>
                                   <div className="text-xs text-gray-500">{role.code}</div>
                                   {role.description && (
-                                    <div className="text-xs text-gray-400 mt-1">{role.description}</div>
+                                    <div className="text-xs text-gray-400 mt-1">{displayAccessDescription(role.description, role.code)}</div>
                                   )}
                                 </div>
                               </div>

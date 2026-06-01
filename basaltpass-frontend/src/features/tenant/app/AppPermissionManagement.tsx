@@ -20,6 +20,7 @@ import { tenantAppApi } from '@api/tenant/tenantApp'
 import userPermissionsApi, { type Permission } from '@api/tenant/appPermissions'
 import useDebounce from '@hooks/useDebounce'
 import { useI18n } from '@shared/i18n'
+import { displayAccessCategory, displayAccessDescription, displayAccessName } from '@features/tenant/utils/accessDisplay'
 
 export default function AppPermissionManagement() {
   const { t, locale } = useI18n()
@@ -201,18 +202,18 @@ export default function AppPermissionManagement() {
       key: 'name',
       title: t('tenantAppPermissionManagement.table.permissionName'),
       sortable: true,
-      render: (row) => <div className="font-medium text-gray-900">{row.name}</div>
+      render: (row) => <div className="font-medium text-gray-900">{displayAccessName(row.name, row.code)}</div>
     },
     {
       key: 'category',
       title: t('tenantAppPermissionManagement.table.category'),
       sortable: true,
-      render: (row) => <PBadge variant="info" icon={<TagIcon className="h-3 w-3" />}>{row.category}</PBadge>
+      render: (row) => <PBadge variant="info" icon={<TagIcon className="h-3 w-3" />}>{displayAccessCategory(row.category, row.code)}</PBadge>
     },
     {
       key: 'description',
       title: t('tenantAppPermissionManagement.table.description'),
-      render: (row) => <div className="max-w-xl truncate text-sm text-gray-600">{row.description || '-'}</div>
+      render: (row) => <div className="max-w-xl truncate text-sm text-gray-600">{displayAccessDescription(row.description, row.code)}</div>
     },
     {
       key: 'created_at',
@@ -300,7 +301,7 @@ export default function AppPermissionManagement() {
                 >
                   <option value="">{t('tenantAppPermissionManagement.filters.allCategories')}</option>
                   {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
+                    <option key={category} value={category}>{displayAccessCategory(category)}</option>
                   ))}
                 </PSelect>
               </div>
@@ -425,7 +426,7 @@ const PermissionModal: React.FC<{
                 >
                   <option value="">{t('tenantAppPermissionManagement.fields.selectCategory')}</option>
                   {commonCategories.map(category => (
-                    <option key={category} value={category}>{category}</option>
+                    <option key={category} value={category}>{displayAccessCategory(category)}</option>
                   ))}
                 </PSelect>
                 <PInput
