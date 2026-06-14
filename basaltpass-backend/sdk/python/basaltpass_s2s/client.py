@@ -155,3 +155,40 @@ class BasaltPassS2SClient:
     def check_user_product_ownership(self, user_id: int, product_id: int) -> Dict[str, Any]:
         payload = self._request('GET', f"/api/v1/s2s/users/{user_id}/products/{product_id}/ownership")
         return payload
+
+    # /api/v1/s2s/emails/send
+    def send_email(
+        self,
+        *,
+        subject: str,
+        text_body: Optional[str] = None,
+        html_body: Optional[str] = None,
+        to: Optional[List[str]] = None,
+        user_ids: Optional[List[int]] = None,
+        broadcast: bool = False,
+        reply_to: Optional[str] = None,
+        from_email: Optional[str] = None,
+        from_name: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            'subject': subject,
+            'broadcast': broadcast,
+        }
+        if text_body is not None:
+            payload['text_body'] = text_body
+        if html_body is not None:
+            payload['html_body'] = html_body
+        if to is not None:
+            payload['to'] = to
+        if user_ids is not None:
+            payload['user_ids'] = user_ids
+        if reply_to is not None:
+            payload['reply_to'] = reply_to
+        if from_email is not None:
+            payload['from'] = from_email
+        if from_name is not None:
+            payload['from_name'] = from_name
+        if headers is not None:
+            payload['headers'] = headers
+        return self._request('POST', "/api/v1/s2s/emails/send", json_body=payload)

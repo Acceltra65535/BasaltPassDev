@@ -49,6 +49,16 @@ adjusted = client.adjust_user_wallet(
 )
 print(adjusted)
 
+# 发送邮件：app 可以直接指定收件地址，也可以传 user_ids 或 broadcast=True
+email_result = client.send_email(
+    to=["user@example.com"],
+    subject="Welcome",
+    text_body="Welcome to our app.",
+    from_email="no-reply@example.com",
+    from_name="Example App",
+)
+print(email_result)
+
 client.close()
 ```
 
@@ -62,6 +72,7 @@ client.close()
 - `GET /api/v1/s2s/users/{id}/messages`
 - `GET /api/v1/s2s/users/{id}/products`
 - `GET /api/v1/s2s/users/{id}/products/{product_id}/ownership`
+- `POST /api/v1/s2s/emails/send`
 
 ## 后端已支持但 SDK 尚未封装的接口
 
@@ -75,7 +86,6 @@ client.close()
 - `GET /api/v1/s2s/teams/{id}`
 - `GET /api/v1/s2s/users/{id}/teams`
 - `POST /api/v1/s2s/notifications`
-- `POST /api/v1/s2s/emails/send`
 
 ## 错误处理
 

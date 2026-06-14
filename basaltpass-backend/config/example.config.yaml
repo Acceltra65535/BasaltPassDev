@@ -67,6 +67,23 @@ admin:
   email: ""
   password: ""
 
+# 邮件发送配置
+# App 可通过 POST /api/v1/s2s/emails/send 让 BasaltPass 代发邮件。
+# 生产推荐使用 AWS SES；敏感值建议通过环境变量覆盖：
+# BASALTPASS_EMAIL_PROVIDER=aws_ses
+# BASALTPASS_EMAIL_AWS_SES_REGION=us-east-1
+# BASALTPASS_EMAIL_AWS_SES_ACCESS_KEY_ID=...
+# BASALTPASS_EMAIL_AWS_SES_SECRET_ACCESS_KEY=...
+# BASALTPASS_EMAIL_FROM=no-reply@example.com
+email:
+  provider: "aws_ses"
+  aws_ses:
+    region: ""
+    access_key_id: ""
+    secret_access_key: ""
+    configuration_set: ""
+
 # 数据填充
 seeding:
   # 是否在空数据库首次启动时注入演示数据
+  enabled: false

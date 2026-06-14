@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -27,19 +28,24 @@ func NewAWSSESSender(cfg *AWSSESConfig) (*AWSSESSender, error) {
 	if cfg.Region == "" {
 		return nil, fmt.Errorf("AWS region is required")
 	}
-	if cfg.AccessKeyID == "" || cfg.SecretAccessKey == "" {
-		return nil, fmt.Errorf("AWS credentials are required")
-	}
 
-	// Create AWS config
-	awsConfig, err := config.LoadDefaultConfig(context.Background(),
+	loadOptions := []func(*config.LoadOptions) error{
 		config.WithRegion(cfg.Region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+	}
+	if cfg.AccessKeyID != "" || cfg.SecretAccessKey != "" {
+		if cfg.AccessKeyID == "" || cfg.SecretAccessKey == "" {
+			return nil, fmt.Errorf("both AWS access key ID and secret access key are required when static credentials are configured")
+		}
+		loadOptions = append(loadOptions, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			cfg.AccessKeyID,
 			cfg.SecretAccessKey,
 			"",
-		)),
-	)
+		)))
+	}
+
+	// Create AWS config. Without static keys, use the standard AWS SDK
+	// credential chain: env vars, shared config, workload identity, or IAM role.
+	awsConfig, err := config.LoadDefaultConfig(context.Background(), loadOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
@@ -111,8 +117,9 @@ func (s *AWSSESSender) Send(ctx context.Context, msg *Message) (*SendResult, err
 		input.ConfigurationSetName = aws.String(s.config.ConfigurationSet)
 	}
 
-	// Handle attachments - SES requires raw email for attachments
-	if len(msg.Attachments) > 0 {
+	// SES SendEmail does not support arbitrary custom headers. Use RawEmail
+	// whenever headers or attachments are present.
+	if len(msg.Attachments) > 0 || len(msg.Headers) > 0 {
 		return s.sendRawEmail(ctx, msg)
 	}
 
@@ -186,6 +193,16 @@ func buildRawEmail(msg *Message) string {
 
 	if msg.ReplyTo != "" {
 		raw += fmt.Sprintf("Reply-To: %s\r\n", msg.ReplyTo)
+	}
+
+	for key, value := range msg.Headers {
+		key = strings.TrimSpace(key)
+		if key == "" || strings.ContainsAny(key, "\r\n:") {
+			continue
+		}
+		value = strings.ReplaceAll(value, "\r", "")
+		value = strings.ReplaceAll(value, "\n", "")
+		raw += fmt.Sprintf("%s: %s\r\n", key, value)
 	}
 
 	raw += fmt.Sprintf("Subject: %s\r\n", msg.Subject)
