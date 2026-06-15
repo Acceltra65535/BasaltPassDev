@@ -72,6 +72,7 @@ type Config struct {
 	} `mapstructure:"seeding"`
 
 	Admin struct {
+		Username string `mapstructure:"username"`
 		Email    string `mapstructure:"email"`
 		Password string `mapstructure:"password"`
 	} `mapstructure:"admin"`

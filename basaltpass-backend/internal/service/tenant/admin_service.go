@@ -11,6 +11,7 @@ import (
 	admindto "basaltpass-backend/internal/dto/tenant"
 	"basaltpass-backend/internal/model"
 	"basaltpass-backend/internal/service/tenantquota"
+	"basaltpass-backend/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -152,13 +153,23 @@ func (s *AdminTenantService) GetTenantDetail(id uint) (*admindto.AdminTenantDeta
 	return &admindto.AdminTenantDetailResponse{AdminTenantListResponse: base, Settings: settings, Stats: stats, RecentUsers: recentUsers, RecentApps: recentApps}, nil
 }
 
-// CreateTenant 创建租户（仅最小实现）
-func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest) (*model.Tenant, error) {
+type CreatedTenantResult struct {
+	Tenant        *model.Tenant
+	AutomationKey string
+}
+
+// CreateTenant 创建租户，并确保 owner 用户和 BeanCS automation key 可用。
+func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest) (*CreatedTenantResult, error) {
 	if req.Name == "" || req.Code == "" {
 		return nil, errors.New("名称与代码必填")
 	}
 	if req.OwnerEmail == "" {
 		return nil, errors.New("租户所有者邮箱必填")
+	}
+	req.OwnerEmail = strings.TrimSpace(strings.ToLower(req.OwnerEmail))
+	req.OwnerUsername = strings.TrimSpace(req.OwnerUsername)
+	if req.OwnerUsername == "" {
+		req.OwnerUsername = strings.Split(req.OwnerEmail, "@")[0]
 	}
 	req.Code = strings.ToLower(strings.TrimSpace(req.Code))
 	if !tenantCodePattern.MatchString(req.Code) {
@@ -182,17 +193,52 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 		return nil, errors.New("租户名称已存在")
 	}
 
-	// 查找所有者用户
+	// 查找或创建所有者用户。该用户保持 tenant_id=0，作为系统级用户再绑定到 tenant_users。
 	var owner model.User
 	if err := s.db.Where("email = ?", req.OwnerEmail).First(&owner).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("所有者用户不存在: %s", req.OwnerEmail)
+			if strings.TrimSpace(req.OwnerPassword) == "" {
+				return nil, fmt.Errorf("所有者用户不存在且未提供 owner_password: %s", req.OwnerEmail)
+			}
+			hash, hashErr := utils.HashPassword(req.OwnerPassword)
+			if hashErr != nil {
+				return nil, fmt.Errorf("生成所有者密码失败: %w", hashErr)
+			}
+			owner = model.User{
+				Email:         req.OwnerEmail,
+				PasswordHash:  hash,
+				Nickname:      req.OwnerUsername,
+				EmailVerified: true,
+				TenantID:      0,
+			}
+			if err := s.db.Create(&owner).Error; err != nil {
+				return nil, fmt.Errorf("创建所有者用户失败: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("查询用户失败: %w", err)
 		}
-		return nil, fmt.Errorf("查询用户失败: %w", err)
+	} else {
+		updates := map[string]interface{}{}
+		if req.OwnerUsername != "" && strings.TrimSpace(owner.Nickname) == "" {
+			updates["nickname"] = req.OwnerUsername
+		}
+		if strings.TrimSpace(req.OwnerPassword) != "" {
+			hash, hashErr := utils.HashPassword(req.OwnerPassword)
+			if hashErr != nil {
+				return nil, fmt.Errorf("生成所有者密码失败: %w", hashErr)
+			}
+			updates["password_hash"] = hash
+		}
+		if len(updates) > 0 {
+			if err := s.db.Model(&owner).Updates(updates).Error; err != nil {
+				return nil, fmt.Errorf("更新所有者用户失败: %w", err)
+			}
+		}
 	}
 
 	// 使用事务创建租户和绑定关系
 	var tenant *model.Tenant
+	var automationKey string
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// 创建租户
 		tenant = &model.Tenant{Name: req.Name, Code: req.Code, Description: req.Description}
@@ -230,15 +276,28 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 			return fmt.Errorf("绑定租户所有者失败: %w", err)
 		}
 
-		if err := tx.Model(&model.User{}).
-			Where("id = ?", owner.ID).
-			Update("tenant_id", tenant.ID).Error; err != nil {
-			return fmt.Errorf("更新用户主租户失败: %w", err)
-		}
-
 		if err := EnsureTenantRBACBootstrap(tx, tenant.ID, owner.ID); err != nil {
 			return fmt.Errorf("初始化租户 RBAC 失败: %w", err)
 		}
+
+		plain, err := model.GenerateManualAPIKeyPlaintext()
+		if err != nil {
+			return fmt.Errorf("生成 automation key 失败: %w", err)
+		}
+		key := model.ManualAPIKey{
+			Name:            "BeanCS automation",
+			Scope:           model.ManualAPIKeyScopeTenant,
+			TenantID:        &tenant.ID,
+			IsActive:        true,
+			CreatedByUserID: owner.ID,
+		}
+		if err := key.SetPlainKey(plain); err != nil {
+			return fmt.Errorf("加密 automation key 失败: %w", err)
+		}
+		if err := tx.Create(&key).Error; err != nil {
+			return fmt.Errorf("创建 automation key 失败: %w", err)
+		}
+		automationKey = plain
 
 		return nil
 	})
@@ -247,7 +306,7 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 		return nil, err
 	}
 
-	return tenant, nil
+	return &CreatedTenantResult{Tenant: tenant, AutomationKey: automationKey}, nil
 }
 
 // UpdateTenant 更新租户

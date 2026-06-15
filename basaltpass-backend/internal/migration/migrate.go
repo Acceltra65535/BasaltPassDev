@@ -375,7 +375,11 @@ func seedConfiguredAdmin() {
 	}
 
 	db := common.DB()
-	email := cfg.Admin.Email
+	email := strings.TrimSpace(cfg.Admin.Email)
+	username := strings.TrimSpace(cfg.Admin.Username)
+	if username == "" {
+		username = "admin"
+	}
 	password := cfg.Admin.Password
 	if password == "" {
 		log.Printf("[Migration] Refusing to create configured admin %s: admin password is empty", email)
@@ -390,7 +394,7 @@ func seedConfiguredAdmin() {
 		u = model.User{
 			Email:         email,
 			PasswordHash:  string(hash),
-			Nickname:      "admin",
+			Nickname:      username,
 			EmailVerified: true,
 		}
 		if err := db.Create(&u).Error; err != nil {
