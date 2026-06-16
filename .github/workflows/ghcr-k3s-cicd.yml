@@ -167,11 +167,11 @@ jobs:
           cache-from: type=gha,scope=basaltpass-frontend
           cache-to: type=gha,mode=max,scope=basaltpass-frontend
           build-args: |
-            VITE_API_BASE=${{ vars.BASALTPASS_PUBLIC_URL }}
+            VITE_API_BASE=
             VITE_APP_VERSION=${{ github.ref_name }}
-            VITE_CONSOLE_USER_URL=${{ vars.BASALTPASS_PUBLIC_URL }}
-            VITE_CONSOLE_TENANT_URL=${{ vars.BASALTPASS_PUBLIC_URL }}
-            VITE_CONSOLE_ADMIN_URL=${{ vars.BASALTPASS_PUBLIC_URL }}
+            VITE_CONSOLE_USER_URL=
+            VITE_CONSOLE_TENANT_URL=
+            VITE_CONSOLE_ADMIN_URL=
           tags: ${{ steps.meta.outputs.frontend_tags }}
 
   deploy_beancs_system:
