@@ -8,6 +8,7 @@ import {
   pruneExpiredUserConsoleSessions,
   type UserConsoleSession,
 } from '@utils/userSessions'
+import OAuthRedirecting from './OAuthRedirecting'
 
 type SessionOption = UserConsoleSession & {
   joinRequired: boolean
@@ -19,6 +20,7 @@ export default function OAuthConsent() {
   const [searchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const submittedRef = useRef(false)
 
   // Read OAuth authorization information from URL parameters
@@ -30,6 +32,12 @@ export default function OAuthConsent() {
   const clientId = searchParams.get('client_id') || ''
   const codeChallenge = searchParams.get('code_challenge') || ''
   const codeChallengeMethod = searchParams.get('code_challenge_method') || ''
+  const nonce = searchParams.get('nonce') || ''
+  const prompt = searchParams.get('prompt') || ''
+  const maxAge = searchParams.get('max_age') || ''
+  const loginHint = searchParams.get('login_hint') || ''
+  const claims = searchParams.get('claims') || ''
+  const acrValues = searchParams.get('acr_values') || ''
   const privacyPolicyUrl = searchParams.get('privacy_policy_url') || ''
   const termsOfServiceUrl = searchParams.get('terms_of_service_url') || ''
   const isVerified = searchParams.get('is_verified') === 'true'
@@ -106,9 +114,18 @@ export default function OAuthConsent() {
     if (state) append('state', state)
     if (codeChallenge) append('code_challenge', codeChallenge)
     if (codeChallengeMethod) append('code_challenge_method', codeChallengeMethod)
+    if (nonce) append('nonce', nonce)
+    if (prompt) append('prompt', prompt)
+    if (maxAge) append('max_age', maxAge)
+    if (loginHint) append('login_hint', loginHint)
+    if (claims) append('claims', claims)
+    if (acrValues) append('acr_values', acrValues)
     if (opts?.selectedToken) append('selected_access_token', opts.selectedToken)
     if (opts?.joinTenant) append('join_tenant', 'true')
 
+    if (action === 'allow') {
+      setIsRedirecting(true)
+    }
     document.body.appendChild(form)
     form.submit()
   }
@@ -162,6 +179,10 @@ export default function OAuthConsent() {
   useEffect(() => {
     setConfirmJoinTenant(false)
   }, [selectedSessionKey])
+
+  if (isRedirecting) {
+    return <OAuthRedirecting appName={clientName} />
+  }
 
   const getScopeDisplayName = (scope: string) => {
     const scopeNames: Record<string, string> = {

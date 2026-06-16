@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '@constants'
 import client from '@api/client'
 import { useAuth } from '@contexts/AuthContext'
+import OAuthRedirecting from './OAuthRedirecting'
 
 export default function OauthSuccess() {
   const navigate = useNavigate()
@@ -25,5 +26,5 @@ export default function OauthSuccess() {
     void bootstrap()
   }, [login, navigate])
 
-  return null
+  return <OAuthRedirecting />
 } 
