@@ -15,6 +15,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -44,6 +45,12 @@ func DB() *gorm.DB {
 		log.Printf("Database driver: mysql")
 		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 			DisableForeignKeyConstraintWhenMigrating: true, // 防止复杂的循环依赖导致迁移失败
+		})
+	case "postgres", "postgresql":
+		dsn := cfg.Database.DSN
+		log.Printf("Database driver: postgres")
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+			DisableForeignKeyConstraintWhenMigrating: true,
 		})
 	case "sqlite", "sqlite3", "":
 		// Prefer DSN when provided; else build from path relative to Project Root (if found) or CWD
