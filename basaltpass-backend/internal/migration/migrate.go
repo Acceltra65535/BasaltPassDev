@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -370,17 +371,17 @@ func dropLegacySystemSettingsTable() {
 // seedConfiguredAdmin checks if an admin email is configured and ensures the user exists as a SuperAdmin.
 func seedConfiguredAdmin() {
 	cfg := config.Get()
-	if cfg.Admin.Email == "" {
+	email := strings.TrimSpace(coalesceString(cfg.Admin.Email, os.Getenv("BASALTPASS_ADMIN_EMAIL")))
+	if email == "" {
 		return
 	}
 
 	db := common.DB()
-	email := strings.TrimSpace(cfg.Admin.Email)
-	username := strings.TrimSpace(cfg.Admin.Username)
+	username := strings.TrimSpace(coalesceString(cfg.Admin.Username, os.Getenv("BASALTPASS_ADMIN_USERNAME")))
 	if username == "" {
 		username = "admin"
 	}
-	password := cfg.Admin.Password
+	password := coalesceString(cfg.Admin.Password, os.Getenv("BASALTPASS_ADMIN_PASSWORD"))
 	if password == "" {
 		log.Printf("[Migration] Refusing to create configured admin %s: admin password is empty", email)
 		return
@@ -396,12 +397,21 @@ func seedConfiguredAdmin() {
 			PasswordHash:  string(hash),
 			Nickname:      username,
 			EmailVerified: true,
+			IsSystemAdmin: boolPtr(true),
 		}
 		if err := db.Create(&u).Error; err != nil {
 			log.Printf("[Migration] Failed to create configured admin: %v", err)
 			return
 		}
 		log.Printf("[Migration] Created configured admin user: %s", email)
+	} else {
+		updates := map[string]any{"is_system_admin": true, "email_verified": true}
+		if strings.TrimSpace(u.Nickname) == "" {
+			updates["nickname"] = username
+		}
+		if err := db.Model(&u).Updates(updates).Error; err != nil {
+			log.Printf("[Migration] Failed to update configured admin: %v", err)
+		}
 	}
 
 	// Ensure global role (role_id = 1 for superadmin)
@@ -428,6 +438,19 @@ func seedConfiguredAdmin() {
 			}
 		}
 	}
+}
+
+func coalesceString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 // seedDevSuperAdmin 创建一个开发用超级管理员账户
