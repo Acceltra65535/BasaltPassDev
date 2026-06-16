@@ -5,6 +5,7 @@ BasaltPass now deploys to the shared `beancs-system` namespace through GitHub Ac
 ## Trigger
 
 - Push to `main` or `deploy`: run backend tests and push backend/frontend images to GHCR.
+- When BeanCS Harbor credentials are configured, the same backend/frontend images are also pushed to BeanCS Harbor.
 - Push a `beancs-*` tag: deploy backend/frontend to `beancs-system`.
 
 Tags are only accepted when their commit belongs to `origin/deploy`.
@@ -24,6 +25,9 @@ For AWS SES email:
 Optional:
 
 - `GHCR_PAT`: use when `GITHUB_TOKEN` is not enough for cluster image pulls.
+- `BEANCS_REGISTRY_HOST`: BeanCS Harbor registry host, such as `registry.beancs.example.com`.
+- `BEANCS_REGISTRY_USERNAME`: Harbor username with permission to create/push to the target project.
+- `BEANCS_REGISTRY_TOKEN`: Harbor password or robot token.
 
 ## Required GitHub Variables
 
@@ -39,6 +43,19 @@ Recommended for email:
 Optional:
 
 - `BASALTPASS_DATABASE_DRIVER`: defaults to `postgres`.
+- `BEANCS_HARBOR_PROJECT`: Harbor project for BasaltPass images; defaults to `basaltpass`.
+
+## Published Images
+
+The workflow always publishes:
+
+- `ghcr.io/<owner>/basaltpass-backend:<sha|latest|tag>`
+- `ghcr.io/<owner>/basaltpass-frontend:<sha|latest|tag>`
+
+When Harbor credentials are configured, it also publishes:
+
+- `<BEANCS_REGISTRY_HOST>/<BEANCS_HARBOR_PROJECT>/basaltpass-backend:<sha|latest|tag>`
+- `<BEANCS_REGISTRY_HOST>/<BEANCS_HARBOR_PROJECT>/basaltpass-frontend:<sha|latest|tag>`
 
 ## Release
 

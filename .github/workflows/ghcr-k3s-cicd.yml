@@ -41,6 +41,8 @@ jobs:
     outputs:
       backend_image: ${{ steps.meta.outputs.backend_image }}
       frontend_image: ${{ steps.meta.outputs.frontend_image }}
+      harbor_backend_image: ${{ steps.meta.outputs.harbor_backend_image }}
+      harbor_frontend_image: ${{ steps.meta.outputs.harbor_frontend_image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,12 +50,32 @@ jobs:
       - name: Resolve image tags
         id: meta
         shell: bash
+        env:
+          BEANCS_REGISTRY_HOST: ${{ secrets.BEANCS_REGISTRY_HOST }}
+          BEANCS_REGISTRY_USERNAME: ${{ secrets.BEANCS_REGISTRY_USERNAME }}
+          BEANCS_REGISTRY_TOKEN: ${{ secrets.BEANCS_REGISTRY_TOKEN }}
         run: |
           OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           BACKEND_IMAGE="ghcr.io/${OWNER_LC}/basaltpass-backend"
           FRONTEND_IMAGE="ghcr.io/${OWNER_LC}/basaltpass-frontend"
+          HARBOR_HOST="${BEANCS_REGISTRY_HOST}"
+          HARBOR_HOST="${HARBOR_HOST#http://}"
+          HARBOR_HOST="${HARBOR_HOST#https://}"
+          HARBOR_HOST="${HARBOR_HOST%/}"
+          HARBOR_USERNAME="${BEANCS_REGISTRY_USERNAME}"
+          HARBOR_TOKEN="${BEANCS_REGISTRY_TOKEN}"
+          HARBOR_PROJECT="${{ vars.BEANCS_HARBOR_PROJECT || 'basaltpass' }}"
+          HARBOR_BACKEND_IMAGE=""
+          HARBOR_FRONTEND_IMAGE=""
+          if [[ -n "${HARBOR_HOST}" && -n "${HARBOR_USERNAME}" && -n "${HARBOR_TOKEN}" ]]; then
+            HARBOR_BACKEND_IMAGE="${HARBOR_HOST}/${HARBOR_PROJECT}/basaltpass-backend"
+            HARBOR_FRONTEND_IMAGE="${HARBOR_HOST}/${HARBOR_PROJECT}/basaltpass-frontend"
+          fi
           echo "backend_image=${BACKEND_IMAGE}" >> "$GITHUB_OUTPUT"
           echo "frontend_image=${FRONTEND_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "harbor_registry=${HARBOR_HOST}" >> "$GITHUB_OUTPUT"
+          echo "harbor_backend_image=${HARBOR_BACKEND_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "harbor_frontend_image=${HARBOR_FRONTEND_IMAGE}" >> "$GITHUB_OUTPUT"
           {
             echo "backend_tags<<EOF"
             echo "${BACKEND_IMAGE}:${GITHUB_SHA}"
@@ -61,12 +83,26 @@ jobs:
             if [[ "${GITHUB_REF}" == refs/tags/beancs-* ]]; then
               echo "${BACKEND_IMAGE}:${GITHUB_REF_NAME}"
             fi
+            if [[ -n "${HARBOR_BACKEND_IMAGE}" ]]; then
+              echo "${HARBOR_BACKEND_IMAGE}:${GITHUB_SHA}"
+              echo "${HARBOR_BACKEND_IMAGE}:latest"
+              if [[ "${GITHUB_REF}" == refs/tags/beancs-* ]]; then
+                echo "${HARBOR_BACKEND_IMAGE}:${GITHUB_REF_NAME}"
+              fi
+            fi
             echo "EOF"
             echo "frontend_tags<<EOF"
             echo "${FRONTEND_IMAGE}:${GITHUB_SHA}"
             echo "${FRONTEND_IMAGE}:latest"
             if [[ "${GITHUB_REF}" == refs/tags/beancs-* ]]; then
               echo "${FRONTEND_IMAGE}:${GITHUB_REF_NAME}"
+            fi
+            if [[ -n "${HARBOR_FRONTEND_IMAGE}" ]]; then
+              echo "${HARBOR_FRONTEND_IMAGE}:${GITHUB_SHA}"
+              echo "${HARBOR_FRONTEND_IMAGE}:latest"
+              if [[ "${GITHUB_REF}" == refs/tags/beancs-* ]]; then
+                echo "${HARBOR_FRONTEND_IMAGE}:${GITHUB_REF_NAME}"
+              fi
             fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
@@ -80,6 +116,35 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure BeanCS Harbor project
+        if: ${{ steps.meta.outputs.harbor_backend_image != '' }}
+        shell: bash
+        env:
+          HARBOR_USERNAME: ${{ secrets.BEANCS_REGISTRY_USERNAME }}
+          HARBOR_TOKEN: ${{ secrets.BEANCS_REGISTRY_TOKEN }}
+        run: |
+          HARBOR_HOST="${{ secrets.BEANCS_REGISTRY_HOST }}"
+          HARBOR_HOST="${HARBOR_HOST#http://}"
+          HARBOR_HOST="${HARBOR_HOST#https://}"
+          HARBOR_HOST="${HARBOR_HOST%/}"
+          HARBOR_PROJECT="${{ vars.BEANCS_HARBOR_PROJECT || 'basaltpass' }}"
+          API_BASE="https://${HARBOR_HOST}/api/v2.0"
+          if ! curl -fsS -u "${HARBOR_USERNAME}:${HARBOR_TOKEN}" \
+            "${API_BASE}/projects/${HARBOR_PROJECT}" >/dev/null; then
+            curl -fsS -u "${HARBOR_USERNAME}:${HARBOR_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"project_name\":\"${HARBOR_PROJECT}\",\"metadata\":{\"public\":\"false\"}}" \
+              "${API_BASE}/projects"
+          fi
+
+      - name: Login to BeanCS Harbor
+        if: ${{ steps.meta.outputs.harbor_backend_image != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.meta.outputs.harbor_registry }}
+          username: ${{ secrets.BEANCS_REGISTRY_USERNAME }}
+          password: ${{ secrets.BEANCS_REGISTRY_TOKEN }}
 
       - name: Build and push backend
         uses: docker/build-push-action@v6
