@@ -390,14 +390,39 @@ func seedConfiguredAdmin() {
 		u = model.User{
 			Email:         email,
 			PasswordHash:  string(hash),
-			Nickname:      "admin",
+			Nickname:      configuredAdminNickname(email),
 			EmailVerified: true,
+			IsSystemAdmin: boolPtr(true),
 		}
 		if err := db.Create(&u).Error; err != nil {
 			log.Printf("[Migration] Failed to create configured admin: %v", err)
 			return
 		}
 		log.Printf("[Migration] Created configured admin user: %s", email)
+	} else {
+		hash, hashErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if hashErr != nil {
+			log.Printf("[Migration] Failed to hash configured admin password: %v", hashErr)
+			return
+		}
+		updates := map[string]any{
+			"password_hash":       string(hash),
+			"email_verified":      true,
+			"is_system_admin":     true,
+			"password_changed_at": time.Now(),
+		}
+		if strings.TrimSpace(u.Nickname) == "" {
+			updates["nickname"] = configuredAdminNickname(email)
+		}
+		if err := db.Model(&u).Updates(updates).Error; err != nil {
+			log.Printf("[Migration] Failed to sync configured admin credentials: %v", err)
+			return
+		}
+		if err := db.First(&u, u.ID).Error; err != nil {
+			log.Printf("[Migration] Failed to reload configured admin: %v", err)
+			return
+		}
+		log.Printf("[Migration] Synced configured admin credentials: %s", email)
 	}
 
 	// Ensure global role (role_id = 1 for superadmin)
@@ -424,6 +449,17 @@ func seedConfiguredAdmin() {
 			}
 		}
 	}
+}
+
+func configuredAdminNickname(email string) string {
+	if idx := strings.Index(email, "@"); idx > 0 {
+		return email[:idx]
+	}
+	return "admin"
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 // seedDevSuperAdmin 创建一个开发用超级管理员账户

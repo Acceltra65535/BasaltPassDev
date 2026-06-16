@@ -12,6 +12,7 @@ import (
 	"basaltpass-backend/internal/model"
 	"basaltpass-backend/internal/service/tenantquota"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -182,13 +183,56 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 		return nil, errors.New("租户名称已存在")
 	}
 
-	// 查找所有者用户
+	ownerEmail := strings.TrimSpace(strings.ToLower(req.OwnerEmail))
+	ownerNickname := strings.TrimSpace(req.OwnerUsername)
+	if ownerNickname == "" {
+		ownerNickname = strings.Split(ownerEmail, "@")[0]
+	}
+
+	// 查找或创建所有者用户
 	var owner model.User
-	if err := s.db.Where("email = ?", req.OwnerEmail).First(&owner).Error; err != nil {
+	if err := s.db.Where("email = ?", ownerEmail).First(&owner).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("所有者用户不存在: %s", req.OwnerEmail)
+			if strings.TrimSpace(req.OwnerPassword) == "" {
+				return nil, fmt.Errorf("所有者用户不存在且未提供 owner_password: %s", ownerEmail)
+			}
+			hash, hashErr := bcrypt.GenerateFromPassword([]byte(req.OwnerPassword), bcrypt.DefaultCost)
+			if hashErr != nil {
+				return nil, fmt.Errorf("生成所有者密码失败: %w", hashErr)
+			}
+			owner = model.User{
+				Email:         ownerEmail,
+				PasswordHash:  string(hash),
+				Nickname:      ownerNickname,
+				EmailVerified: true,
+			}
+			if createErr := s.db.Create(&owner).Error; createErr != nil {
+				return nil, fmt.Errorf("创建所有者用户失败: %w", createErr)
+			}
+		} else {
+			return nil, fmt.Errorf("查询用户失败: %w", err)
 		}
-		return nil, fmt.Errorf("查询用户失败: %w", err)
+	} else {
+		updates := map[string]any{}
+		if owner.Nickname == "" && ownerNickname != "" {
+			updates["nickname"] = ownerNickname
+		}
+		if strings.TrimSpace(req.OwnerPassword) != "" {
+			hash, hashErr := bcrypt.GenerateFromPassword([]byte(req.OwnerPassword), bcrypt.DefaultCost)
+			if hashErr != nil {
+				return nil, fmt.Errorf("生成所有者密码失败: %w", hashErr)
+			}
+			updates["password_hash"] = string(hash)
+			updates["password_changed_at"] = time.Now()
+		}
+		if len(updates) > 0 {
+			if updateErr := s.db.Model(&owner).Updates(updates).Error; updateErr != nil {
+				return nil, fmt.Errorf("更新所有者用户失败: %w", updateErr)
+			}
+			if reloadErr := s.db.First(&owner, owner.ID).Error; reloadErr != nil {
+				return nil, fmt.Errorf("重新加载所有者用户失败: %w", reloadErr)
+			}
+		}
 	}
 
 	// 使用事务创建租户和绑定关系
