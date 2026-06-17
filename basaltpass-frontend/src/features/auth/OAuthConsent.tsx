@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import client from '@api/client'
 import { ShieldCheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useI18n } from '@shared/i18n'
+import { PCheckbox } from '@ui'
 import { getAccessToken } from '@utils/auth'
 import {
   pruneExpiredUserConsoleSessions,
@@ -355,17 +356,18 @@ export default function OAuthConsent() {
                   ) : null}
 
                   {(selectedSession?.joinRequired || (!selectedSession && currentUserJoinRequired)) ? (
-                    <label className="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                      <input
-                        type="checkbox"
+                    <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                      <PCheckbox
                         checked={confirmJoinTenant}
                         onChange={(event) => setConfirmJoinTenant(event.target.checked)}
-                        className="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                        size="sm"
+                        label={(
+                          <span className="font-normal text-amber-800">
+                            I confirm creating a tenant identity for this global account in tenant #{appTenantId}.
+                          </span>
+                        )}
                       />
-                      <span>
-                        I confirm creating a tenant identity for this global account in tenant #{appTenantId}.
-                      </span>
-                    </label>
+                    </div>
                   ) : null}
 
                   <div className="space-y-2">
