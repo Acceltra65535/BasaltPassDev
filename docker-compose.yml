@@ -35,6 +35,9 @@ services:
     cpus: 1.0
     ports:
       - "8101:8101"
+    depends_on:
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
     # Load environment variables from project .env (JWT_SECRET, BASALTPASS_*)
     env_file:
@@ -44,6 +47,9 @@ services:
       - JWT_SECRET=${JWT_SECRET:-supersecret}
       - BASALTPASS_DATABASE_DRIVER=${BASALTPASS_DATABASE_DRIVER:-mysql}
       - BASALTPASS_DATABASE_DSN=${BASALTPASS_DATABASE_DSN:-basaltpass:basaltpass@tcp(mysql:3306)/basaltpass?charset=utf8mb4&parseTime=True&loc=Local}
+      - BASALTPASS_CONFIG=${BASALTPASS_CONFIG:-/app/config/config.yaml}
+    volumes:
+      - ./basaltpass-backend/config/config.yaml:/app/config/config.yaml:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8101/health"]
       interval: 30s
