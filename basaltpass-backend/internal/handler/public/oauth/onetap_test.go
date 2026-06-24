@@ -23,9 +23,12 @@ func seedOneTapPublicClient(t *testing.T) (model.User, model.OAuthClient) {
 	if err := db.Create(&tenant).Error; err != nil {
 		t.Fatalf("create tenant: %v", err)
 	}
-	user := model.User{TenantID: tenant.ID, Email: "onetap@example.com", PasswordHash: "x", EmailVerified: true}
+	user := model.User{EnforcedTenantID: tenant.ID, Email: "onetap@example.com", PasswordHash: "x", EmailVerified: true}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: user.ID, TenantID: tenant.ID, Role: model.TenantRoleMember}).Error; err != nil {
+		t.Fatalf("create tenant user: %v", err)
 	}
 	app := model.App{TenantID: tenant.ID, Name: "OneTap App", Status: model.AppStatusActive}
 	if err := db.Create(&app).Error; err != nil {

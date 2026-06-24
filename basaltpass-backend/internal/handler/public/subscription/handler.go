@@ -23,22 +23,14 @@ func resolveCurrentUserTenantID(c *fiber.Ctx) (*uint64, error) {
 		return &tenantID, nil
 	}
 
-	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, userID).Error; err != nil {
-		return nil, fmt.Errorf("查询用户租户失败: %w", err)
+	var tenantUser model.TenantUser
+	if err := common.DB().Select("tenant_id").Where("user_id = ?", userID).Order("id asc").First(&tenantUser).Error; err != nil {
+		return nil, fmt.Errorf("当前用户没有关联租户")
 	}
-	if user.TenantID == 0 {
-		var tenantUser model.TenantUser
-		if err := common.DB().Select("tenant_id").Where("user_id = ?", userID).Order("id asc").First(&tenantUser).Error; err != nil {
-			return nil, fmt.Errorf("当前用户没有关联租户")
-		}
-		if tenantUser.TenantID == 0 {
-			return nil, fmt.Errorf("当前用户没有关联租户")
-		}
-		tenantID := uint64(tenantUser.TenantID)
-		return &tenantID, nil
+	if tenantUser.TenantID == 0 {
+		return nil, fmt.Errorf("当前用户没有关联租户")
 	}
-	tenantID := uint64(user.TenantID)
+	tenantID := uint64(tenantUser.TenantID)
 	return &tenantID, nil
 }
 

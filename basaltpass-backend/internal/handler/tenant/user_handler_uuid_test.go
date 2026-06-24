@@ -47,14 +47,17 @@ func TestGetTenantUserByUUIDHandler_Success(t *testing.T) {
 	tenantID := uint(2001)
 
 	u := model.User{
-		TenantID:      tenantID,
-		Email:         "tenant-uuid-user@example.com",
-		PasswordHash:  "x",
-		Nickname:      "tenant-user",
-		EmailVerified: true,
+		EnforcedTenantID: tenantID,
+		Email:            "tenant-uuid-user@example.com",
+		PasswordHash:     "x",
+		Nickname:         "tenant-user",
+		EmailVerified:    true,
 	}
 	if err := db.Create(&u).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: u.ID, TenantID: tenantID, Role: model.TenantRoleMember}).Error; err != nil {
+		t.Fatalf("create tenant user failed: %v", err)
 	}
 
 	app := newTenantUserUUIDTestApp(tenantID)
@@ -105,9 +108,9 @@ func TestGetTenantUserByUUIDHandler_WrongTenant(t *testing.T) {
 	otherTenantID := uint(3002)
 
 	u := model.User{
-		TenantID:     ownerTenantID,
-		Email:        "other-tenant-user@example.com",
-		PasswordHash: "x",
+		EnforcedTenantID: ownerTenantID,
+		Email:            "other-tenant-user@example.com",
+		PasswordHash:     "x",
 	}
 	if err := db.Create(&u).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)

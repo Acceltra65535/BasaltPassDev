@@ -28,6 +28,7 @@ func setupTenantServiceTestDB(t *testing.T) *gorm.DB {
 		&model.TenantRbacRole{},
 		&model.TenantRbacRolePermission{},
 		&model.TenantUserRbacRole{},
+		&model.AuditLog{},
 	); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
@@ -49,12 +50,15 @@ func TestGetUserTenantsIncludesPrimaryTenantForRegularUser(t *testing.T) {
 	}
 
 	user := model.User{
-		Email:        "member@example.com",
-		PasswordHash: "x",
-		TenantID:     tenant.ID,
+		Email:            "member@example.com",
+		PasswordHash:     "x",
+		EnforcedTenantID: tenant.ID,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: user.ID, TenantID: tenant.ID, Role: model.TenantRoleUser}).Error; err != nil {
+		t.Fatalf("create tenant_user failed: %v", err)
 	}
 
 	svc := NewTenantService()
@@ -98,9 +102,9 @@ func TestGetUserTenantsPrefersTenantUserRoleWhenPresent(t *testing.T) {
 	}
 
 	user := model.User{
-		Email:        "owner@example.com",
-		PasswordHash: "x",
-		TenantID:     tenant.ID,
+		Email:            "owner@example.com",
+		PasswordHash:     "x",
+		EnforcedTenantID: tenant.ID,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -158,12 +162,9 @@ func TestCreateTenantBootstrapsTenantRBAC(t *testing.T) {
 		t.Fatalf("load tenant failed: %v", err)
 	}
 
-	var updatedOwner model.User
-	if err := db.First(&updatedOwner, owner.ID).Error; err != nil {
-		t.Fatalf("reload owner failed: %v", err)
-	}
-	if updatedOwner.TenantID != tenant.ID {
-		t.Fatalf("expected owner tenant_id to be %d, got %d", tenant.ID, updatedOwner.TenantID)
+	var ownerMembership model.TenantUser
+	if err := db.Where("user_id = ? AND tenant_id = ?", owner.ID, tenant.ID).First(&ownerMembership).Error; err != nil {
+		t.Fatalf("expected owner tenant membership: %v", err)
 	}
 
 	var permissionCount int64

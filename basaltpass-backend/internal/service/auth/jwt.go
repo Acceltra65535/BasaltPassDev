@@ -54,14 +54,8 @@ const (
 )
 
 // GenerateTokenPair creates JWT access and refresh tokens for a user id.
-// 自动从用户记录中获取tenant_id
 func GenerateTokenPair(userID uint) (TokenPair, error) {
-	// 从数据库获取用户的tenant_id
-	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, userID).Error; err != nil {
-		return TokenPair{}, err
-	}
-	tenantID, err := resolveTokenTenantID(userID, user.TenantID, ConsoleScopeUser)
+	tenantID, err := resolveTokenTenantID(userID, 0, ConsoleScopeUser)
 	if err != nil {
 		return TokenPair{}, err
 	}
@@ -109,7 +103,7 @@ func generateTokenPairWithTenantScopeAuthMethodsAndFamily(userID uint, tenantID 
 	acr := acrForAuthMethods(amr)
 	accessClaims := jwt.MapClaims{
 		"sub":       userID,
-		"tid":       tenantID, // 租户ID - 现在直接使用user.tenant_id
+		"tid":       tenantID,
 		"scp":       scope,    // console scope
 		"typ":       TokenTypeAccess,
 		"iat":       now.Unix(),
@@ -285,12 +279,12 @@ func resolveTokenTenantID(userID uint, claimedTenantID uint, scope string) (uint
 	}
 
 	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, userID).Error; err != nil {
+	if err := common.DB().Select("id", "enforced_tenant_id").First(&user, userID).Error; err != nil {
 		return 0, err
 	}
 
 	if claimedTenantID > 0 {
-		if user.TenantID == claimedTenantID {
+		if user.EnforcedTenantID == claimedTenantID {
 			return claimedTenantID, nil
 		}
 
@@ -305,12 +299,8 @@ func resolveTokenTenantID(userID uint, claimedTenantID uint, scope string) (uint
 		}
 	}
 
-	if user.TenantID > 0 {
-		return user.TenantID, nil
-	}
-
-	// 平台级账号（tenant_id=0）在 user scope 下保持 tenant_id=0，
-	// 避免因为历史 tenant_users 记录被错误带入某个租户上下文。
+	// user scope without an explicit tenant remains unscoped. Tenant membership
+	// is carried only when a caller explicitly requests a tenant context.
 	return 0, nil
 }
 

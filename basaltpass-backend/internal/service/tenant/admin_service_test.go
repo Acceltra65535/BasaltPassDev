@@ -29,6 +29,7 @@ func setupAdminTenantServiceTestDB(t *testing.T) *gorm.DB {
 		&model.TenantRbacRole{},
 		&model.TenantRbacRolePermission{},
 		&model.TenantUserRbacRole{},
+		&model.AuditLog{},
 	); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
@@ -67,12 +68,9 @@ func TestAdminCreateTenantBootstrapsTenantRBAC(t *testing.T) {
 		t.Fatalf("load admin role failed: %v", err)
 	}
 
-	var updatedOwner model.User
-	if err := db.First(&updatedOwner, owner.ID).Error; err != nil {
-		t.Fatalf("reload owner failed: %v", err)
-	}
-	if updatedOwner.TenantID != tenant.ID {
-		t.Fatalf("expected owner tenant_id to be %d, got %d", tenant.ID, updatedOwner.TenantID)
+	var ownerMembership model.TenantUser
+	if err := db.Where("user_id = ? AND tenant_id = ?", owner.ID, tenant.ID).First(&ownerMembership).Error; err != nil {
+		t.Fatalf("expected owner tenant membership: %v", err)
 	}
 
 	var roleCount int64

@@ -61,9 +61,6 @@ func (s *CheckoutService) CreateCheckout(req *CheckoutRequest) (*CheckoutRespons
 		return nil, fmt.Errorf("查询客户失败: %w", err)
 	}
 	userTenantID := req.ActiveTenantID
-	if userTenantID == 0 && user.TenantID > 0 {
-		userTenantID = uint64(user.TenantID)
-	}
 	if userTenantID == 0 {
 		var membership model.TenantUser
 		if err := tx.Select("tenant_id").Where("user_id = ?", req.UserID).Order("created_at ASC").First(&membership).Error; err == nil {

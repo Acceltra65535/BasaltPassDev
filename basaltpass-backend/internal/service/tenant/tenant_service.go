@@ -173,14 +173,6 @@ func (s *TenantService) CreateTenant(ownerUserID uint, req *CreateTenantRequest)
 		return nil, err
 	}
 
-	// 将用户主租户切换到新创建的 tenant
-	if err := tx.Model(&model.User{}).
-		Where("id = ?", ownerUserID).
-		Update("tenant_id", tenant.ID).Error; err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
 	// 初始化租户 RBAC 默认权限、角色，并将创建者绑定为 owner 角色
 	if err := EnsureTenantRBACBootstrap(tx, tenant.ID, ownerUserID); err != nil {
 		tx.Rollback()
@@ -377,26 +369,13 @@ func (s *TenantService) ListTenants(page, pageSize int, search string) ([]*Tenan
 
 // GetUserTenants 获取用户的租户列表
 func (s *TenantService) GetUserTenants(userID uint) ([]*TenantResponse, error) {
-	var user model.User
-	if err := s.db.Select("tenant_id").First(&user, userID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return []*TenantResponse{}, nil
-		}
-		return nil, err
-	}
-
 	var memberships []model.TenantUser
 	if err := s.db.Where("user_id = ?", userID).Order("created_at ASC").Find(&memberships).Error; err != nil {
 		return nil, err
 	}
 
-	tenantOrder := make([]uint, 0, len(memberships)+1)
+	tenantOrder := make([]uint, 0, len(memberships))
 	rolesByTenant := make(map[uint]model.TenantRole)
-
-	if user.TenantID > 0 {
-		tenantOrder = append(tenantOrder, user.TenantID)
-		rolesByTenant[user.TenantID] = model.TenantRoleUser
-	}
 
 	for _, membership := range memberships {
 		if membership.TenantID == 0 {

@@ -39,12 +39,15 @@ func TestGetProfileUsesUserTenantIDForRegularUser(t *testing.T) {
 	}
 
 	u := model.User{
-		Email:        "member@example.com",
-		PasswordHash: "x",
-		TenantID:     tenant.ID,
+		Email:            "member@example.com",
+		PasswordHash:     "x",
+		EnforcedTenantID: tenant.ID,
 	}
 	if err := db.Create(&u).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: u.ID, TenantID: tenant.ID, Role: model.TenantRoleUser}).Error; err != nil {
+		t.Fatalf("create tenant_user failed: %v", err)
 	}
 
 	svc := Service{}
@@ -63,7 +66,7 @@ func TestGetProfileUsesUserTenantIDForRegularUser(t *testing.T) {
 	}
 }
 
-func TestGetProfileDoesNotDeriveTenantContextFromTenantUsersForPlatformAdmin(t *testing.T) {
+func TestGetProfileDerivesTenantContextFromTenantUsers(t *testing.T) {
 	db := setupUserServiceTestDB(t)
 
 	tenant := model.Tenant{
@@ -76,9 +79,9 @@ func TestGetProfileDoesNotDeriveTenantContextFromTenantUsersForPlatformAdmin(t *
 	}
 
 	u := model.User{
-		Email:        "owner@example.com",
-		PasswordHash: "x",
-		TenantID:     0,
+		Email:            "owner@example.com",
+		PasswordHash:     "x",
+		EnforcedTenantID: 0,
 	}
 	if err := db.Create(&u).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -98,13 +101,13 @@ func TestGetProfileDoesNotDeriveTenantContextFromTenantUsersForPlatformAdmin(t *
 	if err != nil {
 		t.Fatalf("GetProfile failed: %v", err)
 	}
-	if profile.HasTenant {
-		t.Fatalf("expected has_tenant=false for platform admin account")
+	if !profile.HasTenant {
+		t.Fatalf("expected has_tenant=true from tenant_users")
 	}
-	if profile.TenantID != nil {
-		t.Fatalf("expected tenant_id to stay nil for platform admin account, got %v", *profile.TenantID)
+	if profile.TenantID == nil || *profile.TenantID != tenant.ID {
+		t.Fatalf("expected tenant_id %d from tenant_users, got %v", tenant.ID, profile.TenantID)
 	}
-	if profile.TenantRole != "" {
-		t.Fatalf("expected tenant_role to be empty for platform admin account, got %q", profile.TenantRole)
+	if profile.TenantRole != string(model.TenantRoleOwner) {
+		t.Fatalf("expected tenant_role %q, got %q", model.TenantRoleOwner, profile.TenantRole)
 	}
 }

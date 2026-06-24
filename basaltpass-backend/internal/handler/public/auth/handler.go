@@ -145,15 +145,15 @@ func SwitchUserTenantIdentityHandler(c *fiber.Ctx) error {
 	targetTenantID := *req.TenantID
 
 	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, uid).Error; err != nil {
+	if err := common.DB().Select("id", "enforced_tenant_id").First(&user, uid).Error; err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user not found"})
 	}
 
 	if targetTenantID == 0 {
-		if user.TenantID != 0 {
+		if user.EnforcedTenantID != 0 {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "tenant account cannot switch to global identity"})
 		}
-	} else if user.TenantID != targetTenantID {
+	} else if user.EnforcedTenantID != targetTenantID {
 		var membershipCount int64
 		if err := common.DB().Model(&model.TenantUser{}).
 			Where("user_id = ? AND tenant_id = ? AND role IN ?", uid, targetTenantID, []model.TenantRole{model.TenantRoleOwner, model.TenantRoleAdmin, model.TenantRoleMember, model.TenantRoleUser}).

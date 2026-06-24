@@ -70,10 +70,10 @@ func createUserForTest(t *testing.T, db *gorm.DB, userID, tenantID uint) {
 	t.Helper()
 
 	user := model.User{
-		Model:        gorm.Model{ID: userID},
-		Email:        fmt.Sprintf("user-%d@example.com", userID),
-		PasswordHash: "x",
-		TenantID:     tenantID,
+		Model:            gorm.Model{ID: userID},
+		Email:            fmt.Sprintf("user-%d@example.com", userID),
+		PasswordHash:     "x",
+		EnforcedTenantID: tenantID,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("failed to create user: %v", err)

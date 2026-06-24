@@ -209,7 +209,7 @@ func UpdateTenantRole(c *fiber.Ctx) error {
 	}
 
 	// 检查角色是否存在且属于当前租户
-	var role model.Role
+	var role model.TenantRbacRole
 	err = common.DB().Where("id = ? AND tenant_id = ?", roleID, tenantID).First(&role).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -268,7 +268,7 @@ func DeleteTenantRole(c *fiber.Ctx) error {
 	}
 
 	// 检查角色是否存在且属于当前租户
-	var role model.Role
+	var role model.TenantRbacRole
 	err = common.DB().Where("id = ? AND tenant_id = ?", roleID, tenantID).First(&role).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -462,11 +462,11 @@ func GetTenantUsersForRole(c *fiber.Ctx) error {
 
 	offset := (page - 1) * pageSize
 
-	// 构建查询 - 以 users.tenant_id 为主，tenant_users 仅补充角色
-	query := common.DB().Table("system_auth_users").
-		Select("DISTINCT system_auth_users.id, system_auth_users.email, system_auth_users.nickname, COALESCE(tenant_users.role, 'member') as role, system_auth_users.created_at").
-		Joins("LEFT JOIN tenant_users ON tenant_users.user_id = system_auth_users.id AND tenant_users.tenant_id = ?", tenantID).
-		Where("system_auth_users.tenant_id = ? OR tenant_users.tenant_id = ?", tenantID, tenantID)
+	// 构建查询 - tenant_users 是租户成员事实来源
+	query := common.DB().Table("tenant_users").
+		Select("DISTINCT system_auth_users.id, system_auth_users.email, system_auth_users.nickname, tenant_users.role as role, system_auth_users.created_at").
+		Joins("JOIN system_auth_users ON system_auth_users.id = tenant_users.user_id").
+		Where("tenant_users.tenant_id = ?", tenantID)
 
 	if search != "" {
 		query = query.Where("(system_auth_users.email LIKE ? OR system_auth_users.nickname LIKE ?)",
@@ -475,9 +475,9 @@ func GetTenantUsersForRole(c *fiber.Ctx) error {
 
 	// 获取总数
 	var total int64
-	countQuery := common.DB().Table("system_auth_users").
-		Joins("LEFT JOIN tenant_users ON tenant_users.user_id = system_auth_users.id AND tenant_users.tenant_id = ?", tenantID).
-		Where("system_auth_users.tenant_id = ? OR tenant_users.tenant_id = ?", tenantID, tenantID)
+	countQuery := common.DB().Table("tenant_users").
+		Joins("JOIN system_auth_users ON system_auth_users.id = tenant_users.user_id").
+		Where("tenant_users.tenant_id = ?", tenantID)
 	if search != "" {
 		countQuery = countQuery.Where("(system_auth_users.email LIKE ? OR system_auth_users.nickname LIKE ?)",
 			"%"+search+"%", "%"+search+"%")

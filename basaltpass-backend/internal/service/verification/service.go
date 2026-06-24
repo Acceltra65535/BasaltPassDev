@@ -429,17 +429,17 @@ func (s *Service) CompleteSignup(req CompleteSignupRequest) (*model.User, error)
 
 	// 创建正式用户
 	user := &model.User{
-		Email:         pendingSignup.Email,
-		Phone:         pendingSignup.Phone,
-		PasswordHash:  pendingSignup.PasswordHash,
-		Nickname:      pendingSignup.Username,
-		TenantID:      pendingSignup.TenantID, // 设置租户ID
-		EmailVerified: true,                   // 已通过邮箱验证
-		PhoneVerified: pendingSignup.Phone != "" && pendingSignup.Status == model.SignupStatusCompleted,
+		Email:            pendingSignup.Email,
+		Phone:            pendingSignup.Phone,
+		PasswordHash:     pendingSignup.PasswordHash,
+		Nickname:         pendingSignup.Username,
+		EnforcedTenantID: pendingSignup.TenantID, // tenant-local 登录约束
+		EmailVerified:    true,                   // 已通过邮箱验证
+		PhoneVerified:    pendingSignup.Phone != "" && pendingSignup.Status == model.SignupStatusCompleted,
 	}
 
-	// 仅允许“平台首用户”（tenant_id=0）自动成为系统管理员。
-	// 租户注册页面创建的普通用户（tenant_id>0）必须保持非系统管理员。
+	// 仅允许“平台首用户”（enforced_tenant_id=0）自动成为系统管理员。
+	// 租户注册页面创建的普通用户（enforced_tenant_id>0）必须保持非系统管理员。
 	if isFirstUser && pendingSignup.TenantID == 0 {
 		t := true
 		user.IsSystemAdmin = &t
@@ -448,6 +448,19 @@ func (s *Service) CompleteSignup(req CompleteSignupRequest) (*model.User, error)
 	if err := tx.Create(user).Error; err != nil {
 		tx.Rollback()
 		return nil, err
+	}
+
+	if pendingSignup.TenantID > 0 {
+		tenantUser := model.TenantUser{
+			UserID:   user.ID,
+			TenantID: pendingSignup.TenantID,
+			Role:     model.TenantRoleMember,
+		}
+		if err := tx.Where("user_id = ? AND tenant_id = ?", user.ID, pendingSignup.TenantID).
+			FirstOrCreate(&tenantUser).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 	}
 
 	if isFirstUser && pendingSignup.TenantID == 0 {
@@ -464,12 +477,6 @@ func (s *Service) CompleteSignup(req CompleteSignupRequest) (*model.User, error)
 			// 更新邀请状态
 			inv.Status = "accepted"
 			tx.Save(&inv)
-
-			// 如果用户的主租户未设置或为 0，且当前邀请属于某个租户，则可以更新主租户
-			if user.TenantID == 0 {
-				user.TenantID = inv.TenantID
-				tx.Save(user)
-			}
 
 			// 检查是否已经是该租户成员
 			var cnt int64
@@ -585,7 +592,7 @@ func (s *Service) ensureSignupEmailAvailable(tx *gorm.DB, email string, tenantID
 	}
 
 	var sameTenant int64
-	if err := tx.Model(&model.User{}).Where("email = ? AND tenant_id = ?", email, tenantID).Count(&sameTenant).Error; err != nil {
+	if err := tx.Model(&model.User{}).Where("email = ? AND enforced_tenant_id = ?", email, tenantID).Count(&sameTenant).Error; err != nil {
 		return errors.New("failed to check existing account")
 	}
 	if sameTenant > 0 {
@@ -593,7 +600,7 @@ func (s *Service) ensureSignupEmailAvailable(tx *gorm.DB, email string, tenantID
 	}
 
 	var globalExists int64
-	if err := tx.Model(&model.User{}).Where("email = ? AND tenant_id = 0", email).Count(&globalExists).Error; err != nil {
+	if err := tx.Model(&model.User{}).Where("email = ? AND enforced_tenant_id = 0", email).Count(&globalExists).Error; err != nil {
 		return errors.New("failed to check existing account")
 	}
 	if globalExists > 0 {

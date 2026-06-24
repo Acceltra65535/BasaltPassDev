@@ -54,9 +54,12 @@ func TestEnsureUserCanJoinDoesNotDoubleCountExistingPrimaryTenant(t *testing.T) 
 	if err := db.Create(&tenant).Error; err != nil {
 		t.Fatalf("create tenant: %v", err)
 	}
-	user := model.User{Email: "owner@example.com", TenantID: tenant.ID}
+	user := model.User{Email: "owner@example.com", EnforcedTenantID: tenant.ID}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: user.ID, TenantID: tenant.ID, Role: model.TenantRoleMember}).Error; err != nil {
+		t.Fatalf("create membership: %v", err)
 	}
 	if err := db.Create(&model.TenantQuota{TenantID: tenant.ID, MaxApps: 10, MaxUsers: 1, MaxTeams: 10, MaxTokensPerHour: 10}).Error; err != nil {
 		t.Fatalf("create quota: %v", err)

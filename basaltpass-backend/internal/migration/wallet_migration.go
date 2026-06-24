@@ -200,14 +200,14 @@ func MigrateWalletTenantField() {
 		tenantID := uint(0)
 
 		if w.UserID != nil && *w.UserID != 0 {
-			var user model.User
-			err := db.Select("tenant_id").First(&user, *w.UserID).Error
+			var membership model.TenantUser
+			err := db.Select("tenant_id").Where("user_id = ?", *w.UserID).Order("created_at ASC").First(&membership).Error
 			if err != nil {
 				if !errors.Is(err, gorm.ErrRecordNotFound) {
-					log.Printf("[Migration] Failed to load user %d for wallet %d: %v", *w.UserID, w.ID, err)
+					log.Printf("[Migration] Failed to load tenant membership for user %d wallet %d: %v", *w.UserID, w.ID, err)
 				}
 			} else {
-				tenantID = user.TenantID
+				tenantID = membership.TenantID
 			}
 		}
 

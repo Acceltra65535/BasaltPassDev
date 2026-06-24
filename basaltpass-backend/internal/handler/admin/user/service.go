@@ -174,6 +174,12 @@ func (s *AdminUserService) GetUserSummary(userID uint) (*userdto.AdminUserSummar
 		return nil, err
 	}
 
+	var membership model.TenantUser
+	tenantID := uint(0)
+	if err := s.db.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err == nil {
+		tenantID = membership.TenantID
+	}
+
 	return &userdto.AdminUserSummaryResponse{
 		ID:            user.ID,
 		Email:         user.Email,
@@ -184,7 +190,7 @@ func (s *AdminUserService) GetUserSummary(userID uint) (*userdto.AdminUserSummar
 		PhoneVerified: user.PhoneVerified,
 		TwoFAEnabled:  user.TwoFAEnabled,
 		Banned:        user.Banned,
-		TenantID:      user.TenantID,
+		TenantID:      tenantID,
 		LastLoginAt:   nil,
 		CreatedAt:     user.CreatedAt,
 		UpdatedAt:     user.UpdatedAt,

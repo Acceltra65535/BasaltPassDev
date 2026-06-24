@@ -26,11 +26,14 @@ func (s Service) GetProfile(userID uint, activeTenantID uint) (userdto.ProfileRe
 		tenantRole string
 	)
 
-	// activeTenantID 来自当前 token 的 tid，可支持全局用户切换到某个 tenant identity。
 	resolvedTenantID := activeTenantID
 	if resolvedTenantID == 0 {
-		if u.TenantID > 0 {
-			resolvedTenantID = u.TenantID
+		var membership model.TenantUser
+		if err := common.DB().
+			Where("user_id = ?", userID).
+			Order("created_at ASC").
+			First(&membership).Error; err == nil {
+			resolvedTenantID = membership.TenantID
 		}
 	}
 
@@ -44,11 +47,6 @@ func (s Service) GetProfile(userID uint, activeTenantID uint) (userdto.ProfileRe
 			tid := resolvedTenantID
 			tenantID = &tid
 			tenantRole = string(membership.Role)
-		} else if u.TenantID == resolvedTenantID {
-			hasTenant = true
-			tid := resolvedTenantID
-			tenantID = &tid
-			tenantRole = string(model.TenantRoleUser)
 		}
 	}
 
@@ -128,9 +126,10 @@ func (s Service) SearchUsers(query string, limit int, tenantID uint) ([]userdto.
 		limit = 10 // 默认限制10个，最多50个
 	}
 
-	// 添加tenant_id过滤，确保只搜索同一租户的用户
+	// tenant_users 是租户成员事实来源，确保只搜索同一租户的用户
 	err := common.DB().
-		Where("tenant_id = ? AND (nickname LIKE ? OR email LIKE ?)", tenantID, "%"+query+"%", "%"+query+"%").
+		Joins("JOIN tenant_users ON tenant_users.user_id = system_auth_users.id").
+		Where("tenant_users.tenant_id = ? AND (system_auth_users.nickname LIKE ? OR system_auth_users.email LIKE ?)", tenantID, "%"+query+"%", "%"+query+"%").
 		Limit(limit).
 		Find(&users).Error
 
