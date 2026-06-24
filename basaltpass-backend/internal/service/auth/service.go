@@ -84,25 +84,18 @@ func (s Service) Register(req RegisterRequest) (*model.User, error) {
 	}
 	isFirstUser := userCount == 0
 
-	// 全局注册（enforced_tenant_id=0）要求邮箱/手机号全局唯一；
-	// tenant-local 注册（enforced_tenant_id>0）仅要求同强制租户唯一，同时不能与全局账号冲突。
+	// 账号唯一性按 enforced_tenant_id 分区：
+	// global 账号只要求 enforced_tenant_id=0 内唯一；
+	// tenant-local 账号只要求同一 tenant 内唯一，允许同 email 在多个 tenant 下隔离注册。
 	db := common.DB()
 	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
 
 	if req.TenantID == 0 {
 		var conflict int64
-		query := db.Model(&model.User{})
-		if normalizedEmail != "" {
-			query = query.Where("email = ?", normalizedEmail)
-		}
-		if normalizedPhone != "" {
-			if normalizedEmail != "" {
-				query = query.Or("phone = ?", normalizedPhone)
-			} else {
-				query = query.Where("phone = ?", normalizedPhone)
-			}
-		}
-		if err := query.Count(&conflict).Error; err != nil {
+		if err := db.Model(&model.User{}).
+			Where("enforced_tenant_id = 0").
+			Where("(email != '' AND email = ?) OR (phone != '' AND phone = ?)", normalizedEmail, normalizedPhone).
+			Count(&conflict).Error; err != nil {
 			return nil, err
 		}
 		if conflict > 0 {
@@ -117,13 +110,14 @@ func (s Service) Register(req RegisterRequest) (*model.User, error) {
 			if sameTenant > 0 {
 				return nil, errors.New("user already exists in this tenant")
 			}
-
-			var globalConflict int64
-			if err := db.Model(&model.User{}).Where("email = ? AND enforced_tenant_id = 0", normalizedEmail).Count(&globalConflict).Error; err != nil {
+		}
+		if normalizedPhone != "" {
+			var sameTenantPhone int64
+			if err := db.Model(&model.User{}).Where("phone = ? AND enforced_tenant_id = ?", normalizedPhone, req.TenantID).Count(&sameTenantPhone).Error; err != nil {
 				return nil, err
 			}
-			if globalConflict > 0 {
-				return nil, errors.New("email already registered as a global account")
+			if sameTenantPhone > 0 {
+				return nil, errors.New("phone already exists in this tenant")
 			}
 		}
 	}
@@ -137,10 +131,10 @@ func (s Service) Register(req RegisterRequest) (*model.User, error) {
 	}()
 
 	user := &model.User{
-		Email:        normalizedEmail,
-		Phone:        normalizedPhone,
-		PasswordHash: string(hash),
-		Nickname:     "New User",
+		Email:            normalizedEmail,
+		Phone:            normalizedPhone,
+		PasswordHash:     string(hash),
+		Nickname:         "New User",
 		EnforcedTenantID: req.TenantID, // tenant-local 登录约束，不代表成员事实来源
 	}
 

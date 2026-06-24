@@ -96,15 +96,19 @@ type AdminTenantUserListResponse struct {
 
 // AdminTenantUser 管理员租户用户信息
 type AdminTenantUser struct {
-	ID           uint       `json:"id"`
-	Email        string     `json:"email"`
-	Nickname     string     `json:"nickname"`
-	Role         string     `json:"role"`      // owner, tenant, member
-	UserType     string     `json:"user_type"` // tenant_user, app_user
-	Status       string     `json:"status"`    // active, suspended, banned
-	AppName      *string    `json:"app_name,omitempty"`
-	LastActiveAt *time.Time `json:"last_active_at,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID               uint       `json:"id"`
+	Email            string     `json:"email"`
+	Nickname         string     `json:"nickname"`
+	Role             string     `json:"role"`      // owner, tenant, member
+	UserType         string     `json:"user_type"` // tenant_user, app_user
+	Status           string     `json:"status"`    // active, suspended, banned
+	AccountType      string     `json:"account_type"`
+	IsLocalUser      bool       `json:"is_local_user"`
+	IsGlobalUser     bool       `json:"is_global_user"`
+	EnforcedTenantID uint       `json:"enforced_tenant_id"`
+	AppName          *string    `json:"app_name,omitempty"`
+	LastActiveAt     *time.Time `json:"last_active_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 // AdminTenantUserApp 管理员租户用户关联应用

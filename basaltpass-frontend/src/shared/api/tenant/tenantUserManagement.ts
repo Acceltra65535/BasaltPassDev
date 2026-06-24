@@ -8,7 +8,11 @@ export interface TenantUser {
   nickname: string
   avatar?: string
   role: 'owner' | 'admin' | 'member' | 'user'
-  status: 'active' | 'inactive' | 'suspended'
+  status: 'active' | 'inactive' | 'suspended' | 'banned'
+  account_type?: 'local' | 'global'
+  is_local_user?: boolean
+  is_global_user?: boolean
+  enforced_tenant_id?: number
   last_login_at?: string
   created_at: string
   updated_at: string
@@ -48,6 +52,7 @@ export interface InviteTenantUserRequest {
 
 export interface GlobalUserCandidate {
   id: number
+  user_uuid?: string
   email: string
   nickname: string
   avatar?: string

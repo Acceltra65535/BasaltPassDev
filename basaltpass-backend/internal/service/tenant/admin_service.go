@@ -348,7 +348,20 @@ func (s *AdminTenantService) GetTenantUsers(tenantID uint, req admindto.AdminTen
 	}
 	users := make([]admindto.AdminTenantUser, 0, len(records))
 	for _, r := range records {
-		users = append(users, admindto.AdminTenantUser{ID: r.UserID, Email: r.User.Email, Nickname: r.User.Nickname, Role: string(r.Role), UserType: "tenant_user", Status: "active", CreatedAt: r.CreatedAt})
+		accountType, isLocalUser, isGlobalUser := adminTenantAccountType(r.User.EnforcedTenantID, tenantID)
+		users = append(users, admindto.AdminTenantUser{
+			ID:               r.UserID,
+			Email:            r.User.Email,
+			Nickname:         r.User.Nickname,
+			Role:             string(r.Role),
+			UserType:         "tenant_user",
+			Status:           tenantUserStatus(r.User, r.Role),
+			AccountType:      accountType,
+			IsLocalUser:      isLocalUser,
+			IsGlobalUser:     isGlobalUser,
+			EnforcedTenantID: r.User.EnforcedTenantID,
+			CreatedAt:        r.CreatedAt,
+		})
 	}
 	totalPages := int(math.Ceil(float64(total) / float64(req.Limit)))
 	return &admindto.AdminTenantUserListResponse{Users: users, Pagination: admindto.PaginationResponse{Page: req.Page, Limit: req.Limit, Total: total, TotalPages: totalPages}}, nil
@@ -371,16 +384,21 @@ func (s *AdminTenantService) GetTenantUserDetail(tenantID uint, userID uint) (*a
 	}
 
 	phone := record.User.Phone
+	accountType, isLocalUser, isGlobalUser := adminTenantAccountType(record.User.EnforcedTenantID, tenantID)
 	response := &admindto.AdminTenantUserDetailResponse{
 		AdminTenantUser: admindto.AdminTenantUser{
-			ID:           record.UserID,
-			Email:        record.User.Email,
-			Nickname:     record.User.Nickname,
-			Role:         string(record.Role),
-			UserType:     "tenant_user",
-			Status:       "active",
-			LastActiveAt: nil,
-			CreatedAt:    record.CreatedAt,
+			ID:               record.UserID,
+			Email:            record.User.Email,
+			Nickname:         record.User.Nickname,
+			Role:             string(record.Role),
+			UserType:         "tenant_user",
+			Status:           tenantUserStatus(record.User, record.Role),
+			AccountType:      accountType,
+			IsLocalUser:      isLocalUser,
+			IsGlobalUser:     isGlobalUser,
+			EnforcedTenantID: record.User.EnforcedTenantID,
+			LastActiveAt:     nil,
+			CreatedAt:        record.CreatedAt,
 		},
 		Phone:       &phone,
 		LastLoginAt: lastLoginAt,
@@ -398,6 +416,29 @@ func (s *AdminTenantService) GetTenantUserDetail(tenantID uint, userID uint) (*a
 	}
 
 	return response, nil
+}
+
+func adminTenantAccountType(enforcedTenantID, tenantID uint) (string, bool, bool) {
+	if enforcedTenantID == 0 {
+		return "global", false, true
+	}
+	if enforcedTenantID == tenantID {
+		return "local", true, false
+	}
+	return "local", false, false
+}
+
+func tenantUserStatus(user model.User, role model.TenantRole) string {
+	if role == model.TenantRoleBanned {
+		return string(model.TenantRoleBanned)
+	}
+	if user.DeletedAt.Valid {
+		return "suspended"
+	}
+	if !user.EmailVerified {
+		return "inactive"
+	}
+	return "active"
 }
 
 // RemoveTenantUser 移除租户管理员

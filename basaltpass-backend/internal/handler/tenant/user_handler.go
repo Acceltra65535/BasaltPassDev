@@ -26,16 +26,20 @@ import (
 
 // TenantUserResponse 租户用户响应
 type TenantUserResponse struct {
-	ID          uint       `json:"id"`
-	UserUUID    string     `json:"user_uuid"`
-	Email       string     `json:"email"`
-	Nickname    string     `json:"nickname"`
-	Avatar      string     `json:"avatar"`
-	Role        string     `json:"role"`   // tenant role: owner, admin, user, baned (非管理员用户默认为 user)
-	Status      string     `json:"status"` // active, inactive, suspended（只看 users 表，或者看 tenant_users 里的 baned）
-	LastLoginAt *time.Time `json:"last_login_at"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID               uint       `json:"id"`
+	UserUUID         string     `json:"user_uuid"`
+	Email            string     `json:"email"`
+	Nickname         string     `json:"nickname"`
+	Avatar           string     `json:"avatar"`
+	Role             string     `json:"role"`   // tenant role: owner, admin, user, banned
+	Status           string     `json:"status"` // active, inactive, suspended, banned
+	AccountType      string     `json:"account_type"`
+	IsLocalUser      bool       `json:"is_local_user"`
+	IsGlobalUser     bool       `json:"is_global_user"`
+	EnforcedTenantID uint       `json:"enforced_tenant_id"`
+	LastLoginAt      *time.Time `json:"last_login_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 // TenantUserStatsResponse 租户用户统计响应
@@ -67,6 +71,16 @@ type GlobalUserCandidateResponse struct {
 	Nickname  string    `json:"nickname"`
 	Avatar    string    `json:"avatar"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func tenantAccountType(enforcedTenantID, tenantID uint) (string, bool, bool) {
+	if enforcedTenantID == 0 {
+		return "global", false, true
+	}
+	if tenantID != 0 && enforcedTenantID == tenantID {
+		return "local", true, false
+	}
+	return "local", false, false
 }
 
 // AuthorizeGlobalUserRequest 授权全局用户加入当前租户
@@ -157,17 +171,26 @@ func buildTenantUserResponse(user model.User, tenantUser *model.TenantUser) Tena
 	} else if user.DeletedAt.Valid {
 		status = "suspended"
 	}
+	tenantID := uint(0)
+	if tenantUser != nil {
+		tenantID = tenantUser.TenantID
+	}
+	accountType, isLocalUser, isGlobalUser := tenantAccountType(user.EnforcedTenantID, tenantID)
 
 	return TenantUserResponse{
-		ID:        user.ID,
-		UserUUID:  user.UserUUID,
-		Email:     user.Email,
-		Nickname:  user.Nickname,
-		Avatar:    user.AvatarURL,
-		Role:      role,
-		Status:    status,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
+		ID:               user.ID,
+		UserUUID:         user.UserUUID,
+		Email:            user.Email,
+		Nickname:         user.Nickname,
+		Avatar:           user.AvatarURL,
+		Role:             role,
+		Status:           status,
+		AccountType:      accountType,
+		IsLocalUser:      isLocalUser,
+		IsGlobalUser:     isGlobalUser,
+		EnforcedTenantID: user.EnforcedTenantID,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
 	}
 }
 
@@ -230,15 +253,16 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 	// 列表查询并聚合
 	// 注意：SQLite 中时间字段需要特殊处理
 	type tenantUserRow struct {
-		ID        uint   `json:"id"`
-		UserUUID  string `json:"user_uuid"`
-		Email     string `json:"email"`
-		Nickname  string `json:"nickname"`
-		Avatar    string `json:"avatar"`
-		Role      string `json:"role"`
-		Status    string `json:"status"`
-		CreatedAt string `json:"created_at"` // 改为字符串接收
-		UpdatedAt string `json:"updated_at"` // 改为字符串接收
+		ID               uint   `json:"id"`
+		UserUUID         string `json:"user_uuid"`
+		Email            string `json:"email"`
+		Nickname         string `json:"nickname"`
+		Avatar           string `json:"avatar"`
+		Role             string `json:"role"`
+		Status           string `json:"status"`
+		EnforcedTenantID uint   `json:"enforced_tenant_id"`
+		CreatedAt        string `json:"created_at"` // 改为字符串接收
+		UpdatedAt        string `json:"updated_at"` // 改为字符串接收
 	}
 
 	var rows []tenantUserRow
@@ -248,6 +272,7 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 			u.email,
 			u.nickname,
 			COALESCE(u.avatar_url, '') as avatar,
+			u.enforced_tenant_id,
 			ta.role as role,
 			CASE 
 				WHEN ta.role = 'banned' THEN 'banned'
@@ -269,14 +294,19 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 	// 转换为对外响应结构（处理时间字段转换）
 	users := make([]TenantUserResponse, 0, len(rows))
 	for _, r := range rows {
+		accountType, isLocalUser, isGlobalUser := tenantAccountType(r.EnforcedTenantID, tenantID)
 		user := TenantUserResponse{
-			ID:       r.ID,
-			UserUUID: r.UserUUID,
-			Email:    r.Email,
-			Nickname: r.Nickname,
-			Avatar:   r.Avatar,
-			Role:     r.Role,
-			Status:   r.Status,
+			ID:               r.ID,
+			UserUUID:         r.UserUUID,
+			Email:            r.Email,
+			Nickname:         r.Nickname,
+			Avatar:           r.Avatar,
+			Role:             r.Role,
+			Status:           r.Status,
+			AccountType:      accountType,
+			IsLocalUser:      isLocalUser,
+			IsGlobalUser:     isGlobalUser,
+			EnforcedTenantID: r.EnforcedTenantID,
 		}
 
 		// 转换时间字段

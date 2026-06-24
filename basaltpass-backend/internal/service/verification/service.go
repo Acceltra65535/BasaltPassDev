@@ -582,7 +582,7 @@ func (s *Service) ensureSignupEmailAvailable(tx *gorm.DB, email string, tenantID
 
 	if tenantID == 0 {
 		var exists int64
-		if err := tx.Model(&model.User{}).Where("email = ?", email).Count(&exists).Error; err != nil {
+		if err := tx.Model(&model.User{}).Where("email = ? AND enforced_tenant_id = 0", email).Count(&exists).Error; err != nil {
 			return errors.New("failed to check existing account")
 		}
 		if exists > 0 {
@@ -597,14 +597,6 @@ func (s *Service) ensureSignupEmailAvailable(tx *gorm.DB, email string, tenantID
 	}
 	if sameTenant > 0 {
 		return errors.New("email already registered in this tenant")
-	}
-
-	var globalExists int64
-	if err := tx.Model(&model.User{}).Where("email = ? AND enforced_tenant_id = 0", email).Count(&globalExists).Error; err != nil {
-		return errors.New("failed to check existing account")
-	}
-	if globalExists > 0 {
-		return errors.New("email already registered as a global account")
 	}
 
 	return nil
