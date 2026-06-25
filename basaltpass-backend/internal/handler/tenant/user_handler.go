@@ -37,7 +37,9 @@ type TenantUserResponse struct {
 	IsLocalUser      bool       `json:"is_local_user"`
 	IsGlobalUser     bool       `json:"is_global_user"`
 	EnforcedTenantID uint       `json:"enforced_tenant_id"`
+	AppCount         int64      `json:"app_count"`
 	LastLoginAt      *time.Time `json:"last_login_at"`
+	LastActiveAt     *time.Time `json:"last_active_at"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -261,6 +263,8 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 		Role             string `json:"role"`
 		Status           string `json:"status"`
 		EnforcedTenantID uint   `json:"enforced_tenant_id"`
+		AppCount         int64  `json:"app_count"`
+		LastActiveAt     string `json:"last_active_at"`
 		CreatedAt        string `json:"created_at"` // 改为字符串接收
 		UpdatedAt        string `json:"updated_at"` // 改为字符串接收
 	}
@@ -273,6 +277,8 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 			u.nickname,
 			COALESCE(u.avatar_url, '') as avatar,
 			u.enforced_tenant_id,
+			COALESCE(app_stats.app_count, 0) as app_count,
+			app_stats.last_active_at as last_active_at,
 			ta.role as role,
 			CASE 
 				WHEN ta.role = 'banned' THEN 'banned'
@@ -282,6 +288,13 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 			END as status,
 			ta.created_at as created_at,
 			ta.updated_at as updated_at`).
+		Joins(`LEFT JOIN (
+			SELECT au.user_id, COUNT(DISTINCT au.app_id) as app_count, MAX(au.last_active_at) as last_active_at
+			FROM app_users au
+			JOIN apps a ON a.id = au.app_id
+			WHERE a.tenant_id = ?
+			GROUP BY au.user_id
+		) app_stats ON app_stats.user_id = u.id`, tenantID).
 		Order("ta.created_at DESC").
 		Offset(offset).Limit(limit)
 
@@ -307,9 +320,15 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 			IsLocalUser:      isLocalUser,
 			IsGlobalUser:     isGlobalUser,
 			EnforcedTenantID: r.EnforcedTenantID,
+			AppCount:         r.AppCount,
 		}
 
 		// 转换时间字段
+		if r.LastActiveAt != "" {
+			if t, err := time.Parse(time.RFC3339, r.LastActiveAt); err == nil {
+				user.LastActiveAt = &t
+			}
+		}
 		if r.CreatedAt != "" {
 			if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
 				user.CreatedAt = t
