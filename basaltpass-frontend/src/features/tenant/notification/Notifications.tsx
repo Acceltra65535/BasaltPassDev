@@ -183,10 +183,6 @@ const TenantNotifications: React.FC = () => {
 
       {/*  */}
       <div className="rounded-xl bg-white shadow-sm">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">{t('tenantNotifications.listTitle')}</h2>
-        </div>
-        
         {loading ? (
           <PSkeleton.List items={5} />
         ) : !notifications || notifications.length === 0 ? (
