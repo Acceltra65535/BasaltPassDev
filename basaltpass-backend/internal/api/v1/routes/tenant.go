@@ -54,6 +54,7 @@ func RegisterTenantRoutes(v1 fiber.Router) {
 	tenantUserGroup := tenantAdminGroup.Group("/users")
 	tenantUserGroup.Get("/", tenant2.GetTenantUsersHandler) // 获取tenant的全部app的全部用户
 	tenantUserGroup.Get("/app-linked", tenant2.GetTenantAppLinkedUsersHandler)
+	tenantUserGroup.Get("/search", tenant2.SearchTenantUsersHandler)
 	tenantUserGroup.Get("/stats", tenant2.GetTenantUserStatsHandler)
 	tenantUserGroup.Get("/global-candidates", tenant2.GetGlobalUserCandidatesHandler)
 	tenantUserGroup.Post("/global-candidates/:id/authorize", tenant2.AuthorizeGlobalUserToTenantHandler)
@@ -108,8 +109,6 @@ func RegisterTenantRoutes(v1 fiber.Router) {
 	tenantNotifGroup.Post("/", tenantNotif.TenantCreateHandler)
 	tenantNotifGroup.Get("/", tenantNotif.TenantListHandler)
 	tenantNotifGroup.Get("/stats", tenantNotif.TenantGetNotificationStatsHandler)
-	tenantNotifGroup.Get("/users", tenantNotif.TenantListUsersHandler)
-	tenantNotifGroup.Get("/users/search", tenantNotif.TenantSearchUsersHandler)
 	tenantNotifGroup.Get("/:id", tenantNotif.TenantGetNotificationHandler)
 	tenantNotifGroup.Put("/:id", tenantNotif.TenantUpdateNotificationHandler)
 	tenantNotifGroup.Delete("/:id", tenantNotif.TenantDeleteHandler)

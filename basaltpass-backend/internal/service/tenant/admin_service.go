@@ -153,13 +153,23 @@ func (s *AdminTenantService) GetTenantDetail(id uint) (*admindto.AdminTenantDeta
 	return &admindto.AdminTenantDetailResponse{AdminTenantListResponse: base, Settings: settings, Stats: stats, RecentUsers: recentUsers, RecentApps: recentApps}, nil
 }
 
-// CreateTenant 创建租户（仅最小实现）
-func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest) (*model.Tenant, error) {
+type CreatedTenantResult struct {
+	Tenant        *model.Tenant
+	AutomationKey string
+}
+
+// CreateTenant 创建租户，并确保 owner 用户和 BeanCS automation key 可用。
+func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest) (*CreatedTenantResult, error) {
 	if req.Name == "" || req.Code == "" {
 		return nil, errors.New("名称与代码必填")
 	}
 	if req.OwnerEmail == "" {
 		return nil, errors.New("租户所有者邮箱必填")
+	}
+	req.OwnerEmail = strings.TrimSpace(strings.ToLower(req.OwnerEmail))
+	req.OwnerUsername = strings.TrimSpace(req.OwnerUsername)
+	if req.OwnerUsername == "" {
+		req.OwnerUsername = strings.Split(req.OwnerEmail, "@")[0]
 	}
 	req.Code = strings.ToLower(strings.TrimSpace(req.Code))
 	if !tenantCodePattern.MatchString(req.Code) {
@@ -189,7 +199,7 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 		ownerNickname = strings.Split(ownerEmail, "@")[0]
 	}
 
-	// 查找或创建所有者用户
+	// 查找或创建所有者用户。该用户保持 enforced_tenant_id=0，作为全局用户再绑定到 tenant_users。
 	var owner model.User
 	if err := s.db.Where("email = ?", ownerEmail).First(&owner).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -237,6 +247,7 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 
 	// 使用事务创建租户和绑定关系
 	var tenant *model.Tenant
+	var automationKey string
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// 创建租户
 		tenant = &model.Tenant{Name: req.Name, Code: req.Code, Description: req.Description}
@@ -278,6 +289,25 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 			return fmt.Errorf("初始化租户 RBAC 失败: %w", err)
 		}
 
+		plain, err := model.GenerateManualAPIKeyPlaintext()
+		if err != nil {
+			return fmt.Errorf("生成 automation key 失败: %w", err)
+		}
+		key := model.ManualAPIKey{
+			Name:            "BeanCS automation",
+			Scope:           model.ManualAPIKeyScopeTenant,
+			TenantID:        &tenant.ID,
+			IsActive:        true,
+			CreatedByUserID: owner.ID,
+		}
+		if err := key.SetPlainKey(plain); err != nil {
+			return fmt.Errorf("加密 automation key 失败: %w", err)
+		}
+		if err := tx.Create(&key).Error; err != nil {
+			return fmt.Errorf("创建 automation key 失败: %w", err)
+		}
+		automationKey = plain
+
 		return nil
 	})
 
@@ -285,7 +315,7 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 		return nil, err
 	}
 
-	return tenant, nil
+	return &CreatedTenantResult{Tenant: tenant, AutomationKey: automationKey}, nil
 }
 
 // UpdateTenant 更新租户

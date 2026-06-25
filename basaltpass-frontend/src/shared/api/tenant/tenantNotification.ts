@@ -109,14 +109,15 @@ export const tenantNotificationApi = {
 
   // tenant：gettenanttranslateduserlist（translatednotificationtranslated）
   getTenantUsers: (search?: string) => {
-    const params = search ? { search } : {}
-    return client.get('/api/v1/tenant/notifications/users', { params })
+    return client.get('/api/v1/tenant/users/search', {
+      params: { search: search || '', limit: 50 },
+    })
   },
 
   // tenant：searchuser（translatedemail、translated）
   searchTenantUsers: (search: string) => {
-    return client.get('/api/v1/tenant/notifications/users/search', { 
-      params: { search } 
+    return client.get('/api/v1/tenant/users/search', {
+      params: { search, limit: 20 },
     })
   },
 
@@ -124,4 +125,4 @@ export const tenantNotificationApi = {
   getNotificationStats: () => {
     return client.get<{ data: TenantNotificationStats }>('/api/v1/tenant/notifications/stats')
   }
-} 
+}

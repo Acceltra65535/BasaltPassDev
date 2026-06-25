@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -376,13 +377,17 @@ func dropLegacySystemSettingsTable() {
 // seedConfiguredAdmin checks if an admin email is configured and ensures the user exists as a SuperAdmin.
 func seedConfiguredAdmin() {
 	cfg := config.Get()
-	if cfg.Admin.Email == "" {
+	email := strings.TrimSpace(coalesceString(cfg.Admin.Email, os.Getenv("BASALTPASS_ADMIN_EMAIL")))
+	if email == "" {
 		return
 	}
 
 	db := common.DB()
-	email := cfg.Admin.Email
-	password := cfg.Admin.Password
+	username := strings.TrimSpace(coalesceString(cfg.Admin.Username, os.Getenv("BASALTPASS_ADMIN_USERNAME")))
+	if username == "" {
+		username = configuredAdminNickname(email)
+	}
+	password := coalesceString(cfg.Admin.Password, os.Getenv("BASALTPASS_ADMIN_PASSWORD"))
 	if password == "" {
 		log.Printf("[Migration] Refusing to create configured admin %s: admin password is empty", email)
 		return
@@ -396,7 +401,7 @@ func seedConfiguredAdmin() {
 		u = model.User{
 			Email:         email,
 			PasswordHash:  string(hash),
-			Nickname:      configuredAdminNickname(email),
+			Nickname:      username,
 			EmailVerified: true,
 			IsSystemAdmin: boolPtr(true),
 		}
@@ -418,7 +423,7 @@ func seedConfiguredAdmin() {
 			"password_changed_at": time.Now(),
 		}
 		if strings.TrimSpace(u.Nickname) == "" {
-			updates["nickname"] = configuredAdminNickname(email)
+			updates["nickname"] = username
 		}
 		if err := db.Model(&u).Updates(updates).Error; err != nil {
 			log.Printf("[Migration] Failed to sync configured admin credentials: %v", err)
@@ -455,6 +460,15 @@ func seedConfiguredAdmin() {
 			}
 		}
 	}
+}
+
+func coalesceString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func configuredAdminNickname(email string) string {

@@ -30,6 +30,7 @@ import { useI18n } from '@shared/i18n'
 import { 
   tenantUserManagementApi, 
   type TenantUser, 
+  type TenantUserDetailResponse,
   type TenantUserStats,
   type UpdateTenantUserRequest,
   type InviteTenantUserRequest
@@ -65,7 +66,10 @@ export default function TenantUserManagement() {
   // 
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   const [editingUser, setEditingUser] = useState<TenantUser | null>(null)
+  const [detailUser, setDetailUser] = useState<TenantUserDetailResponse | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   
   // 
@@ -315,6 +319,20 @@ export default function TenantUserManagement() {
     setShowEditModal(true)
   }
 
+  const handleViewUserDetail = async (user: TenantUser) => {
+    try {
+      setDetailLoading(true)
+      setShowDetailModal(true)
+      const detail = await tenantUserManagementApi.getTenantUser(user.id)
+      setDetailUser(detail)
+    } catch (err: any) {
+      setShowDetailModal(false)
+      showMessage('error', err.response?.data?.error || t('tenantUserManagement.messages.userDetailFailed'))
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
   const handleUpdateUser = async () => {
     if (!editingUser) return
 
@@ -483,6 +501,16 @@ export default function TenantUserManagement() {
       align: 'right',
       render: (user) => (
         <div className="flex items-center justify-end space-x-2">
+          <PButton
+            variant="ghost"
+            size="sm"
+            onClick={() => handleViewUserDetail(user)}
+            className="text-gray-600 hover:text-indigo-700"
+            title={t('tenantUserManagement.actions.viewUser')}
+            aria-label={t('tenantUserManagement.actions.viewUser')}
+          >
+            <EyeIcon className="h-4 w-4" />
+          </PButton>
           {user.is_tenant_user && user.role !== 'owner' ? (
             <>
               <PButton
@@ -780,7 +808,173 @@ export default function TenantUserManagement() {
             onClose={() => setShowEditModal(false)}
           />
         )}
+        {showDetailModal && (
+          <UserDetailModal
+            detail={detailUser}
+            loading={detailLoading}
+            onClose={() => {
+              setShowDetailModal(false)
+              setDetailUser(null)
+            }}
+          />
+        )}
     </TenantLayout>
+  )
+}
+
+const AccessChips: React.FC<{
+  items?: Array<{ id: number; code: string; name: string; source?: string }>
+  emptyText: string
+}> = ({ items, emptyText }) => {
+  if (!items || items.length === 0) {
+    return <div className="text-sm text-gray-500">{emptyText}</div>
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span
+          key={`${item.id}-${item.code}-${item.source || ''}`}
+          className="inline-flex max-w-full items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700"
+          title={item.name || item.code}
+        >
+          <span className="truncate font-medium">{item.code}</span>
+          {item.source ? <span className="text-gray-400">({item.source})</span> : null}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+const UserDetailModal: React.FC<{
+  detail: TenantUserDetailResponse | null
+  loading: boolean
+  onClose: () => void
+}> = ({ detail, loading, onClose }) => {
+  const { t, locale } = useI18n()
+  const user = detail?.user
+
+  const formatDateTime = (value?: string | null) => {
+    if (!value || value.startsWith('0001-') || Number.isNaN(new Date(value).getTime())) {
+      return t('tenantUserManagement.table.notAvailable')
+    }
+    return new Date(value).toLocaleString(locale)
+  }
+
+  return (
+    <div className="fixed inset-0 !m-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-8 mx-auto mb-8 w-full max-w-5xl rounded-lg border bg-white shadow">
+        <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{t('tenantUserManagement.modalDetail.title')}</h3>
+            {user ? (
+              <div className="mt-1 text-sm text-gray-500">
+                {user.nickname || user.email} · {user.email}
+              </div>
+            ) : null}
+          </div>
+          <PButton variant="ghost" onClick={onClose} aria-label={t('tenantUserManagement.common.close')}>
+            <XMarkIcon className="h-5 w-5" />
+          </PButton>
+        </div>
+
+        {loading ? (
+          <div className="p-6">
+            <PSkeleton.List items={6} />
+          </div>
+        ) : detail && user ? (
+          <div className="max-h-[75vh] overflow-y-auto p-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <div className="rounded-lg border border-gray-200 p-4">
+                <div className="text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.account')}</div>
+                <div className="mt-2 text-sm text-gray-900">{user.account_type || 'global'}</div>
+              </div>
+              <div className="rounded-lg border border-gray-200 p-4">
+                <div className="text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.tenantRole')}</div>
+                <div className="mt-2">
+                  <PBadge variant="info">{user.role}</PBadge>
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 p-4">
+                <div className="text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.status')}</div>
+                <div className="mt-2">
+                  <PBadge variant={user.status === 'active' ? 'success' : user.status === 'banned' ? 'error' : 'warning'}>{user.status}</PBadge>
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 p-4">
+                <div className="text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.connectedApps')}</div>
+                <div className="mt-2 text-sm font-semibold text-gray-900">{detail.apps.length}</div>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-lg border border-gray-200">
+              <div className="border-b border-gray-200 px-4 py-3">
+                <h4 className="text-sm font-semibold text-gray-900">{t('tenantUserManagement.modalDetail.tenantAccess')}</h4>
+              </div>
+              <div className="space-y-4 p-4">
+                <div>
+                  <div className="mb-2 text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.rbacRoles')}</div>
+                  <AccessChips items={detail.tenant_roles} emptyText={t('tenantUserManagement.modalDetail.noRoles')} />
+                </div>
+                <div>
+                  <div className="mb-2 text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.effectivePermissions')}</div>
+                  <AccessChips items={detail.tenant_permissions} emptyText={t('tenantUserManagement.modalDetail.noPermissions')} />
+                </div>
+                <div>
+                  <div className="mb-2 text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.directPermissions')}</div>
+                  <AccessChips items={detail.tenant_direct_permissions} emptyText={t('tenantUserManagement.modalDetail.noDirectPermissions')} />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-lg border border-gray-200">
+              <div className="border-b border-gray-200 px-4 py-3">
+                <h4 className="text-sm font-semibold text-gray-900">{t('tenantUserManagement.modalDetail.appAccess')}</h4>
+              </div>
+              {detail.apps.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">{t('tenantUserManagement.modalDetail.noApps')}</div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {detail.apps.map((app) => (
+                    <div key={app.id} className="p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">{app.name}</div>
+                          {app.description ? <div className="mt-1 text-sm text-gray-500">{app.description}</div> : null}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <PBadge variant={app.status === 'active' ? 'success' : 'default'}>{app.status}</PBadge>
+                          <PBadge variant={app.app_user_status === 'active' ? 'success' : 'warning'}>{app.app_user_status}</PBadge>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        {t('tenantUserManagement.modalDetail.lastAuthorized')}: {formatDateTime(app.last_authorized_at)}
+                      </div>
+                      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                        <div>
+                          <div className="mb-2 text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.rbacRoles')}</div>
+                          <AccessChips items={app.roles} emptyText={t('tenantUserManagement.modalDetail.noRoles')} />
+                        </div>
+                        <div>
+                          <div className="mb-2 text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.effectivePermissions')}</div>
+                          <AccessChips items={app.permissions} emptyText={t('tenantUserManagement.modalDetail.noPermissions')} />
+                        </div>
+                        <div>
+                          <div className="mb-2 text-xs font-medium uppercase text-gray-500">{t('tenantUserManagement.modalDetail.directPermissions')}</div>
+                          <AccessChips items={app.direct_permissions} emptyText={t('tenantUserManagement.modalDetail.noDirectPermissions')} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 text-sm text-gray-500">{t('tenantUserManagement.modalDetail.empty')}</div>
+        )}
+      </div>
+    </div>
   )
 }
 

@@ -4,7 +4,9 @@ import client from '../client'
 
 export interface TenantUser {
   id: number
+  user_uuid?: string
   email: string
+  phone?: string
   nickname: string
   avatar?: string
   role: 'owner' | 'admin' | 'member' | 'user'
@@ -21,6 +23,46 @@ export interface TenantUser {
   last_authorized_at?: string
   last_active_at?: string
   is_tenant_user?: boolean
+}
+
+export interface UserAccessPermission {
+  id: number
+  code: string
+  name: string
+  description?: string
+  category?: string
+  source?: string
+}
+
+export interface UserAccessRole {
+  id: number
+  code: string
+  name: string
+  description?: string
+  is_system?: boolean
+  permissions?: UserAccessPermission[]
+}
+
+export interface TenantUserAppAccess {
+  id: number
+  name: string
+  description?: string
+  status: string
+  app_user_status: string
+  first_authorized_at: string
+  last_authorized_at: string
+  last_active_at?: string
+  roles: UserAccessRole[]
+  direct_permissions: UserAccessPermission[]
+  permissions: UserAccessPermission[]
+}
+
+export interface TenantUserDetailResponse {
+  user: TenantUser
+  tenant_roles: UserAccessRole[]
+  tenant_direct_permissions: UserAccessPermission[]
+  tenant_permissions: UserAccessPermission[]
+  apps: TenantUserAppAccess[]
 }
 
 export interface TenantUserStats {
@@ -86,6 +128,14 @@ export const tenantUserManagementApi = {
     return response.data
   },
 
+  // search current tenant users
+  async searchTenantUsers(search: string, limit: number = 20): Promise<{ data: TenantUser[] }> {
+    const response = await client.get('/api/v1/tenant/users/search', {
+      params: { search, limit },
+    })
+    return response.data
+  },
+
   // gettenantusertranslated
   async getTenantUserStats() {
     const response = await client.get('/api/v1/tenant/users/stats')
@@ -117,7 +167,7 @@ export const tenantUserManagementApi = {
   },
 
   // getuserdetails
-  async getTenantUser(userId: number) {
+  async getTenantUser(userId: number): Promise<TenantUserDetailResponse> {
     const response = await client.get(`/api/v1/tenant/users/${userId}`)
     return response.data
   },

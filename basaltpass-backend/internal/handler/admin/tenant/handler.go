@@ -73,16 +73,36 @@ func CreateTenantHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	tenant, err := adminTenantService.CreateTenant(req)
+	created, err := adminTenantService.CreateTenant(req)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 	// 重新获取详情用于返回（含统计）
-	detail, derr := adminTenantService.GetTenantDetail(tenant.ID)
+	detail, derr := adminTenantService.GetTenantDetail(created.Tenant.ID)
 	if derr != nil { // 回退到最小字段
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": fiber.Map{"id": tenant.ID, "name": tenant.Name}, "message": "租户创建成功"})
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": fiber.Map{"id": created.Tenant.ID, "name": created.Tenant.Name, "code": created.Tenant.Code, "automation_token": created.AutomationKey}, "message": "租户创建成功"})
 	}
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": detail, "message": "租户创建成功"})
+	detailMap := fiber.Map{
+		"id":                   detail.ID,
+		"name":                 detail.Name,
+		"code":                 detail.Code,
+		"description":          detail.Description,
+		"status":               detail.Status,
+		"owner_id":             detail.OwnerID,
+		"owner_email":          detail.OwnerEmail,
+		"user_count":           detail.UserCount,
+		"app_count":            detail.AppCount,
+		"created_at":           detail.CreatedAt,
+		"updated_at":           detail.UpdatedAt,
+		"settings":             detail.Settings,
+		"stats":                detail.Stats,
+		"recent_users":         detail.RecentUsers,
+		"recent_apps":          detail.RecentApps,
+		"automation_token":     created.AutomationKey,
+		"automation_key":       created.AutomationKey,
+		"automation_key_scope": "tenant",
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": detailMap, "message": "租户创建成功"})
 }
 
 // UpdateTenantHandler 更新租户信息

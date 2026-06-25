@@ -21,7 +21,7 @@ type AdminCreateTenantRequest struct {
 	Description      string         `json:"description" validate:"max=500"`
 	OwnerEmail       string         `json:"owner_email" validate:"required,email"`
 	OwnerUsername    string         `json:"owner_username" validate:"omitempty,max=64"`
-	OwnerPassword    string         `json:"owner_password" validate:"omitempty"`
+	OwnerPassword    string         `json:"owner_password" validate:"omitempty,min=6"`
 	MaxApps          int            `json:"max_apps" validate:"required,min=1"`
 	MaxUsers         int            `json:"max_users" validate:"required,min=1"`
 	MaxTeams         int            `json:"max_teams" validate:"omitempty,min=1"`
