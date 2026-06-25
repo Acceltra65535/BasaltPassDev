@@ -26,7 +26,20 @@ func setupTenantUserUUIDHandlerTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.TenantUser{}, &model.App{}, &model.AppUser{}); err != nil {
+	if err := db.AutoMigrate(
+		&model.User{},
+		&model.TenantUser{},
+		&model.TenantRbacRole{},
+		&model.TenantRbacPermission{},
+		&model.TenantUserRbacRole{},
+		&model.TenantUserRbacPermission{},
+		&model.App{},
+		&model.AppUser{},
+		&model.AppRole{},
+		&model.AppPermission{},
+		&model.AppUserRole{},
+		&model.AppUserPermission{},
+	); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
 
@@ -48,6 +61,10 @@ func newTenantUsersTestApp(tenantID uint) *fiber.App {
 	app.Get("/tenant/users", func(c *fiber.Ctx) error {
 		c.Locals("tenantID", tenantID)
 		return GetTenantUsersHandler(c)
+	})
+	app.Get("/tenant/users/:id", func(c *fiber.Ctx) error {
+		c.Locals("tenantID", tenantID)
+		return GetTenantUserHandler(c)
 	})
 	return app
 }
@@ -200,5 +217,94 @@ func TestGetTenantUsersHandlerIncludesAuthorizedAppCount(t *testing.T) {
 	}
 	if payload.Users[0].AppCount != 2 {
 		t.Fatalf("expected app_count 2, got %d", payload.Users[0].AppCount)
+	}
+}
+
+func TestGetTenantUserHandlerIncludesAccessDetail(t *testing.T) {
+	db := setupTenantUserUUIDHandlerTestDB(t)
+	tenantID := uint(5001)
+
+	u := model.User{
+		EnforcedTenantID: tenantID,
+		Email:            "tenant-detail@example.com",
+		PasswordHash:     "x",
+		Nickname:         "detail-user",
+		EmailVerified:    true,
+	}
+	if err := db.Create(&u).Error; err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: u.ID, TenantID: tenantID, Role: model.TenantRoleMember}).Error; err != nil {
+		t.Fatalf("create tenant user failed: %v", err)
+	}
+
+	tenantPerm := model.TenantRbacPermission{TenantID: tenantID, Code: "tenant.users.read", Name: "Read Users", Category: "users"}
+	if err := db.Create(&tenantPerm).Error; err != nil {
+		t.Fatalf("create tenant permission failed: %v", err)
+	}
+	tenantRole := model.TenantRbacRole{TenantID: tenantID, Code: "tenant-reader", Name: "Tenant Reader"}
+	if err := db.Create(&tenantRole).Error; err != nil {
+		t.Fatalf("create tenant role failed: %v", err)
+	}
+	if err := db.Model(&tenantRole).Association("Permissions").Append(&tenantPerm); err != nil {
+		t.Fatalf("append tenant permission failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUserRbacRole{UserID: u.ID, TenantID: tenantID, RoleID: tenantRole.ID, AssignedBy: u.ID, AssignedAt: time.Now()}).Error; err != nil {
+		t.Fatalf("assign tenant role failed: %v", err)
+	}
+
+	app := model.App{TenantID: tenantID, Name: "Connected App", Status: model.AppStatusActive}
+	if err := db.Create(&app).Error; err != nil {
+		t.Fatalf("create app failed: %v", err)
+	}
+	now := time.Now()
+	if err := db.Create(&model.AppUser{AppID: app.ID, UserID: u.ID, FirstAuthorizedAt: now, LastAuthorizedAt: now, Status: model.AppUserStatusActive}).Error; err != nil {
+		t.Fatalf("create app user failed: %v", err)
+	}
+	appPerm := model.AppPermission{TenantID: tenantID, AppID: app.ID, Code: "app.profile.read", Name: "Read Profile", Category: "profile"}
+	if err := db.Create(&appPerm).Error; err != nil {
+		t.Fatalf("create app permission failed: %v", err)
+	}
+	appRole := model.AppRole{TenantID: tenantID, AppID: app.ID, Code: "app-reader", Name: "App Reader"}
+	if err := db.Create(&appRole).Error; err != nil {
+		t.Fatalf("create app role failed: %v", err)
+	}
+	if err := db.Model(&appRole).Association("Permissions").Append(&appPerm); err != nil {
+		t.Fatalf("append app permission failed: %v", err)
+	}
+	if err := db.Create(&model.AppUserRole{UserID: u.ID, AppID: app.ID, RoleID: appRole.ID, AssignedBy: u.ID, AssignedAt: now}).Error; err != nil {
+		t.Fatalf("assign app role failed: %v", err)
+	}
+
+	fiberApp := newTenantUsersTestApp(tenantID)
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/tenant/users/%d", u.ID), nil)
+	resp, err := fiberApp.Test(req, -1)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var payload TenantUserDetailResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response failed: %v", err)
+	}
+	if len(payload.TenantRoles) != 1 {
+		t.Fatalf("expected 1 tenant role, got %d", len(payload.TenantRoles))
+	}
+	if len(payload.TenantPermissions) != 1 {
+		t.Fatalf("expected 1 tenant permission, got %d", len(payload.TenantPermissions))
+	}
+	if len(payload.Apps) != 1 {
+		t.Fatalf("expected 1 app, got %d", len(payload.Apps))
+	}
+	if len(payload.Apps[0].Roles) != 1 {
+		t.Fatalf("expected 1 app role, got %d", len(payload.Apps[0].Roles))
+	}
+	if len(payload.Apps[0].Permissions) != 1 {
+		t.Fatalf("expected 1 app permission, got %d", len(payload.Apps[0].Permissions))
 	}
 }

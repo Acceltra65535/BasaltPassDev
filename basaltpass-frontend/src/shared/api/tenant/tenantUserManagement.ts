@@ -23,6 +23,46 @@ export interface TenantUser {
   is_tenant_user?: boolean
 }
 
+export interface UserAccessPermission {
+  id: number
+  code: string
+  name: string
+  description?: string
+  category?: string
+  source?: string
+}
+
+export interface UserAccessRole {
+  id: number
+  code: string
+  name: string
+  description?: string
+  is_system?: boolean
+  permissions?: UserAccessPermission[]
+}
+
+export interface TenantUserAppAccess {
+  id: number
+  name: string
+  description?: string
+  status: string
+  app_user_status: string
+  first_authorized_at: string
+  last_authorized_at: string
+  last_active_at?: string
+  roles: UserAccessRole[]
+  direct_permissions: UserAccessPermission[]
+  permissions: UserAccessPermission[]
+}
+
+export interface TenantUserDetailResponse {
+  user: TenantUser
+  tenant_roles: UserAccessRole[]
+  tenant_direct_permissions: UserAccessPermission[]
+  tenant_permissions: UserAccessPermission[]
+  apps: TenantUserAppAccess[]
+}
+
 export interface TenantUserStats {
   total_users: number
   active_users: number
@@ -117,7 +157,7 @@ export const tenantUserManagementApi = {
   },
 
   // getuserdetails
-  async getTenantUser(userId: number) {
+  async getTenantUser(userId: number): Promise<TenantUserDetailResponse> {
     const response = await client.get(`/api/v1/tenant/users/${userId}`)
     return response.data
   },

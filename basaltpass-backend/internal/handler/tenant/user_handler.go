@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -50,6 +51,46 @@ type TenantUserStatsResponse struct {
 	ActiveUsers       int64 `json:"active_users"`
 	SuspendedUsers    int64 `json:"suspended_users"`
 	NewUsersThisMonth int64 `json:"new_users_this_month"`
+}
+
+type UserAccessPermissionResponse struct {
+	ID          uint   `json:"id"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+	Source      string `json:"source"`
+}
+
+type UserAccessRoleResponse struct {
+	ID          uint                           `json:"id"`
+	Code        string                         `json:"code"`
+	Name        string                         `json:"name"`
+	Description string                         `json:"description"`
+	IsSystem    bool                           `json:"is_system,omitempty"`
+	Permissions []UserAccessPermissionResponse `json:"permissions,omitempty"`
+}
+
+type TenantUserAppAccessResponse struct {
+	ID                uint                           `json:"id"`
+	Name              string                         `json:"name"`
+	Description       string                         `json:"description"`
+	Status            string                         `json:"status"`
+	AppUserStatus     string                         `json:"app_user_status"`
+	FirstAuthorizedAt time.Time                      `json:"first_authorized_at"`
+	LastAuthorizedAt  time.Time                      `json:"last_authorized_at"`
+	LastActiveAt      *time.Time                     `json:"last_active_at,omitempty"`
+	Roles             []UserAccessRoleResponse       `json:"roles"`
+	DirectPermissions []UserAccessPermissionResponse `json:"direct_permissions"`
+	Permissions       []UserAccessPermissionResponse `json:"permissions"`
+}
+
+type TenantUserDetailResponse struct {
+	User                    TenantUserResponse             `json:"user"`
+	TenantRoles             []UserAccessRoleResponse       `json:"tenant_roles"`
+	TenantDirectPermissions []UserAccessPermissionResponse `json:"tenant_direct_permissions"`
+	TenantPermissions       []UserAccessPermissionResponse `json:"tenant_permissions"`
+	Apps                    []TenantUserAppAccessResponse  `json:"apps"`
 }
 
 // UpdateTenantUserRequest 更新租户用户请求
@@ -194,6 +235,204 @@ func buildTenantUserResponse(user model.User, tenantUser *model.TenantUser) Tena
 		CreatedAt:        createdAt,
 		UpdatedAt:        updatedAt,
 	}
+}
+
+func buildPermissionResponse(permission model.TenantRbacPermission, source string) UserAccessPermissionResponse {
+	return UserAccessPermissionResponse{
+		ID:          permission.ID,
+		Code:        permission.Code,
+		Name:        permission.Name,
+		Description: permission.Description,
+		Category:    permission.Category,
+		Source:      source,
+	}
+}
+
+func buildAppPermissionResponse(permission model.AppPermission, source string) UserAccessPermissionResponse {
+	return UserAccessPermissionResponse{
+		ID:          permission.ID,
+		Code:        permission.Code,
+		Name:        permission.Name,
+		Description: permission.Description,
+		Category:    permission.Category,
+		Source:      source,
+	}
+}
+
+func loadTenantUserAccessDetail(userID, tenantID uint) (*TenantUserDetailResponse, error) {
+	user, tenantUser, belongs, err := loadTenantMembership(userID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if !belongs {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	now := time.Now()
+	detail := &TenantUserDetailResponse{
+		User:                    buildTenantUserResponse(user, tenantUser),
+		TenantRoles:             []UserAccessRoleResponse{},
+		TenantDirectPermissions: []UserAccessPermissionResponse{},
+		TenantPermissions:       []UserAccessPermissionResponse{},
+		Apps:                    []TenantUserAppAccessResponse{},
+	}
+
+	var tenantRoles []model.TenantRbacRole
+	if err := common.DB().
+		Joins("JOIN tenant_user_roles tur ON tur.role_id = tenant_roles.id").
+		Where("tur.user_id = ? AND tur.tenant_id = ? AND tenant_roles.tenant_id = ?", userID, tenantID, tenantID).
+		Where("tur.expires_at IS NULL OR tur.expires_at > ?", now).
+		Preload("Permissions").
+		Order("tenant_roles.code ASC").
+		Find(&tenantRoles).Error; err != nil {
+		return nil, err
+	}
+
+	permissionByCode := map[string]UserAccessPermissionResponse{}
+	for _, role := range tenantRoles {
+		roleResp := UserAccessRoleResponse{
+			ID:          role.ID,
+			Code:        role.Code,
+			Name:        role.Name,
+			Description: role.Description,
+			IsSystem:    role.IsSystem,
+			Permissions: []UserAccessPermissionResponse{},
+		}
+		for _, permission := range role.Permissions {
+			permResp := buildPermissionResponse(permission, "role:"+role.Code)
+			roleResp.Permissions = append(roleResp.Permissions, permResp)
+			if _, ok := permissionByCode[permission.Code]; !ok {
+				permissionByCode[permission.Code] = permResp
+			}
+		}
+		detail.TenantRoles = append(detail.TenantRoles, roleResp)
+	}
+
+	var directTenantPermissions []model.TenantRbacPermission
+	if err := common.DB().
+		Table("tenant_user_permissions tup").
+		Select("tenant_permissions.*").
+		Joins("JOIN tenant_permissions ON tenant_permissions.id = tup.permission_id").
+		Where("tup.user_id = ? AND tup.tenant_id = ? AND tenant_permissions.tenant_id = ?", userID, tenantID, tenantID).
+		Where("tup.expires_at IS NULL OR tup.expires_at > ?", now).
+		Order("tenant_permissions.code ASC").
+		Find(&directTenantPermissions).Error; err != nil {
+		return nil, err
+	}
+	for _, permission := range directTenantPermissions {
+		permResp := buildPermissionResponse(permission, "direct")
+		detail.TenantDirectPermissions = append(detail.TenantDirectPermissions, permResp)
+		permissionByCode[permission.Code] = permResp
+	}
+	for _, permission := range permissionByCode {
+		detail.TenantPermissions = append(detail.TenantPermissions, permission)
+	}
+	sort.Slice(detail.TenantPermissions, func(i, j int) bool {
+		return detail.TenantPermissions[i].Code < detail.TenantPermissions[j].Code
+	})
+
+	type appAccessRow struct {
+		ID                uint
+		Name              string
+		Description       string
+		Status            string
+		AppUserStatus     string
+		FirstAuthorizedAt time.Time
+		LastAuthorizedAt  time.Time
+		LastActiveAt      *time.Time
+	}
+
+	var appRows []appAccessRow
+	if err := common.DB().
+		Table("app_users au").
+		Select(`
+			apps.id,
+			apps.name,
+			apps.description,
+			apps.status,
+			au.status as app_user_status,
+			au.first_authorized_at,
+			au.last_authorized_at,
+			au.last_active_at`).
+		Joins("JOIN apps ON apps.id = au.app_id").
+		Where("au.user_id = ? AND apps.tenant_id = ?", userID, tenantID).
+		Order("au.last_authorized_at DESC").
+		Scan(&appRows).Error; err != nil {
+		return nil, err
+	}
+
+	for _, appRow := range appRows {
+		appAccess := TenantUserAppAccessResponse{
+			ID:                appRow.ID,
+			Name:              appRow.Name,
+			Description:       appRow.Description,
+			Status:            appRow.Status,
+			AppUserStatus:     appRow.AppUserStatus,
+			FirstAuthorizedAt: appRow.FirstAuthorizedAt,
+			LastAuthorizedAt:  appRow.LastAuthorizedAt,
+			LastActiveAt:      appRow.LastActiveAt,
+			Roles:             []UserAccessRoleResponse{},
+			DirectPermissions: []UserAccessPermissionResponse{},
+			Permissions:       []UserAccessPermissionResponse{},
+		}
+
+		var appRoles []model.AppRole
+		if err := common.DB().
+			Joins("JOIN app_user_roles aur ON aur.role_id = app_roles.id").
+			Where("aur.user_id = ? AND aur.app_id = ? AND app_roles.app_id = ? AND app_roles.tenant_id = ?", userID, appRow.ID, appRow.ID, tenantID).
+			Where("aur.expires_at IS NULL OR aur.expires_at > ?", now).
+			Preload("Permissions").
+			Order("app_roles.code ASC").
+			Find(&appRoles).Error; err != nil {
+			return nil, err
+		}
+
+		appPermissionByCode := map[string]UserAccessPermissionResponse{}
+		for _, role := range appRoles {
+			roleResp := UserAccessRoleResponse{
+				ID:          role.ID,
+				Code:        role.Code,
+				Name:        role.Name,
+				Description: role.Description,
+				Permissions: []UserAccessPermissionResponse{},
+			}
+			for _, permission := range role.Permissions {
+				permResp := buildAppPermissionResponse(permission, "role:"+role.Code)
+				roleResp.Permissions = append(roleResp.Permissions, permResp)
+				if _, ok := appPermissionByCode[permission.Code]; !ok {
+					appPermissionByCode[permission.Code] = permResp
+				}
+			}
+			appAccess.Roles = append(appAccess.Roles, roleResp)
+		}
+
+		var directAppPermissions []model.AppPermission
+		if err := common.DB().
+			Table("app_user_permissions aup").
+			Select("app_permissions.*").
+			Joins("JOIN app_permissions ON app_permissions.id = aup.permission_id").
+			Where("aup.user_id = ? AND aup.app_id = ? AND app_permissions.app_id = ? AND app_permissions.tenant_id = ?", userID, appRow.ID, appRow.ID, tenantID).
+			Where("aup.expires_at IS NULL OR aup.expires_at > ?", now).
+			Order("app_permissions.code ASC").
+			Find(&directAppPermissions).Error; err != nil {
+			return nil, err
+		}
+		for _, permission := range directAppPermissions {
+			permResp := buildAppPermissionResponse(permission, "direct")
+			appAccess.DirectPermissions = append(appAccess.DirectPermissions, permResp)
+			appPermissionByCode[permission.Code] = permResp
+		}
+		for _, permission := range appPermissionByCode {
+			appAccess.Permissions = append(appAccess.Permissions, permission)
+		}
+		sort.Slice(appAccess.Permissions, func(i, j int) bool {
+			return appAccess.Permissions[i].Code < appAccess.Permissions[j].Code
+		})
+
+		detail.Apps = append(detail.Apps, appAccess)
+	}
+
+	return detail, nil
 }
 
 // GetTenantUsersHandler 获取租户用户列表
@@ -1062,27 +1301,24 @@ func GetTenantUserHandler(c *fiber.Ctx) error {
 	}
 	userID := uint(userIDUint64)
 
-	user, tenantUser, belongs, err := loadTenantMembership(userID, tenantID)
+	detail, err := loadTenantUserAccessDetail(userID, tenantID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "用户不存在",
+				"error": "用户不存在或不属于当前租户",
 			})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "查询用户失败",
 		})
 	}
-	if !belongs {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "用户不存在或不属于当前租户",
-		})
-	}
-
-	resp := buildTenantUserResponse(user, tenantUser)
 
 	return c.JSON(fiber.Map{
-		"user": resp,
+		"user":                      detail.User,
+		"tenant_roles":              detail.TenantRoles,
+		"tenant_direct_permissions": detail.TenantDirectPermissions,
+		"tenant_permissions":        detail.TenantPermissions,
+		"apps":                      detail.Apps,
 	})
 }
 
