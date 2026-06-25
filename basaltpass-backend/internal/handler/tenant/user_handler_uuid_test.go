@@ -63,6 +63,10 @@ func newTenantUsersTestApp(tenantID uint) *fiber.App {
 		c.Locals("tenantID", tenantID)
 		return GetTenantUsersHandler(c)
 	})
+	app.Get("/tenant/users/search", func(c *fiber.Ctx) error {
+		c.Locals("tenantID", tenantID)
+		return SearchTenantUsersHandler(c)
+	})
 	app.Get("/tenant/users/:id", func(c *fiber.Ctx) error {
 		c.Locals("tenantID", tenantID)
 		return GetTenantUserHandler(c)
@@ -218,6 +222,65 @@ func TestGetTenantUsersHandlerIncludesAuthorizedAppCount(t *testing.T) {
 	}
 	if payload.Users[0].AppCount != 2 {
 		t.Fatalf("expected app_count 2, got %d", payload.Users[0].AppCount)
+	}
+}
+
+func TestSearchTenantUsersHandlerUsesTenantMembership(t *testing.T) {
+	db := setupTenantUserUUIDHandlerTestDB(t)
+	tenantID := uint(4501)
+	otherTenantID := uint(4502)
+
+	inTenant := model.User{
+		EnforcedTenantID: tenantID,
+		Email:            "hannah@example.com",
+		Phone:            "13800000001",
+		PasswordHash:     "x",
+		Nickname:         "Hannah Tenant",
+		EmailVerified:    true,
+	}
+	otherTenant := model.User{
+		EnforcedTenantID: otherTenantID,
+		Email:            "hannah-other@example.com",
+		PasswordHash:     "x",
+		Nickname:         "Hannah Other",
+		EmailVerified:    true,
+	}
+	if err := db.Create(&inTenant).Error; err != nil {
+		t.Fatalf("create in-tenant user failed: %v", err)
+	}
+	if err := db.Create(&otherTenant).Error; err != nil {
+		t.Fatalf("create other tenant user failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: inTenant.ID, TenantID: tenantID, Role: model.TenantRoleMember}).Error; err != nil {
+		t.Fatalf("create tenant user failed: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: otherTenant.ID, TenantID: otherTenantID, Role: model.TenantRoleMember}).Error; err != nil {
+		t.Fatalf("create other tenant membership failed: %v", err)
+	}
+
+	app := newTenantUsersTestApp(tenantID)
+	req := httptest.NewRequest(http.MethodGet, "/tenant/users/search?search=hannah", nil)
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		Data []TenantUserSearchResult `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response failed: %v", err)
+	}
+	if len(payload.Data) != 1 {
+		t.Fatalf("expected 1 user, got %d", len(payload.Data))
+	}
+	if payload.Data[0].ID != inTenant.ID {
+		t.Fatalf("expected user id %d, got %d", inTenant.ID, payload.Data[0].ID)
 	}
 }
 

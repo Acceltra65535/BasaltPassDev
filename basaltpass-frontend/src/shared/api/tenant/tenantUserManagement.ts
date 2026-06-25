@@ -4,7 +4,9 @@ import client from '../client'
 
 export interface TenantUser {
   id: number
+  user_uuid?: string
   email: string
+  phone?: string
   nickname: string
   avatar?: string
   role: 'owner' | 'admin' | 'member' | 'user'
@@ -123,6 +125,14 @@ export const tenantUserManagementApi = {
     status?: string
   }) {
     const response = await client.get('/api/v1/tenant/users', { params })
+    return response.data
+  },
+
+  // search current tenant users
+  async searchTenantUsers(search: string, limit: number = 20): Promise<{ data: TenantUser[] }> {
+    const response = await client.get('/api/v1/tenant/users/search', {
+      params: { search, limit },
+    })
     return response.data
   },
 

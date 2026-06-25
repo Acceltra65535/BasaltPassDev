@@ -100,14 +100,15 @@ export const tenantNotificationApi = {
 
   // gettenanttranslateduserlist（translatednotificationtranslated）
   getTenantUsers: (search?: string) => {
-    const params = search ? { search } : {}
-    return client.get<{ data: TenantUser[] }>('/api/v1/tenant/notifications/users', { params })
+    return client.get<{ data: TenantUser[] }>('/api/v1/tenant/users/search', {
+      params: { search: search || '', limit: 50 },
+    })
   },
 
   // searchuser（email、translated、phone number）
   searchTenantUsers: (search: string) => {
-    return client.get<{ data: TenantUser[] }>('/api/v1/tenant/notifications/users/search', {
-      params: { search },
+    return client.get<{ data: TenantUser[] }>('/api/v1/tenant/users/search', {
+      params: { search, limit: 20 },
     })
   },
 

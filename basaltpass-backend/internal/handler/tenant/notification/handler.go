@@ -10,14 +10,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type TenantUserLite struct {
-	ID       uint   `json:"id"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone,omitempty"`
-	Nickname string `json:"nickname"`
-	Role     string `json:"role,omitempty"`
-}
-
 func getTenantUserUserIDs(tenantID uint) ([]uint, error) {
 	db := common.DB()
 	var ids []uint
@@ -25,47 +17,6 @@ func getTenantUserUserIDs(tenantID uint) ([]uint, error) {
 		return nil, err
 	}
 	return ids, nil
-}
-
-func getTenantUserIDs(tenantID uint) ([]uint, error) {
-	db := common.DB()
-	var ids []uint
-	if err := db.Table("app_users au").
-		Select("DISTINCT au.user_id").
-		Joins("JOIN apps a ON a.id = au.app_id").
-		Where("a.tenant_id = ?", tenantID).
-		Pluck("au.user_id", &ids).Error; err != nil {
-		return nil, err
-	}
-	return ids, nil
-}
-
-func listTenantUsersLite(tenantID uint, search string, limit int) ([]TenantUserLite, error) {
-	db := common.DB()
-	q := db.Table("users u").
-		Select("DISTINCT u.id, u.email, u.phone, u.nickname, COALESCE(ta.role, 'member') as role").
-		Joins("JOIN app_users au ON au.user_id = u.id").
-		Joins("JOIN apps a ON a.id = au.app_id").
-		Joins("LEFT JOIN tenant_users ta ON ta.user_id = u.id AND ta.tenant_id = ?", tenantID).
-		Where("a.tenant_id = ?", tenantID)
-
-	if s := strings.TrimSpace(search); s != "" {
-		like := "%" + s + "%"
-		q = q.Where(
-			"LOWER(u.email) LIKE LOWER(?) OR LOWER(u.nickname) LIKE LOWER(?) OR LOWER(u.phone) LIKE LOWER(?)",
-			like, like, like,
-		)
-	}
-
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
-
-	var rows []TenantUserLite
-	if err := q.Order("u.id DESC").Limit(limit).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	return rows, nil
 }
 
 func intersectUint(requested []uint, allowed []uint) []uint {
@@ -107,7 +58,7 @@ func TenantCreateHandler(c *fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uint)
 	senderID := c.Locals("userID").(uint)
 	// 验证/展开 receiver 属于租户；当为空时表示向租户下所有用户广播（按用户逐条写入，避免 receiver_id=0 导致全局已读问题）
-	tenantUserIDs, err := getTenantUserIDs(tenantID)
+	tenantUserIDs, err := getTenantUserUserIDs(tenantID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -146,7 +97,7 @@ func TenantListHandler(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"data": []model.Notification{}, "total": 0, "page": page, "page_size": pageSize})
 	}
 
-	tenantUserIDs, err := getTenantUserIDs(tenantID)
+	tenantUserIDs, err := getTenantUserUserIDs(tenantID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -238,7 +189,7 @@ func TenantGetNotificationStatsHandler(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"data": fiber.Map{"total_sent": 0, "total_read": 0, "total_unread": 0, "read_rate": 0}})
 	}
 
-	tenantUserIDs, err := getTenantUserIDs(tenantID)
+	tenantUserIDs, err := getTenantUserUserIDs(tenantID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -269,26 +220,4 @@ func TenantGetNotificationStatsHandler(c *fiber.Ctx) error {
 		readRate = (float64(read) / float64(total)) * 100
 	}
 	return c.JSON(fiber.Map{"data": fiber.Map{"total_sent": total, "total_read": read, "total_unread": unread, "read_rate": readRate, "type_stats": m}})
-}
-
-// TenantListUsersHandler GET /tenant/notifications/users
-func TenantListUsersHandler(c *fiber.Ctx) error {
-	tenantID := c.Locals("tenantID").(uint)
-	search := strings.TrimSpace(c.Query("search", ""))
-	users, err := listTenantUsersLite(tenantID, search, 50)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-	return c.JSON(fiber.Map{"data": users})
-}
-
-// TenantSearchUsersHandler GET /tenant/notifications/users/search
-func TenantSearchUsersHandler(c *fiber.Ctx) error {
-	tenantID := c.Locals("tenantID").(uint)
-	search := strings.TrimSpace(c.Query("search", ""))
-	users, err := listTenantUsersLite(tenantID, search, 20)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-	return c.JSON(fiber.Map{"data": users})
 }

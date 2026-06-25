@@ -53,6 +53,16 @@ type TenantUserStatsResponse struct {
 	NewUsersThisMonth int64 `json:"new_users_this_month"`
 }
 
+type TenantUserSearchResult struct {
+	ID       uint   `json:"id"`
+	UserUUID string `json:"user_uuid"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone,omitempty"`
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+	Role     string `json:"role"`
+}
+
 type UserAccessPermissionResponse struct {
 	ID          uint   `json:"id"`
 	Code        string `json:"code"`
@@ -620,6 +630,46 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 			"total": total,
 		},
 	})
+}
+
+// SearchTenantUsersHandler 搜索当前租户范围内用户
+// GET /api/v1/tenant/users/search
+func SearchTenantUsersHandler(c *fiber.Ctx) error {
+	tenantID := c.Locals("tenantID").(uint)
+	search := strings.TrimSpace(c.Query("search", ""))
+	limit, _ := strconv.Atoi(c.Query("limit", "20"))
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	query := common.DB().Table("tenant_users ta").
+		Select(`
+			u.id,
+			u.user_uuid,
+			u.email,
+			u.phone,
+			u.nickname,
+			COALESCE(u.avatar_url, '') as avatar,
+			ta.role`).
+		Joins("JOIN system_auth_users u ON u.id = ta.user_id").
+		Where("ta.tenant_id = ?", tenantID)
+
+	if search != "" {
+		like := "%" + search + "%"
+		query = query.Where(
+			"LOWER(u.email) LIKE LOWER(?) OR LOWER(u.nickname) LIKE LOWER(?) OR LOWER(u.phone) LIKE LOWER(?)",
+			like, like, like,
+		)
+	}
+
+	var users []TenantUserSearchResult
+	if err := query.Order("ta.created_at DESC").Limit(limit).Scan(&users).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "搜索租户用户失败: " + err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{"data": users})
 }
 
 // TenantAppLinkedUserResponse 授权了当前租户任一应用的用户（从 app_users 聚合）
