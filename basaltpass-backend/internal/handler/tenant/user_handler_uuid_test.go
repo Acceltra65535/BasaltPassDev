@@ -31,6 +31,7 @@ func setupTenantUserUUIDHandlerTestDB(t *testing.T) *gorm.DB {
 		&model.TenantUser{},
 		&model.TenantRbacRole{},
 		&model.TenantRbacPermission{},
+		&model.TenantRbacRolePermission{},
 		&model.TenantUserRbacRole{},
 		&model.TenantUserRbacPermission{},
 		&model.App{},
@@ -246,8 +247,8 @@ func TestGetTenantUserHandlerIncludesAccessDetail(t *testing.T) {
 	if err := db.Create(&tenantRole).Error; err != nil {
 		t.Fatalf("create tenant role failed: %v", err)
 	}
-	if err := db.Model(&tenantRole).Association("Permissions").Append(&tenantPerm); err != nil {
-		t.Fatalf("append tenant permission failed: %v", err)
+	if err := db.Create(&model.TenantRbacRolePermission{RoleID: tenantRole.ID, PermissionID: tenantPerm.ID}).Error; err != nil {
+		t.Fatalf("create tenant role permission failed: %v", err)
 	}
 	if err := db.Create(&model.TenantUserRbacRole{UserID: u.ID, TenantID: tenantID, RoleID: tenantRole.ID, AssignedBy: u.ID, AssignedAt: time.Now()}).Error; err != nil {
 		t.Fatalf("assign tenant role failed: %v", err)

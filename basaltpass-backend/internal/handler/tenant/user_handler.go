@@ -259,6 +259,30 @@ func buildAppPermissionResponse(permission model.AppPermission, source string) U
 	}
 }
 
+func loadTenantRolePermissions(roleID, tenantID uint) ([]model.TenantRbacPermission, error) {
+	var permissions []model.TenantRbacPermission
+	err := common.DB().
+		Table("tenant_permissions").
+		Select("tenant_permissions.*").
+		Joins("JOIN tenant_role_permissions trp ON trp.permission_id = tenant_permissions.id").
+		Where("trp.role_id = ? AND tenant_permissions.tenant_id = ?", roleID, tenantID).
+		Order("tenant_permissions.code ASC").
+		Find(&permissions).Error
+	return permissions, err
+}
+
+func loadAppRolePermissions(roleID, appID, tenantID uint) ([]model.AppPermission, error) {
+	var permissions []model.AppPermission
+	err := common.DB().
+		Table("app_permissions").
+		Select("app_permissions.*").
+		Joins("JOIN app_role_permissions arp ON arp.app_permission_id = app_permissions.id").
+		Where("arp.app_role_id = ? AND app_permissions.app_id = ? AND app_permissions.tenant_id = ?", roleID, appID, tenantID).
+		Order("app_permissions.code ASC").
+		Find(&permissions).Error
+	return permissions, err
+}
+
 func loadTenantUserAccessDetail(userID, tenantID uint) (*TenantUserDetailResponse, error) {
 	user, tenantUser, belongs, err := loadTenantMembership(userID, tenantID)
 	if err != nil {
@@ -282,7 +306,6 @@ func loadTenantUserAccessDetail(userID, tenantID uint) (*TenantUserDetailRespons
 		Joins("JOIN tenant_user_roles tur ON tur.role_id = tenant_roles.id").
 		Where("tur.user_id = ? AND tur.tenant_id = ? AND tenant_roles.tenant_id = ?", userID, tenantID, tenantID).
 		Where("tur.expires_at IS NULL OR tur.expires_at > ?", now).
-		Preload("Permissions").
 		Order("tenant_roles.code ASC").
 		Find(&tenantRoles).Error; err != nil {
 		return nil, err
@@ -298,7 +321,11 @@ func loadTenantUserAccessDetail(userID, tenantID uint) (*TenantUserDetailRespons
 			IsSystem:    role.IsSystem,
 			Permissions: []UserAccessPermissionResponse{},
 		}
-		for _, permission := range role.Permissions {
+		rolePermissions, err := loadTenantRolePermissions(role.ID, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		for _, permission := range rolePermissions {
 			permResp := buildPermissionResponse(permission, "role:"+role.Code)
 			roleResp.Permissions = append(roleResp.Permissions, permResp)
 			if _, ok := permissionByCode[permission.Code]; !ok {
@@ -381,7 +408,6 @@ func loadTenantUserAccessDetail(userID, tenantID uint) (*TenantUserDetailRespons
 			Joins("JOIN app_user_roles aur ON aur.role_id = app_roles.id").
 			Where("aur.user_id = ? AND aur.app_id = ? AND app_roles.app_id = ? AND app_roles.tenant_id = ?", userID, appRow.ID, appRow.ID, tenantID).
 			Where("aur.expires_at IS NULL OR aur.expires_at > ?", now).
-			Preload("Permissions").
 			Order("app_roles.code ASC").
 			Find(&appRoles).Error; err != nil {
 			return nil, err
@@ -396,7 +422,11 @@ func loadTenantUserAccessDetail(userID, tenantID uint) (*TenantUserDetailRespons
 				Description: role.Description,
 				Permissions: []UserAccessPermissionResponse{},
 			}
-			for _, permission := range role.Permissions {
+			rolePermissions, err := loadAppRolePermissions(role.ID, appRow.ID, tenantID)
+			if err != nil {
+				return nil, err
+			}
+			for _, permission := range rolePermissions {
 				permResp := buildAppPermissionResponse(permission, "role:"+role.Code)
 				roleResp.Permissions = append(roleResp.Permissions, permResp)
 				if _, ok := appPermissionByCode[permission.Code]; !ok {
