@@ -55,9 +55,9 @@ func TestCreateAppCreatesTenantUserWithUserRole(t *testing.T) {
 	}
 
 	user := model.User{
-		Email:        "creator@example.com",
-		PasswordHash: "x",
-		TenantID:     tenant.ID,
+		Email:            "creator@example.com",
+		PasswordHash:     "x",
+		EnforcedTenantID: tenant.ID,
 		IsSystemAdmin: func() *bool {
 			v := true
 			return &v
@@ -110,9 +110,9 @@ func TestCreateAppRejectsUnauthorizedTenantUser(t *testing.T) {
 	}
 
 	user := model.User{
-		Email:        "member@example.com",
-		PasswordHash: "x",
-		TenantID:     tenant.ID,
+		Email:            "member@example.com",
+		PasswordHash:     "x",
+		EnforcedTenantID: tenant.ID,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -151,9 +151,9 @@ func TestCreateAppAllowsDirectTenantPermission(t *testing.T) {
 	}
 
 	user := model.User{
-		Email:        "direct-permission@example.com",
-		PasswordHash: "x",
-		TenantID:     tenant.ID,
+		Email:            "direct-permission@example.com",
+		PasswordHash:     "x",
+		EnforcedTenantID: tenant.ID,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -210,9 +210,9 @@ func TestCreateAppKeepsExistingTenantUserRole(t *testing.T) {
 	}
 
 	user := model.User{
-		Email:        "owner@example.com",
-		PasswordHash: "x",
-		TenantID:     tenant.ID,
+		Email:            "owner@example.com",
+		PasswordHash:     "x",
+		EnforcedTenantID: tenant.ID,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)

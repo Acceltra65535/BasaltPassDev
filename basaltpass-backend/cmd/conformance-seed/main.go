@@ -29,20 +29,20 @@ func main() {
 	must(err)
 	isAdmin := false
 	user := model.User{
-		TenantID:       tenant.ID,
-		Email:          "conformance@example.com",
-		PasswordHash:   passwordHash,
-		Nickname:       "conformance",
-		GivenName:      "Conformance",
-		FamilyName:     "User",
-		MiddleName:     "OIDC",
-		Locale:         "en-US",
-		Zoneinfo:       "America/Los_Angeles",
-		EmailVerified:  true,
-		IsSystemAdmin:  &isAdmin,
-		WebAuthnUserID: []byte("conformance-webauthn-user-id"),
+		EnforcedTenantID: tenant.ID,
+		Email:            "conformance@example.com",
+		PasswordHash:     passwordHash,
+		Nickname:         "conformance",
+		GivenName:        "Conformance",
+		FamilyName:       "User",
+		MiddleName:       "OIDC",
+		Locale:           "en-US",
+		Zoneinfo:         "America/Los_Angeles",
+		EmailVerified:    true,
+		IsSystemAdmin:    &isAdmin,
+		WebAuthnUserID:   []byte("conformance-webauthn-user-id"),
 	}
-	must(db.Where("email = ? AND tenant_id = ?", user.Email, tenant.ID).Assign(user).FirstOrCreate(&user).Error)
+	must(db.Where("email = ? AND enforced_tenant_id = ?", user.Email, tenant.ID).Assign(user).FirstOrCreate(&user).Error)
 	must(db.Where("user_id = ? AND tenant_id = ?", user.ID, tenant.ID).
 		FirstOrCreate(&model.TenantUser{UserID: user.ID, TenantID: tenant.ID, Role: model.TenantRoleMember}).Error)
 

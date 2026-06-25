@@ -147,3 +147,68 @@ func TestJWTMiddleware_RejectsRefreshToken(t *testing.T) {
 		t.Fatalf("expected code auth_invalid_token, got %#v", body["code"])
 	}
 }
+
+func TestJWTMiddleware_AcceptsAccessTokenCookieForSafeRequest(t *testing.T) {
+	app := fiber.New()
+	app.Use(JWTMiddleware())
+	app.Get("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
+
+	token := createJWTForTest(t, jwt.MapClaims{
+		"sub": float64(42),
+		"typ": "access",
+		"exp": time.Now().Add(10 * time.Minute).Unix(),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	resp, _ := doRequestAndDecode(t, app, req)
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestJWTMiddleware_RequiresCSRFForCookieUnsafeRequest(t *testing.T) {
+	app := fiber.New()
+	app.Use(JWTMiddleware())
+	app.Post("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
+
+	token := createJWTForTest(t, jwt.MapClaims{
+		"sub": float64(42),
+		"typ": "access",
+		"exp": time.Now().Add(10 * time.Minute).Unix(),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	resp, body := doRequestAndDecode(t, app, req)
+
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+	if body["code"] != "csrf_invalid" {
+		t.Fatalf("expected code csrf_invalid, got %#v", body["code"])
+	}
+}
+
+func TestJWTMiddleware_AcceptsCookieUnsafeRequestWithCSRF(t *testing.T) {
+	app := fiber.New()
+	app.Use(JWTMiddleware())
+	app.Post("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
+
+	token := createJWTForTest(t, jwt.MapClaims{
+		"sub": float64(42),
+		"typ": "access",
+		"exp": time.Now().Add(10 * time.Minute).Unix(),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	req.AddCookie(&http.Cookie{Name: "csrf_token", Value: "csrf-test"})
+	req.Header.Set("X-CSRF-Token", "csrf-test")
+	resp, _ := doRequestAndDecode(t, app, req)
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}

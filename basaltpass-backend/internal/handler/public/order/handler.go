@@ -31,15 +31,6 @@ func resolveOrderTenantID(c *fiber.Ctx) (uint64, error) {
 		return 0, fiber.NewError(fiber.StatusUnauthorized, "未登录")
 	}
 
-	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, userID).Error; err != nil {
-		return 0, fiber.NewError(fiber.StatusForbidden, "无法识别当前租户")
-	}
-
-	if user.TenantID > 0 {
-		return uint64(user.TenantID), nil
-	}
-
 	var tenantUser model.TenantUser
 	if err := common.DB().Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&tenantUser).Error; err != nil {
 		return 0, fiber.NewError(fiber.StatusForbidden, "当前用户没有关联租户")

@@ -26,16 +26,20 @@ import (
 
 // TenantUserResponse 租户用户响应
 type TenantUserResponse struct {
-	ID          uint       `json:"id"`
-	UserUUID    string     `json:"user_uuid"`
-	Email       string     `json:"email"`
-	Nickname    string     `json:"nickname"`
-	Avatar      string     `json:"avatar"`
-	Role        string     `json:"role"`   // tenant role: owner, admin, user, baned (非管理员用户默认为 user)
-	Status      string     `json:"status"` // active, inactive, suspended（只看 users 表，或者看 tenant_users 里的 baned）
-	LastLoginAt *time.Time `json:"last_login_at"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID               uint       `json:"id"`
+	UserUUID         string     `json:"user_uuid"`
+	Email            string     `json:"email"`
+	Nickname         string     `json:"nickname"`
+	Avatar           string     `json:"avatar"`
+	Role             string     `json:"role"`   // tenant role: owner, admin, user, banned
+	Status           string     `json:"status"` // active, inactive, suspended, banned
+	AccountType      string     `json:"account_type"`
+	IsLocalUser      bool       `json:"is_local_user"`
+	IsGlobalUser     bool       `json:"is_global_user"`
+	EnforcedTenantID uint       `json:"enforced_tenant_id"`
+	LastLoginAt      *time.Time `json:"last_login_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 // TenantUserStatsResponse 租户用户统计响应
@@ -69,6 +73,16 @@ type GlobalUserCandidateResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+func tenantAccountType(enforcedTenantID, tenantID uint) (string, bool, bool) {
+	if enforcedTenantID == 0 {
+		return "global", false, true
+	}
+	if tenantID != 0 && enforcedTenantID == tenantID {
+		return "local", true, false
+	}
+	return "local", false, false
+}
+
 // AuthorizeGlobalUserRequest 授权全局用户加入当前租户
 type AuthorizeGlobalUserRequest struct {
 	Role string `json:"role,omitempty"`
@@ -100,15 +114,15 @@ func resolveTenantInviteBaseURL(originHeader, refererHeader string, cfg *config.
 	return "http://localhost:5104"
 }
 
-// loadTenantMembership 判断用户归属，只使用 users.tenant_id 作为唯一标准。
-// tenant_users 仅用于补充角色信息。
+// loadTenantMembership 判断用户归属，只使用 tenant_users 作为唯一事实来源。
+// users.enforced_tenant_id 只表示 tenant-local 登录约束，不表示成员关系。
 func loadTenantMembership(userID, tenantID uint) (model.User, *model.TenantUser, bool, error) {
 	var user model.User
 	if err := common.DB().Unscoped().First(&user, userID).Error; err != nil {
 		return model.User{}, nil, false, err
 	}
 
-	if user.TenantID != tenantID || tenantID == 0 {
+	if tenantID == 0 {
 		return user, nil, false, nil
 	}
 
@@ -118,12 +132,11 @@ func loadTenantMembership(userID, tenantID uint) (model.User, *model.TenantUser,
 		return model.User{}, nil, false, err
 	}
 
-	var tenantUserPtr *model.TenantUser
-	if err == nil {
-		tenantUserPtr = &tenantUser
+	if err == gorm.ErrRecordNotFound {
+		return user, nil, false, nil
 	}
 
-	return user, tenantUserPtr, true, nil
+	return user, &tenantUser, true, nil
 }
 
 func loadTenantMembershipByUUID(userUUID string, tenantID uint) (model.User, *model.TenantUser, bool, error) {
@@ -151,24 +164,33 @@ func buildTenantUserResponse(user model.User, tenantUser *model.TenantUser) Tena
 	}
 
 	status := "active"
-	if role == "baned" {
-		status = "baned"
+	if role == string(model.TenantRoleBanned) {
+		status = string(model.TenantRoleBanned)
 	} else if !user.EmailVerified {
 		status = "inactive"
 	} else if user.DeletedAt.Valid {
 		status = "suspended"
 	}
+	tenantID := uint(0)
+	if tenantUser != nil {
+		tenantID = tenantUser.TenantID
+	}
+	accountType, isLocalUser, isGlobalUser := tenantAccountType(user.EnforcedTenantID, tenantID)
 
 	return TenantUserResponse{
-		ID:        user.ID,
-		UserUUID:  user.UserUUID,
-		Email:     user.Email,
-		Nickname:  user.Nickname,
-		Avatar:    user.AvatarURL,
-		Role:      role,
-		Status:    status,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
+		ID:               user.ID,
+		UserUUID:         user.UserUUID,
+		Email:            user.Email,
+		Nickname:         user.Nickname,
+		Avatar:           user.AvatarURL,
+		Role:             role,
+		Status:           status,
+		AccountType:      accountType,
+		IsLocalUser:      isLocalUser,
+		IsGlobalUser:     isGlobalUser,
+		EnforcedTenantID: user.EnforcedTenantID,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
 	}
 }
 
@@ -193,10 +215,10 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 
 	offset := (page - 1) * limit
 
-	// 基于 users.tenant_id 查询当前租户的所有用户，tenant_users 仅补充角色信息
-	base := common.DB().Table("system_auth_users u").
-		Joins("LEFT JOIN tenant_users ta ON ta.user_id = u.id AND ta.tenant_id = ?", tenantID).
-		Where("u.tenant_id = ?", tenantID)
+	// 基于 tenant_users 查询当前租户的所有成员
+	base := common.DB().Table("tenant_users ta").
+		Joins("JOIN system_auth_users u ON u.id = ta.user_id").
+		Where("ta.tenant_id = ?", tenantID)
 
 	// 搜索条件（邮箱/昵称）
 	if search != "" {
@@ -204,24 +226,20 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 	}
 	// 角色过滤
 	if role != "" {
-		if role == "user" {
-			base = base.Where("(ta.role IS NULL OR ta.role = '')")
-		} else {
-			base = base.Where("ta.role = ?", role)
-		}
+		base = base.Where("ta.role = ?", role)
 	}
 	// 状态过滤（如果想要根据状态过滤）
 	if status != "" {
-		if status == "baned" {
-			base = base.Where("ta.role = ?", "baned")
+		if status == string(model.TenantRoleBanned) {
+			base = base.Where("ta.role = ?", model.TenantRoleBanned)
 		} else {
 			switch status {
 			case "active":
-				base = base.Where("u.email_verified = 1 AND u.deleted_at IS NULL AND ta.role != 'baned'")
+				base = base.Where("u.email_verified = 1 AND u.deleted_at IS NULL AND ta.role != ?", model.TenantRoleBanned)
 			case "inactive":
-				base = base.Where("u.email_verified = 0 AND ta.role != 'baned'")
+				base = base.Where("u.email_verified = 0 AND ta.role != ?", model.TenantRoleBanned)
 			case "suspended":
-				base = base.Where("u.deleted_at IS NOT NULL AND ta.role != 'baned'")
+				base = base.Where("u.deleted_at IS NOT NULL AND ta.role != ?", model.TenantRoleBanned)
 			}
 		}
 	}
@@ -235,15 +253,16 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 	// 列表查询并聚合
 	// 注意：SQLite 中时间字段需要特殊处理
 	type tenantUserRow struct {
-		ID        uint   `json:"id"`
-		UserUUID  string `json:"user_uuid"`
-		Email     string `json:"email"`
-		Nickname  string `json:"nickname"`
-		Avatar    string `json:"avatar"`
-		Role      string `json:"role"`
-		Status    string `json:"status"`
-		CreatedAt string `json:"created_at"` // 改为字符串接收
-		UpdatedAt string `json:"updated_at"` // 改为字符串接收
+		ID               uint   `json:"id"`
+		UserUUID         string `json:"user_uuid"`
+		Email            string `json:"email"`
+		Nickname         string `json:"nickname"`
+		Avatar           string `json:"avatar"`
+		Role             string `json:"role"`
+		Status           string `json:"status"`
+		EnforcedTenantID uint   `json:"enforced_tenant_id"`
+		CreatedAt        string `json:"created_at"` // 改为字符串接收
+		UpdatedAt        string `json:"updated_at"` // 改为字符串接收
 	}
 
 	var rows []tenantUserRow
@@ -253,9 +272,10 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 			u.email,
 			u.nickname,
 			COALESCE(u.avatar_url, '') as avatar,
-			COALESCE(ta.role, 'user') as role,
+			u.enforced_tenant_id,
+			ta.role as role,
 			CASE 
-				WHEN ta.role = 'baned' THEN 'baned'
+				WHEN ta.role = 'banned' THEN 'banned'
 				WHEN u.email_verified = 0 THEN 'inactive'
 				WHEN u.deleted_at IS NOT NULL THEN 'suspended'
 				ELSE 'active'
@@ -274,14 +294,19 @@ func GetTenantUsersHandler(c *fiber.Ctx) error {
 	// 转换为对外响应结构（处理时间字段转换）
 	users := make([]TenantUserResponse, 0, len(rows))
 	for _, r := range rows {
+		accountType, isLocalUser, isGlobalUser := tenantAccountType(r.EnforcedTenantID, tenantID)
 		user := TenantUserResponse{
-			ID:       r.ID,
-			UserUUID: r.UserUUID,
-			Email:    r.Email,
-			Nickname: r.Nickname,
-			Avatar:   r.Avatar,
-			Role:     r.Role,
-			Status:   r.Status,
+			ID:               r.ID,
+			UserUUID:         r.UserUUID,
+			Email:            r.Email,
+			Nickname:         r.Nickname,
+			Avatar:           r.Avatar,
+			Role:             r.Role,
+			Status:           r.Status,
+			AccountType:      accountType,
+			IsLocalUser:      isLocalUser,
+			IsGlobalUser:     isGlobalUser,
+			EnforcedTenantID: r.EnforcedTenantID,
 		}
 
 		// 转换时间字段
@@ -399,9 +424,8 @@ func GetTenantUserStatsHandler(c *fiber.Ctx) error {
 
 	var stats TenantUserStatsResponse
 
-	// 基于 users.tenant_id 统计
 	// 总用户数
-	if err := common.DB().Table("system_auth_users").
+	if err := common.DB().Table("tenant_users").
 		Where("tenant_id = ?", tenantID).
 		Count(&stats.TotalUsers).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "统计总用户数失败"})
@@ -409,16 +433,16 @@ func GetTenantUserStatsHandler(c *fiber.Ctx) error {
 
 	// 活跃用户
 	if err := common.DB().Table("system_auth_users u").
-		Joins("LEFT JOIN tenant_users ta ON ta.user_id = u.id AND ta.tenant_id = ?", tenantID).
-		Where("u.tenant_id = ? AND u.email_verified = 1 AND u.deleted_at IS NULL AND (ta.role IS NULL OR ta.role != 'baned')", tenantID).
+		Joins("JOIN tenant_users ta ON ta.user_id = u.id AND ta.tenant_id = ?", tenantID).
+		Where("u.email_verified = 1 AND u.deleted_at IS NULL AND ta.role != ?", model.TenantRoleBanned).
 		Count(&stats.ActiveUsers).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "统计活跃用户数失败"})
 	}
 
 	// 暂停/封禁用户
 	if err := common.DB().Table("system_auth_users u").
-		Joins("LEFT JOIN tenant_users ta ON ta.user_id = u.id AND ta.tenant_id = ?", tenantID).
-		Where("u.tenant_id = ? AND (u.deleted_at IS NOT NULL OR ta.role = 'baned')", tenantID).
+		Joins("JOIN tenant_users ta ON ta.user_id = u.id AND ta.tenant_id = ?", tenantID).
+		Where("u.deleted_at IS NOT NULL OR ta.role = ?", model.TenantRoleBanned).
 		Count(&stats.SuspendedUsers).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "统计暂停用户数失败"})
 	}
@@ -426,8 +450,9 @@ func GetTenantUserStatsHandler(c *fiber.Ctx) error {
 	// 本月新用户
 	now := time.Now()
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	if err := common.DB().Table("system_auth_users").
-		Where("tenant_id = ? AND created_at >= ?", tenantID, startOfMonth).
+	if err := common.DB().Table("tenant_users ta").
+		Joins("JOIN system_auth_users u ON u.id = ta.user_id").
+		Where("ta.tenant_id = ? AND ta.created_at >= ?", tenantID, startOfMonth).
 		Count(&stats.NewUsersThisMonth).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "统计本月新用户失败"})
 	}
@@ -443,6 +468,7 @@ func GetGlobalUserCandidatesHandler(c *fiber.Ctx) error {
 	if err := requireTenantAdminRole(c); err != nil {
 		return err
 	}
+	tenantID := c.Locals("tenantID").(uint)
 
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "20"))
@@ -457,9 +483,10 @@ func GetGlobalUserCandidatesHandler(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	query := common.DB().Table("system_auth_users").
-		Where("tenant_id = ?", 0).
+		Where("enforced_tenant_id = ?", 0).
 		Where("deleted_at IS NULL").
 		Where("COALESCE(is_system_admin, 0) = 0")
+	query = query.Where("NOT EXISTS (SELECT 1 FROM tenant_users tu WHERE tu.user_id = system_auth_users.id AND tu.tenant_id = ?)", tenantID)
 
 	if search != "" {
 		query = query.Where("LOWER(email) LIKE LOWER(?) OR LOWER(nickname) LIKE LOWER(?)", "%"+search+"%", "%"+search+"%")
@@ -552,7 +579,7 @@ func AuthorizeGlobalUserToTenantHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	if user.TenantID != 0 && user.TenantID != tenantID && membershipCount == 0 {
+	if user.EnforcedTenantID != 0 && user.EnforcedTenantID != tenantID && membershipCount == 0 {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"error": "用户已属于其他租户",
 		})
@@ -564,17 +591,6 @@ func AuthorizeGlobalUserToTenantHandler(c *fiber.Ctx) error {
 			tx.Rollback()
 		}
 	}()
-
-	// Keep global user identity in users.tenant_id=0 and rely on tenant_users for tenant perspective.
-	// For legacy drifted data, normalize back to 0 when membership exists.
-	if user.TenantID != 0 && membershipCount > 0 {
-		if err := tx.Model(&model.User{}).Where("id = ?", user.ID).Update("tenant_id", 0).Error; err != nil {
-			tx.Rollback()
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "授权加入租户失败",
-			})
-		}
-	}
 
 	var tenantUser model.TenantUser
 	err = tx.Where("tenant_id = ? AND user_id = ?", tenantID, user.ID).First(&tenantUser).Error
@@ -643,7 +659,7 @@ func UpdateTenantUserHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// 检查用户是否属于该租户（优先 users.tenant_id）
+	// 检查用户是否属于该租户（tenant_users 为事实来源）
 	user, tenantUser, belongs, err := loadTenantMembership(userID, tenantID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -670,7 +686,7 @@ func UpdateTenantUserHandler(c *fiber.Ctx) error {
 
 	// 更新租户角色
 	if req.Role != nil {
-		if *req.Role != "admin" && *req.Role != "user" && *req.Role != "baned" {
+		if *req.Role != "admin" && *req.Role != "member" && *req.Role != "user" && *req.Role != "banned" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "无效的角色类型",
 			})
@@ -747,8 +763,8 @@ func RemoveTenantUserHandler(c *fiber.Ctx) error {
 	}
 	userID := uint(userIDUint64)
 
-	// 检查用户是否属于该租户（优先 users.tenant_id）
-	user, tenantUser, belongs, err := loadTenantMembership(userID, tenantID)
+	// 检查用户是否属于该租户（tenant_users 为事实来源）
+	_, tenantUser, belongs, err := loadTenantMembership(userID, tenantID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -779,20 +795,7 @@ func RemoveTenantUserHandler(c *fiber.Ctx) error {
 		}
 	}()
 
-	// 主关系去除 users.tenant_id（如果仍要保留兼容），主要依靠 tenant_users 移除
-	if user.TenantID == tenantID {
-		if err := tx.Unscoped().
-			Model(&model.User{}).
-			Where("id = ?", userID).
-			Update("tenant_id", 0).Error; err != nil {
-			tx.Rollback()
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "移除用户失败",
-			})
-		}
-	}
-
-	// 兼容删除 tenant_user 关系记录
+	// 删除 tenant_user 关系记录
 	if tenantUser != nil {
 		if err := tx.Delete(tenantUser).Error; err != nil {
 			tx.Rollback()
@@ -843,13 +846,6 @@ func InviteTenantUserHandler(c *fiber.Ctx) error {
 	userExists := common.DB().Where("email = ?", req.Email).First(&existingUser).Error == nil
 
 	if userExists {
-		// 关系判断优先 users.tenant_id，tenant_users 作为补充
-		if existingUser.TenantID == tenantID {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-				"error": "用户已经是该租户的成员",
-			})
-		}
-
 		var existingTenantUser model.TenantUser
 		if common.DB().Where("tenant_id = ? AND user_id = ?", tenantID, existingUser.ID).
 			First(&existingTenantUser).Error == nil {
@@ -858,7 +854,7 @@ func InviteTenantUserHandler(c *fiber.Ctx) error {
 			})
 		}
 
-		if existingUser.TenantID != 0 && existingUser.TenantID != tenantID {
+		if existingUser.EnforcedTenantID != 0 && existingUser.EnforcedTenantID != tenantID {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"error": "用户已属于其他租户",
 			})
@@ -878,17 +874,6 @@ func InviteTenantUserHandler(c *fiber.Ctx) error {
 			})
 		}
 
-		// 主关系落到 users.tenant_id
-		if err := tx.Model(&model.User{}).
-			Where("id = ?", existingUser.ID).
-			Update("tenant_id", tenantID).Error; err != nil {
-			tx.Rollback()
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "添加用户到租户失败",
-			})
-		}
-
-		// 非 owner 角色写入 tenant_users
 		tenantUser := model.TenantUser{
 			UserID:   existingUser.ID,
 			TenantID: tenantID,

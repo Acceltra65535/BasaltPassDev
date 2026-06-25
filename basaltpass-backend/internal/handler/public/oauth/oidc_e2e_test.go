@@ -50,20 +50,23 @@ func TestOIDCAuthCodePKCEIssuesIDTokenAndJWKSVerifies(t *testing.T) {
 		t.Fatalf("create tenant: %v", err)
 	}
 	user := model.User{
-		TenantID:      tenant.ID,
-		Email:         "oidc@example.com",
-		PasswordHash:  "x",
-		Nickname:      "Oidc User",
-		GivenName:     "Oidc",
-		MiddleName:    "Middle",
-		FamilyName:    "User",
-		Locale:        "en-US",
-		Zoneinfo:      "America/Los_Angeles",
-		AvatarURL:     "https://rp.example/avatar.png",
-		EmailVerified: true,
+		EnforcedTenantID: tenant.ID,
+		Email:            "oidc@example.com",
+		PasswordHash:     "x",
+		Nickname:         "Oidc User",
+		GivenName:        "Oidc",
+		MiddleName:       "Middle",
+		FamilyName:       "User",
+		Locale:           "en-US",
+		Zoneinfo:         "America/Los_Angeles",
+		AvatarURL:        "https://rp.example/avatar.png",
+		EmailVerified:    true,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user: %v", err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: user.ID, TenantID: tenant.ID, Role: model.TenantRoleMember}).Error; err != nil {
+		t.Fatalf("create tenant user: %v", err)
 	}
 	app := model.App{TenantID: tenant.ID, Name: "OIDC App", Status: model.AppStatusActive}
 	if err := db.Create(&app).Error; err != nil {
@@ -171,19 +174,20 @@ func TestUserInfoIncludesProfileScopeAndEssentialNameClaims(t *testing.T) {
 	tenant := model.Tenant{Name: "UserInfo Tenant", Code: "userinfo", Status: model.TenantStatusActive}
 	_ = db.Create(&tenant).Error
 	user := model.User{
-		TenantID:      tenant.ID,
-		Email:         "userinfo@example.com",
-		PasswordHash:  "x",
-		Nickname:      "User Info",
-		GivenName:     "User",
-		MiddleName:    "Middle",
-		FamilyName:    "Info",
-		Locale:        "en-US",
-		Zoneinfo:      "America/Los_Angeles",
-		AvatarURL:     "https://rp.example/avatar.png",
-		EmailVerified: true,
+		EnforcedTenantID: tenant.ID,
+		Email:            "userinfo@example.com",
+		PasswordHash:     "x",
+		Nickname:         "User Info",
+		GivenName:        "User",
+		MiddleName:       "Middle",
+		FamilyName:       "Info",
+		Locale:           "en-US",
+		Zoneinfo:         "America/Los_Angeles",
+		AvatarURL:        "https://rp.example/avatar.png",
+		EmailVerified:    true,
 	}
 	_ = db.Create(&user).Error
+	_ = db.Create(&model.TenantUser{UserID: user.ID, TenantID: tenant.ID, Role: model.TenantRoleMember}).Error
 	gender := model.Gender{Code: "male", Name: "Male", IsActive: true}
 	_ = db.Create(&gender).Error
 	birthdate := time.Date(1980, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -258,7 +262,7 @@ func TestAuthorizationCodeDoesNotReturnRefreshTokenWithoutOfflineAccess(t *testi
 	db := setupOIDCE2EDB(t)
 	tenant := model.Tenant{Name: "No Offline Tenant", Code: "no-offline", Status: model.TenantStatusActive}
 	_ = db.Create(&tenant).Error
-	user := model.User{TenantID: tenant.ID, Email: "no-offline@example.com", PasswordHash: "x"}
+	user := model.User{EnforcedTenantID: tenant.ID, Email: "no-offline@example.com", PasswordHash: "x"}
 	_ = db.Create(&user).Error
 	app := model.App{TenantID: tenant.ID, Name: "No Offline App", Status: model.AppStatusActive}
 	_ = db.Create(&app).Error
@@ -536,7 +540,7 @@ func TestEndSessionRedirectsToRegisteredPostLogoutURI(t *testing.T) {
 	if err := db.Create(&tenant).Error; err != nil {
 		t.Fatalf("create tenant: %v", err)
 	}
-	user := model.User{TenantID: tenant.ID, Email: "logout@example.com", PasswordHash: "x", Nickname: "Logout User"}
+	user := model.User{EnforcedTenantID: tenant.ID, Email: "logout@example.com", PasswordHash: "x", Nickname: "Logout User"}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -592,7 +596,7 @@ func TestEndSessionRejectsUnregisteredPostLogoutURI(t *testing.T) {
 	db := setupOIDCE2EDB(t)
 	tenant := model.Tenant{Name: "Logout Tenant 2", Code: "logout2", Status: model.TenantStatusActive}
 	_ = db.Create(&tenant).Error
-	user := model.User{TenantID: tenant.ID, Email: "logout2@example.com", PasswordHash: "x"}
+	user := model.User{EnforcedTenantID: tenant.ID, Email: "logout2@example.com", PasswordHash: "x"}
 	_ = db.Create(&user).Error
 	appModel := model.App{TenantID: tenant.ID, Name: "Logout App 2", Status: model.AppStatusActive}
 	_ = db.Create(&appModel).Error
@@ -632,7 +636,7 @@ func TestEndSessionAcceptsIDTokenSignedByRetainedRetiredKey(t *testing.T) {
 	db := setupOIDCE2EDB(t)
 	tenant := model.Tenant{Name: "Logout Rotation Tenant", Code: "logout-rotation", Status: model.TenantStatusActive}
 	_ = db.Create(&tenant).Error
-	user := model.User{TenantID: tenant.ID, Email: "logout-rotation@example.com", PasswordHash: "x"}
+	user := model.User{EnforcedTenantID: tenant.ID, Email: "logout-rotation@example.com", PasswordHash: "x"}
 	_ = db.Create(&user).Error
 	appModel := model.App{TenantID: tenant.ID, Name: "Logout Rotation App", Status: model.AppStatusActive}
 	_ = db.Create(&appModel).Error
@@ -674,7 +678,7 @@ func TestPublicClientUsesNoneAuthWithS256PKCE(t *testing.T) {
 	db := setupOIDCE2EDB(t)
 	tenant := model.Tenant{Name: "Public Tenant", Code: "public", Status: model.TenantStatusActive}
 	_ = db.Create(&tenant).Error
-	user := model.User{TenantID: tenant.ID, Email: "public@example.com", PasswordHash: "x"}
+	user := model.User{EnforcedTenantID: tenant.ID, Email: "public@example.com", PasswordHash: "x"}
 	_ = db.Create(&user).Error
 	appModel := model.App{TenantID: tenant.ID, Name: "Public App", Status: model.AppStatusActive}
 	_ = db.Create(&appModel).Error

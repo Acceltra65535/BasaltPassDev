@@ -14,8 +14,8 @@ jobs:
       BASALTPASS_DATABASE_DRIVER: sqlite
       BASALTPASS_DATABASE_DSN: file:basaltpass-ci?mode=memory&cache=shared
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: basaltpass-backend/go.mod
           cache-dependency-path: basaltpass-backend/go.sum
@@ -25,8 +25,8 @@ jobs:
   frontend-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -40,8 +40,8 @@ jobs:
   docs-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm

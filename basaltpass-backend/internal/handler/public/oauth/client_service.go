@@ -655,8 +655,10 @@ func validateClientJWTAuthMetadata(method string, jwks string, jwksURI string) e
 	if strings.TrimSpace(jwks) == "" && strings.TrimSpace(jwksURI) == "" {
 		return errors.New("private_key_jwt 需要配置 client_jwks 或 client_jwks_uri")
 	}
-	if strings.TrimSpace(jwksURI) != "" && !isValidURL(jwksURI) {
-		return errors.New("无效的 client_jwks_uri: " + jwksURI)
+	if strings.TrimSpace(jwksURI) != "" {
+		if err := validateClientJWKSURI(jwksURI); err != nil {
+			return errors.New("无效的 client_jwks_uri: " + err.Error())
+		}
 	}
 	return nil
 }

@@ -7,6 +7,8 @@ import (
 	"basaltpass-backend/internal/model"
 	auth2 "basaltpass-backend/internal/service/auth"
 	"basaltpass-backend/internal/utils"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"log"
 	"strings"
@@ -61,11 +63,11 @@ func normalizeScope(raw string) string {
 	}
 }
 
-func setCookie(c *fiber.Ctx, name, value string, maxAge int, isProd bool) {
+func setCookie(c *fiber.Ctx, name, value string, maxAge int, isProd bool, httpOnly bool) {
 	c.Cookie(&fiber.Cookie{
 		Name:     name,
 		Value:    value,
-		HTTPOnly: true,
+		HTTPOnly: httpOnly,
 		Secure:   isProd,
 		SameSite: "Lax",
 		Path:     "/",
@@ -74,19 +76,40 @@ func setCookie(c *fiber.Ctx, name, value string, maxAge int, isProd bool) {
 	})
 }
 
+func newCSRFToken() string {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(buf)
+}
+
+func setCSRFCookie(c *fiber.Ctx, scope string, isProd bool) {
+	token := newCSRFToken()
+	if token == "" {
+		return
+	}
+	normalizedScope := normalizeScope(scope)
+	setCookie(c, "csrf_token", token, 7*24*60*60, isProd, false)
+	if normalizedScope != "user" {
+		setCookie(c, "csrf_token_"+normalizedScope, token, 7*24*60*60, isProd, false)
+	}
+}
+
 func setAuthCookies(c *fiber.Ctx, scope, accessToken, refreshToken string) {
 	isProd := config.IsProduction()
 	normalizedScope := normalizeScope(scope)
 
 	// Keep unscoped cookies for OAuth hosted login compatibility.
-	setCookie(c, "refresh_token", refreshToken, 7*24*60*60, isProd)
-	setCookie(c, "access_token", accessToken, 15*60, isProd)
+	setCookie(c, "refresh_token", refreshToken, 7*24*60*60, isProd, true)
+	setCookie(c, "access_token", accessToken, 15*60, isProd, true)
 
 	// Also set scope-specific cookies for tenant/admin consoles.
 	if normalizedScope != "user" {
-		setCookie(c, "refresh_token_"+normalizedScope, refreshToken, 7*24*60*60, isProd)
-		setCookie(c, "access_token_"+normalizedScope, accessToken, 15*60, isProd)
+		setCookie(c, "refresh_token_"+normalizedScope, refreshToken, 7*24*60*60, isProd, true)
+		setCookie(c, "access_token_"+normalizedScope, accessToken, 15*60, isProd, true)
 	}
+	setCSRFCookie(c, normalizedScope, isProd)
 }
 
 type switchUserTenantIdentityRequest struct {
@@ -122,15 +145,15 @@ func SwitchUserTenantIdentityHandler(c *fiber.Ctx) error {
 	targetTenantID := *req.TenantID
 
 	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, uid).Error; err != nil {
+	if err := common.DB().Select("id", "enforced_tenant_id").First(&user, uid).Error; err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user not found"})
 	}
 
 	if targetTenantID == 0 {
-		if user.TenantID != 0 {
+		if user.EnforcedTenantID != 0 {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "tenant account cannot switch to global identity"})
 		}
-	} else if user.TenantID != targetTenantID {
+	} else if user.EnforcedTenantID != targetTenantID {
 		var membershipCount int64
 		if err := common.DB().Model(&model.TenantUser{}).
 			Where("user_id = ? AND tenant_id = ? AND role IN ?", uid, targetTenantID, []model.TenantRole{model.TenantRoleOwner, model.TenantRoleAdmin, model.TenantRoleMember, model.TenantRoleUser}).

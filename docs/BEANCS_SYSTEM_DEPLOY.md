@@ -40,6 +40,8 @@ Recommended for email:
 - `BASALTPASS_EMAIL_PROVIDER`: for example `aws_ses`.
 - `BASALTPASS_EMAIL_FROM`: sender address.
 
+Apps can send email through BasaltPass with `POST /api/v1/s2s/emails/send` when their OAuth client has the `s2s.email.send` scope. The request may target authorized BasaltPass users with `user_ids` / `broadcast`, or direct recipient addresses with `to`.
+
 Optional:
 
 - `BASALTPASS_DATABASE_DRIVER`: defaults to `postgres`.

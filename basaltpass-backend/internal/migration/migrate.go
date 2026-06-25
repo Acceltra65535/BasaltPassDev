@@ -133,6 +133,10 @@ func RunMigrations() error {
 		log.Printf("[Migration] Ensured CREDIT currency (created=%d, skipped=%d)", created, skipped)
 	}
 
+	// 用户表历史列必须在 User AutoMigrate 之前处理，否则 AutoMigrate 会先创建
+	// enforced_tenant_id，导致旧 tenant_id 无法被直接重命名。
+	ensureUserEnforcedTenantColumn()
+
 	// 迁移钱包货币字段（在完整AutoMigrate之前处理）
 	MigrateWalletCurrencyField()
 
@@ -260,7 +264,9 @@ func RunMigrations() error {
 
 	// 在自动迁移后处理特殊的迁移情况
 	handleSpecialMigrations()
-	ensureUserTenantScopedUniqueIndexes()
+	ensureUserEnforcedTenantColumn()
+	backfillTenantUsersFromHistoricalUserTenant()
+	ensureUserEnforcedTenantScopedUniqueIndexes()
 	ensureUserUUIDBackfillAndUniqueIndex()
 	ensureIsSystemAdminNonUniqueIndex()
 
@@ -379,7 +385,7 @@ func seedConfiguredAdmin() {
 	db := common.DB()
 	username := strings.TrimSpace(coalesceString(cfg.Admin.Username, os.Getenv("BASALTPASS_ADMIN_USERNAME")))
 	if username == "" {
-		username = "admin"
+		username = configuredAdminNickname(email)
 	}
 	password := coalesceString(cfg.Admin.Password, os.Getenv("BASALTPASS_ADMIN_PASSWORD"))
 	if password == "" {
@@ -405,13 +411,29 @@ func seedConfiguredAdmin() {
 		}
 		log.Printf("[Migration] Created configured admin user: %s", email)
 	} else {
-		updates := map[string]any{"is_system_admin": true, "email_verified": true}
+		hash, hashErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if hashErr != nil {
+			log.Printf("[Migration] Failed to hash configured admin password: %v", hashErr)
+			return
+		}
+		updates := map[string]any{
+			"password_hash":       string(hash),
+			"email_verified":      true,
+			"is_system_admin":     true,
+			"password_changed_at": time.Now(),
+		}
 		if strings.TrimSpace(u.Nickname) == "" {
 			updates["nickname"] = username
 		}
 		if err := db.Model(&u).Updates(updates).Error; err != nil {
-			log.Printf("[Migration] Failed to update configured admin: %v", err)
+			log.Printf("[Migration] Failed to sync configured admin credentials: %v", err)
+			return
 		}
+		if err := db.First(&u, u.ID).Error; err != nil {
+			log.Printf("[Migration] Failed to reload configured admin: %v", err)
+			return
+		}
+		log.Printf("[Migration] Synced configured admin credentials: %s", email)
 	}
 
 	// Ensure global role (role_id = 1 for superadmin)
@@ -447,6 +469,13 @@ func coalesceString(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func configuredAdminNickname(email string) string {
+	if idx := strings.Index(email, "@"); idx > 0 {
+		return email[:idx]
+	}
+	return "admin"
 }
 
 func boolPtr(value bool) *bool {
@@ -1434,13 +1463,116 @@ func seedDevData() error {
 	return nil
 }
 
-// ensureUserTenantScopedUniqueIndexes 确保 users 表中邮箱/手机号唯一性为“租户范围”
-// 目标：同一租户内 email/phone 不重复；不同租户允许重复。
-func ensureUserTenantScopedUniqueIndexes() {
+// ensureUserEnforcedTenantColumn renames the historical users.tenant_id column to
+// enforced_tenant_id. The field no longer represents tenant membership.
+func ensureUserEnforcedTenantColumn() {
+	db := common.DB()
+	if !db.Migrator().HasTable("system_auth_users") {
+		return
+	}
+
+	hasEnforcedTenantID := db.Migrator().HasColumn("system_auth_users", "enforced_tenant_id")
+	hasLegacyTenantID := db.Migrator().HasColumn("system_auth_users", "tenant_id")
+
+	if hasLegacyTenantID && !hasEnforcedTenantID {
+		log.Println("[Migration] Renaming users.tenant_id to users.enforced_tenant_id...")
+		if err := db.Migrator().RenameColumn("system_auth_users", "tenant_id", "enforced_tenant_id"); err != nil {
+			log.Printf("[Migration] Failed to rename users.tenant_id: %v", err)
+		}
+		return
+	}
+
+	if hasLegacyTenantID && hasEnforcedTenantID {
+		log.Println("[Migration] Backfilling users.enforced_tenant_id from legacy users.tenant_id...")
+		if err := db.Exec(`
+			UPDATE system_auth_users
+			SET enforced_tenant_id = tenant_id
+			WHERE tenant_id IS NOT NULL
+			  AND tenant_id <> 0
+			  AND (enforced_tenant_id IS NULL OR enforced_tenant_id = 0)
+		`).Error; err != nil {
+			log.Printf("[Migration] Failed to backfill users.enforced_tenant_id: %v", err)
+		}
+		return
+	}
+
+	if hasEnforcedTenantID {
+		return
+	}
+
+	if err := db.Exec("ALTER TABLE system_auth_users ADD COLUMN enforced_tenant_id bigint unsigned NOT NULL DEFAULT 0").Error; err != nil {
+		log.Printf("[Migration] Failed to add users.enforced_tenant_id: %v", err)
+	}
+}
+
+func backfillTenantUsersFromHistoricalUserTenant() {
+	db := common.DB()
+	if !db.Migrator().HasTable("system_auth_users") ||
+		!db.Migrator().HasTable("tenant_users") ||
+		!db.Migrator().HasTable("tenants") ||
+		!db.Migrator().HasColumn("system_auth_users", "enforced_tenant_id") {
+		return
+	}
+
+	type legacyUserTenant struct {
+		ID               uint
+		EnforcedTenantID uint
+	}
+
+	var rows []legacyUserTenant
+	if err := db.Table("system_auth_users").
+		Select("id, enforced_tenant_id").
+		Where("enforced_tenant_id > 0").
+		Scan(&rows).Error; err != nil {
+		log.Printf("[Migration] Failed to scan users for tenant_users backfill: %v", err)
+		return
+	}
+
+	created := 0
+	for _, row := range rows {
+		var tenantCount int64
+		if err := db.Model(&model.Tenant{}).Where("id = ?", row.EnforcedTenantID).Count(&tenantCount).Error; err != nil {
+			log.Printf("[Migration] Failed to validate tenant %d for user %d: %v", row.EnforcedTenantID, row.ID, err)
+			continue
+		}
+		if tenantCount == 0 {
+			continue
+		}
+
+		var membershipCount int64
+		if err := db.Model(&model.TenantUser{}).
+			Where("user_id = ? AND tenant_id = ?", row.ID, row.EnforcedTenantID).
+			Count(&membershipCount).Error; err != nil {
+			log.Printf("[Migration] Failed to check tenant_users for user %d tenant %d: %v", row.ID, row.EnforcedTenantID, err)
+			continue
+		}
+		if membershipCount > 0 {
+			continue
+		}
+
+		if err := db.Create(&model.TenantUser{
+			UserID:   row.ID,
+			TenantID: row.EnforcedTenantID,
+			Role:     model.TenantRoleMember,
+		}).Error; err != nil {
+			log.Printf("[Migration] Failed to backfill tenant_users for user %d tenant %d: %v", row.ID, row.EnforcedTenantID, err)
+			continue
+		}
+		created++
+	}
+
+	if created > 0 {
+		log.Printf("[Migration] Backfilled tenant_users from historical user tenant field: %d rows", created)
+	}
+}
+
+// ensureUserEnforcedTenantScopedUniqueIndexes 确保 users 表中邮箱/手机号唯一性为“强制租户范围”
+// 目标：同一 enforced_tenant_id 内 email/phone 不重复。
+func ensureUserEnforcedTenantScopedUniqueIndexes() {
 	db := common.DB()
 	dialect := strings.ToLower(db.Dialector.Name())
 
-	log.Println("[Migration] Ensuring tenant-scoped unique indexes on users(email, tenant_id) and users(phone, tenant_id)...")
+	log.Println("[Migration] Ensuring scoped unique indexes on users(email, enforced_tenant_id) and users(phone, enforced_tenant_id)...")
 
 	if dialect == "mysql" {
 		ensureUserOptionalContactsNullableOnMySQL()
@@ -1453,47 +1585,50 @@ func ensureUserTenantScopedUniqueIndexes() {
 	dropIndexIfExists("system_auth_users", "users_phone_key")
 	dropIndexIfExists("system_auth_users", "idx_email_tenant")
 	dropIndexIfExists("system_auth_users", "idx_phone_tenant")
+	dropIndexIfExists("system_auth_users", "idx_users_tenant_id")
+	dropIndexIfExists("system_auth_users", "idx_email_enforced_tenant")
+	dropIndexIfExists("system_auth_users", "idx_phone_enforced_tenant")
 
 	// 再创建期望的复合唯一索引
 	if dialect == "sqlite" || dialect == "postgres" || dialect == "postgresql" {
 		if err := createIndexIfMissing(
 			"system_auth_users",
-			"idx_email_tenant",
-			"CREATE UNIQUE INDEX idx_email_tenant ON system_auth_users (email, tenant_id) WHERE email != ''",
+			"idx_email_enforced_tenant",
+			"CREATE UNIQUE INDEX idx_email_enforced_tenant ON system_auth_users (email, enforced_tenant_id) WHERE email != ''",
 		); err != nil {
-			log.Printf("[Migration] Failed to create idx_email_tenant: %v", err)
+			log.Printf("[Migration] Failed to create idx_email_enforced_tenant: %v", err)
 		}
 		if err := createIndexIfMissing(
 			"system_auth_users",
-			"idx_phone_tenant",
-			"CREATE UNIQUE INDEX idx_phone_tenant ON system_auth_users (phone, tenant_id) WHERE phone != ''",
+			"idx_phone_enforced_tenant",
+			"CREATE UNIQUE INDEX idx_phone_enforced_tenant ON system_auth_users (phone, enforced_tenant_id) WHERE phone != ''",
 		); err != nil {
-			log.Printf("[Migration] Failed to create idx_phone_tenant: %v", err)
+			log.Printf("[Migration] Failed to create idx_phone_enforced_tenant: %v", err)
 		}
 	} else {
 		if err := createIndexIfMissing(
 			"system_auth_users",
-			"idx_email_tenant",
-			"CREATE UNIQUE INDEX idx_email_tenant ON system_auth_users (email, tenant_id)",
+			"idx_email_enforced_tenant",
+			"CREATE UNIQUE INDEX idx_email_enforced_tenant ON system_auth_users (email, enforced_tenant_id)",
 		); err != nil {
-			log.Printf("[Migration] Failed to create idx_email_tenant: %v", err)
+			log.Printf("[Migration] Failed to create idx_email_enforced_tenant: %v", err)
 		}
 		if err := createIndexIfMissing(
 			"system_auth_users",
-			"idx_phone_tenant",
-			"CREATE UNIQUE INDEX idx_phone_tenant ON system_auth_users (phone, tenant_id)",
+			"idx_phone_enforced_tenant",
+			"CREATE UNIQUE INDEX idx_phone_enforced_tenant ON system_auth_users (phone, enforced_tenant_id)",
 		); err != nil {
-			log.Printf("[Migration] Failed to create idx_phone_tenant: %v", err)
+			log.Printf("[Migration] Failed to create idx_phone_enforced_tenant: %v", err)
 		}
 	}
 
-	// tenant_id 普通索引
+	// enforced_tenant_id 普通索引
 	if err := createIndexIfMissing(
 		"system_auth_users",
-		"idx_users_tenant_id",
-		"CREATE INDEX idx_users_tenant_id ON system_auth_users (tenant_id)",
+		"idx_users_enforced_tenant_id",
+		"CREATE INDEX idx_users_enforced_tenant_id ON system_auth_users (enforced_tenant_id)",
 	); err != nil {
-		log.Printf("[Migration] Failed to create idx_users_tenant_id: %v", err)
+		log.Printf("[Migration] Failed to create idx_users_enforced_tenant_id: %v", err)
 	}
 }
 

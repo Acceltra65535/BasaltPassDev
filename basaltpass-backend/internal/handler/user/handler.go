@@ -61,7 +61,7 @@ func JoinTenantByCodeHandler(c *fiber.Ctx) error {
 	db := common.DB()
 
 	var user model.User
-	if err := db.Select("id", "tenant_id", "is_system_admin").First(&user, userID).Error; err != nil {
+	if err := db.Select("id", "enforced_tenant_id", "is_system_admin").First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
 		}
@@ -89,7 +89,7 @@ func JoinTenantByCodeHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load tenant"})
 	}
 
-	if user.TenantID != 0 && user.TenantID != tenant.ID && membershipCount == 0 {
+	if user.EnforcedTenantID != 0 && user.EnforcedTenantID != tenant.ID && membershipCount == 0 {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"error": "user already belongs to another tenant",
 		})
@@ -121,15 +121,6 @@ func JoinTenantByCodeHandler(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to join tenant"})
 		}
 		joinedNow = true
-	}
-
-	// Keep global account identity at tenant_id=0 and use tenant_users for tenant perspective switching.
-	// For legacy data drift (tenant_id changed after join), normalize it back to 0 when membership exists.
-	if user.TenantID != 0 && membershipCount > 0 {
-		if err := tx.Model(&model.User{}).Where("id = ?", user.ID).Update("tenant_id", 0).Error; err != nil {
-			tx.Rollback()
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to join tenant"})
-		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -179,13 +170,13 @@ func SearchHandler(c *fiber.Ctx) error {
 	if tid, ok := c.Locals("tenantID").(uint); ok {
 		tenantID = tid
 	} else {
-		// 如果没有tenantID，从用户记录获取
+		// 如果没有tenantID，从租户成员关系获取
 		userID := c.Locals("userID").(uint)
-		var user model.User
-		if err := common.DB().Select("tenant_id").First(&user, userID).Error; err != nil {
+		var membership model.TenantUser
+		if err := common.DB().Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get user tenant"})
 		}
-		tenantID = user.TenantID
+		tenantID = membership.TenantID
 	}
 
 	results, err := svc.SearchUsers(query, limit, tenantID)

@@ -15,6 +15,7 @@ import (
 	tenantservice "basaltpass-backend/internal/service/tenant"
 
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 func mustGetEnv(key string) string {
@@ -53,14 +54,8 @@ const (
 )
 
 // GenerateTokenPair creates JWT access and refresh tokens for a user id.
-// 自动从用户记录中获取tenant_id
 func GenerateTokenPair(userID uint) (TokenPair, error) {
-	// 从数据库获取用户的tenant_id
-	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, userID).Error; err != nil {
-		return TokenPair{}, err
-	}
-	tenantID, err := resolveTokenTenantID(userID, user.TenantID, ConsoleScopeUser)
+	tenantID, err := resolveTokenTenantID(userID, 0, ConsoleScopeUser)
 	if err != nil {
 		return TokenPair{}, err
 	}
@@ -108,7 +103,7 @@ func generateTokenPairWithTenantScopeAuthMethodsAndFamily(userID uint, tenantID 
 	acr := acrForAuthMethods(amr)
 	accessClaims := jwt.MapClaims{
 		"sub":       userID,
-		"tid":       tenantID, // 租户ID - 现在直接使用user.tenant_id
+		"tid":       tenantID,
 		"scp":       scope,    // console scope
 		"typ":       TokenTypeAccess,
 		"iat":       now.Unix(),
@@ -204,26 +199,43 @@ func consumeRefreshToken(jti, familyID, rawToken string) error {
 	}
 
 	now := time.Now()
+	tokenHash := tokenSHA256(rawToken)
+	consume := db.Model(&model.AuthRefreshToken{}).
+		Where("jti = ? AND token_hash = ? AND family_id = ?", jti, tokenHash, familyID).
+		Where("consumed_at IS NULL AND revoked_at IS NULL AND expires_at > ?", now).
+		Updates(map[string]interface{}{
+			"consumed_at": now,
+			"revoked_at":  now,
+		})
+	if consume.Error != nil {
+		return consume.Error
+	}
+	if consume.RowsAffected == 1 {
+		return nil
+	}
+
 	var record model.AuthRefreshToken
-	if err := db.Where("jti = ? AND token_hash = ?", jti, tokenSHA256(rawToken)).First(&record).Error; err != nil {
+	if err := db.Where("jti = ? AND token_hash = ?", jti, tokenHash).First(&record).Error; err != nil {
 		return errors.New("invalid refresh token")
 	}
 	if record.FamilyID != familyID {
 		return errors.New("invalid refresh token family")
 	}
 	if record.RevokedAt != nil || record.ConsumedAt != nil {
-		_ = db.Model(&model.AuthRefreshToken{}).
-			Where("family_id = ? AND revoked_at IS NULL", record.FamilyID).
-			Update("revoked_at", now).Error
+		_ = revokeRefreshTokenFamily(db, record.FamilyID, now)
 		return errors.New("refresh token reuse detected")
 	}
-	if now.After(record.ExpiresAt) {
+	if !record.ExpiresAt.After(now) {
 		return errors.New("refresh token expired")
 	}
-	return db.Model(&record).Updates(map[string]interface{}{
-		"consumed_at": now,
-		"revoked_at":  now,
-	}).Error
+
+	return errors.New("invalid refresh token state")
+}
+
+func revokeRefreshTokenFamily(db *gorm.DB, familyID string, revokedAt time.Time) error {
+	return db.Model(&model.AuthRefreshToken{}).
+		Where("family_id = ? AND revoked_at IS NULL", familyID).
+		Update("revoked_at", revokedAt).Error
 }
 
 func normalizeAuthMethods(methods []string) []string {
@@ -267,12 +279,12 @@ func resolveTokenTenantID(userID uint, claimedTenantID uint, scope string) (uint
 	}
 
 	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, userID).Error; err != nil {
+	if err := common.DB().Select("id", "enforced_tenant_id").First(&user, userID).Error; err != nil {
 		return 0, err
 	}
 
 	if claimedTenantID > 0 {
-		if user.TenantID == claimedTenantID {
+		if user.EnforcedTenantID == claimedTenantID {
 			return claimedTenantID, nil
 		}
 
@@ -287,12 +299,8 @@ func resolveTokenTenantID(userID uint, claimedTenantID uint, scope string) (uint
 		}
 	}
 
-	if user.TenantID > 0 {
-		return user.TenantID, nil
-	}
-
-	// 平台级账号（tenant_id=0）在 user scope 下保持 tenant_id=0，
-	// 避免因为历史 tenant_users 记录被错误带入某个租户上下文。
+	// user scope without an explicit tenant remains unscoped. Tenant membership
+	// is carried only when a caller explicitly requests a tenant context.
 	return 0, nil
 }
 

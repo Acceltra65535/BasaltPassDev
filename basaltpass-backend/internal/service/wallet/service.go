@@ -45,16 +45,7 @@ func resolveEffectiveTenantID(tx *gorm.DB, userID uint, requestedTenantID uint) 
 		return 0, errors.New("invalid user id")
 	}
 
-	var user model.User
-	if err := tx.Select("tenant_id").First(&user, userID).Error; err != nil {
-		return 0, err
-	}
-
 	if requestedTenantID == 0 {
-		if user.TenantID > 0 {
-			return user.TenantID, nil
-		}
-
 		var membership model.TenantUser
 		if err := tx.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -63,10 +54,6 @@ func resolveEffectiveTenantID(tx *gorm.DB, userID uint, requestedTenantID uint) 
 			return 0, err
 		}
 		return membership.TenantID, nil
-	}
-
-	if user.TenantID == requestedTenantID {
-		return requestedTenantID, nil
 	}
 
 	var membershipCount int64
@@ -106,8 +93,10 @@ func EnsureUserCreditWalletTx(tx *gorm.DB, userID uint) error {
 // EnsureCreditWalletsForAllUsers ensures every user has one credit wallet.
 func EnsureCreditWalletsForAllUsers() (int64, error) {
 	db := common.DB()
-	var users []model.User
-	if err := db.Select("id", "tenant_id").Find(&users).Error; err != nil {
+	var memberships []model.TenantUser
+	if err := db.Select("user_id", "tenant_id").
+		Where("tenant_id > 0 AND role != ?", model.TenantRoleBanned).
+		Find(&memberships).Error; err != nil {
 		return 0, err
 	}
 
@@ -118,9 +107,9 @@ func EnsureCreditWalletsForAllUsers() (int64, error) {
 			return err
 		}
 
-		for _, user := range users {
+		for _, membership := range memberships {
 			var existing model.Wallet
-			errFind := tx.Where("user_id = ? AND currency_id = ? AND tenant_id = ?", user.ID, curr.ID, user.TenantID).First(&existing).Error
+			errFind := tx.Where("user_id = ? AND currency_id = ? AND tenant_id = ?", membership.UserID, curr.ID, membership.TenantID).First(&existing).Error
 			if errFind == nil {
 				continue
 			}
@@ -128,7 +117,8 @@ func EnsureCreditWalletsForAllUsers() (int64, error) {
 				return errFind
 			}
 
-			w := model.Wallet{TenantID: user.TenantID, UserID: &user.ID, CurrencyID: &curr.ID}
+			userID := membership.UserID
+			w := model.Wallet{TenantID: membership.TenantID, UserID: &userID, CurrencyID: &curr.ID}
 			if errCreate := tx.Create(&w).Error; errCreate != nil {
 				return errCreate
 			}

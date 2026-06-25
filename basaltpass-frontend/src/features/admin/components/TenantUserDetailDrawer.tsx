@@ -71,6 +71,10 @@ const TenantUserDetailDrawer: React.FC<TenantUserDetailDrawerProps> = ({
                     <p className="mt-1">{user.user_type === 'tenant_user' ? t('adminTenantUserDetailDrawer.userType.tenantAdmin') : t('adminTenantUserDetailDrawer.userType.appUser')}</p>
                   </div>
                   <div>
+                    <span className="font-medium text-gray-900">{t('adminTenantUserDetailDrawer.fields.accountType')}</span>
+                    <p className="mt-1">{user.is_local_user || user.account_type === 'local' ? t('adminTenantUserDetailDrawer.accountType.local') : t('adminTenantUserDetailDrawer.accountType.global')}</p>
+                  </div>
+                  <div>
                     <span className="font-medium text-gray-900">{t('adminTenantUserDetailDrawer.fields.role')}</span>
                     <p className="mt-1">{translateRole(user.role, t)}</p>
                   </div>

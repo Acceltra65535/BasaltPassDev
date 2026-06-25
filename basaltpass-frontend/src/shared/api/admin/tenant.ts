@@ -125,6 +125,10 @@ export interface AdminTenantUser {
   role: 'owner' | 'admin' | 'member';
   user_type: 'tenant_user' | 'app_user';
   status: string;
+  account_type?: 'local' | 'global';
+  is_local_user?: boolean;
+  is_global_user?: boolean;
+  enforced_tenant_id?: number;
   app_name?: string;
   last_active_at?: string;
   created_at: string;

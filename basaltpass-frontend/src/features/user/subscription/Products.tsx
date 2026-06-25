@@ -9,7 +9,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import client from '@api/client'
 import { ChevronRightIcon, CreditCardIcon } from '@heroicons/react/24/outline'
 import { CubeIcon, WalletIcon, QuestionMarkCircleIcon, SparklesIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
-import { getAccessToken } from '@utils/auth'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
 
@@ -48,14 +47,6 @@ export default function ProductsPage() {
     try {
       setSubscribingPrice(price.ID)
   
-      
-      // token
-        const token = getAccessToken()
-      if (!token) {
-
-        navigate(ROUTES.user.login)
-        return
-      }
       
       // API
       

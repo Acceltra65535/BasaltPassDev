@@ -1,10 +1,10 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import client from '@api/client'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@contexts/AuthContext'
 import { useConfig } from '@contexts/ConfigContext'
 import { getApiBase, getAuthRequestTimeoutMs } from '../../shared/config/env'
-import { resolveSafeRedirectTarget } from '@utils/redirect'
+import { isOAuthAuthorizeRedirect, resolveSafeRedirectTarget } from '@utils/redirect'
 import { consumeSessionNotice } from '@utils/sessionNotice'
 import { PAlert } from '@ui'
 import { useI18n } from '@shared/i18n'
@@ -12,6 +12,7 @@ import { LoginPasswordForm } from './login/LoginPasswordForm'
 import { LoginShell } from './login/LoginShell'
 import { LoginTwoFactorForm } from './login/LoginTwoFactorForm'
 import { useLoginFlow } from './login/useLoginFlow'
+import OAuthRedirecting from './OAuthRedirecting'
 
 function Login() {
   const navigate = useNavigate()
@@ -19,10 +20,17 @@ function Login() {
   const { siteName, setPageTitle } = useConfig()
   const { t } = useI18n()
   const [searchParams] = useSearchParams()
+  const [isRedirectingToOAuth, setIsRedirectingToOAuth] = useState(false)
 
   const redirectParam = searchParams.get('redirect') || ''
   const authRequestTimeout = getAuthRequestTimeoutMs()
   const resolvedApiBase = String(client.defaults.baseURL || getApiBase()).replace(/\/$/, '')
+  const oauthRedirectTarget = useMemo(() => {
+    if (!isOAuthAuthorizeRedirect(redirectParam)) {
+      return null
+    }
+    return resolveSafeRedirectTarget(redirectParam, resolvedApiBase)
+  }, [redirectParam, resolvedApiBase])
 
   const redirectAfterLogin = useCallback(() => {
     const target = resolveSafeRedirectTarget(redirectParam, resolvedApiBase)
@@ -30,7 +38,11 @@ function Login() {
       return false
     }
 
-    window.location.href = target
+    if (isOAuthAuthorizeRedirect(redirectParam)) {
+      setIsRedirectingToOAuth(true)
+      return true
+    }
+    window.location.replace(target)
     return true
   }, [redirectParam, resolvedApiBase])
 
@@ -88,6 +100,22 @@ function Login() {
       totpInputRef.current?.focus()
     }
   }, [step, twoFAType, totpInputRef])
+
+  useEffect(() => {
+    if (!isRedirectingToOAuth || !oauthRedirectTarget) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      window.location.replace(oauthRedirectTarget)
+    }, 50)
+
+    return () => window.clearTimeout(timeout)
+  }, [isRedirectingToOAuth, oauthRedirectTarget])
+
+  if (isRedirectingToOAuth) {
+    return <OAuthRedirecting />
+  }
 
   return (
     <LoginShell siteName={siteName}>

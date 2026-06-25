@@ -20,11 +20,11 @@ func resolveUserTenantID(db *gorm.DB, userID uint) (uint, error) {
 		return 0, errors.New("invalid user id")
 	}
 
-	var user model.User
-	if err := db.Select("tenant_id").First(&user, userID).Error; err != nil {
+	var membership model.TenantUser
+	if err := db.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
 		return 0, err
 	}
-	return user.TenantID, nil
+	return membership.TenantID, nil
 }
 
 func resolveTeamTenantID(db *gorm.DB, teamID uint) (uint, error) {

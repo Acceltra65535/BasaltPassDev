@@ -1255,7 +1255,7 @@ func (s *OAuthServerService) EnsureUserTenantIdentity(userID, tenantID uint, rol
 
 func (s *OAuthServerService) EvaluateUserTenantAuthorization(userID uint, client *model.OAuthClient) (*UserTenantAuthorizationDecision, error) {
 	var user model.User
-	if err := s.db.Select("id", "tenant_id", "is_system_admin").First(&user, userID).Error; err != nil {
+	if err := s.db.Select("id", "enforced_tenant_id", "is_system_admin").First(&user, userID).Error; err != nil {
 		return nil, errors.New("user_not_found")
 	}
 
@@ -1268,34 +1268,30 @@ func (s *OAuthServerService) EvaluateUserTenantAuthorization(userID uint, client
 		return &UserTenantAuthorizationDecision{Allowed: true, TenantID: tenantID}, nil
 	}
 
-	if user.TenantID == tenantID {
-		return &UserTenantAuthorizationDecision{Allowed: true, TenantID: tenantID}, nil
-	}
-
-	if user.TenantID == 0 {
-		var membershipCount int64
-		if err := s.db.Model(&model.TenantUser{}).
-			Where("user_id = ? AND tenant_id = ?", userID, tenantID).
-			Count(&membershipCount).Error; err != nil {
-			return nil, err
-		}
-		if membershipCount > 0 {
-			return &UserTenantAuthorizationDecision{Allowed: true, TenantID: tenantID}, nil
-		}
-
+	if user.EnforcedTenantID != 0 && user.EnforcedTenantID != tenantID {
 		return &UserTenantAuthorizationDecision{
 			Allowed:      false,
-			JoinRequired: true,
+			JoinRequired: false,
 			TenantID:     tenantID,
-			Reason:       "join_required",
+			Reason:       "tenant_mismatch",
 		}, nil
+	}
+
+	var membershipCount int64
+	if err := s.db.Model(&model.TenantUser{}).
+		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
+		Count(&membershipCount).Error; err != nil {
+		return nil, err
+	}
+	if membershipCount > 0 {
+		return &UserTenantAuthorizationDecision{Allowed: true, TenantID: tenantID}, nil
 	}
 
 	return &UserTenantAuthorizationDecision{
 		Allowed:      false,
-		JoinRequired: false,
+		JoinRequired: true,
 		TenantID:     tenantID,
-		Reason:       "tenant_mismatch",
+		Reason:       "join_required",
 	}, nil
 }
 

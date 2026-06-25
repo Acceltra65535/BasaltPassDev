@@ -36,7 +36,7 @@ func TestEvaluateUserTenantAuthorizationJoinThenAllow(t *testing.T) {
 		t.Fatalf("create tenant failed: %v", err)
 	}
 
-	globalUser := model.User{TenantID: 0, Email: "global-join@example.com", PasswordHash: "x"}
+	globalUser := model.User{EnforcedTenantID: 0, Email: "global-join@example.com", PasswordHash: "x"}
 	if err := db.Create(&globalUser).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}

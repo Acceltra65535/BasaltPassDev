@@ -19,7 +19,7 @@ export interface UserConsoleSession {
   tenant_role?: string
   tenant_name?: string
   is_super_admin?: boolean
-  token: string
+  token?: string
   last_used_at: string
 }
 
@@ -74,9 +74,21 @@ function readSessions(): UserConsoleSession[] {
       return []
     }
 
-    return parsed.filter((item): item is UserConsoleSession => {
-      return !!item && typeof item === 'object' && typeof item.key === 'string' && typeof item.token === 'string'
+    let strippedSensitiveToken = false
+    const sessions = parsed.filter((item): item is UserConsoleSession => {
+      return !!item && typeof item === 'object' && typeof item.key === 'string'
+    }).map((item) => {
+      if ('token' in item) {
+        strippedSensitiveToken = true
+      }
+      const { token, ...session } = item
+      void token
+      return session as UserConsoleSession
     })
+    if (strippedSensitiveToken) {
+      writeSessions(sessions)
+    }
+    return sessions
   } catch {
     return []
   }
@@ -95,6 +107,9 @@ export function listUserConsoleSessions() {
 }
 
 export function isUserConsoleSessionExpired(session: UserConsoleSession, leewayMs = 30_000) {
+  if (!session.token) {
+    return false
+  }
   const expiresAt = getTokenExpiryMs(session.token)
   if (!expiresAt) {
     return true
@@ -115,7 +130,7 @@ export function pruneExpiredUserConsoleSessions() {
 
 export function upsertUserConsoleSession(
   profile: SessionProfileLike,
-  token: string,
+  token?: string,
   tenants: SessionTenantLike[] = [],
 ) {
   if (!profile?.id || !profile?.email) {
@@ -147,7 +162,7 @@ export function upsertUserConsoleSession(
     tenant_role: profile.tenant_role,
     tenant_name: currentTenant?.name || (tenantID === 0 ? 'translated' : undefined),
     is_super_admin: !!profile.is_super_admin,
-    token,
+    ...(token ? { token } : {}),
     last_used_at: new Date().toISOString(),
   })
 
@@ -164,27 +179,7 @@ export function removeUserConsoleSessionByKey(sessionKey: string) {
 }
 
 export function updateStoredUserSessionToken(token: string) {
-  const decoded = decodeJWT(token)
-  const userID = Number(decoded?.sub || 0)
-  const tenantID = Number(decoded?.tid || 0)
-  if (!userID) {
-    return
-  }
-
-  const key = buildSessionKey(userID, tenantID)
-  const sessions = readSessions()
-  const target = sessions.find((session) => session.key === key)
-  if (!target) {
-    return
-  }
-
-  writeSessions(
-    sessions.map((session) =>
-      session.key === key
-        ? { ...session, token, last_used_at: new Date().toISOString() }
-        : session,
-    ),
-  )
+  void token
 }
 
 export function getUserConsoleSession(sessionKey: string) {

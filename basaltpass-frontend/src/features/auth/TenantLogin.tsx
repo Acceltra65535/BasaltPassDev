@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@contexts/AuthContext'
 import { useConfig } from '@contexts/ConfigContext'
 import { getApiBase, getAuthRequestTimeoutMs } from '../../shared/config/env'
-import { resolveSafeRedirectTarget } from '@utils/redirect'
+import { isOAuthAuthorizeRedirect, resolveSafeRedirectTarget } from '@utils/redirect'
 import { decodeJWT } from '@utils/jwt'
 import { getAccessToken } from '@utils/auth'
 import { consumeSessionNotice } from '@utils/sessionNotice'
@@ -19,6 +19,7 @@ import { TenantTwoFactorForm } from './tenant-login/TenantTwoFactorForm'
 import { useTenantInfo } from './tenant-login/useTenantInfo'
 import { useTenantLoginFlow } from './tenant-login/useTenantLoginFlow'
 import { useTenantSessionBootstrap } from './tenant-login/useTenantSessionBootstrap'
+import OAuthRedirecting from './OAuthRedirecting'
 
 /**
  * Tenant-specific sign-in page
@@ -33,16 +34,27 @@ function TenantLogin() {
   const { t } = useI18n()
   const [searchParams] = useSearchParams()
   const [tenantLoadError, setTenantLoadError] = useState('')
+  const [isRedirectingToOAuth, setIsRedirectingToOAuth] = useState(false)
 
   const redirectParam = searchParams.get('redirect') || ''
   const authRequestTimeout = getAuthRequestTimeoutMs()
   const resolvedApiBase = String(client.defaults.baseURL || getApiBase()).replace(/\/$/, '')
+  const oauthRedirectTarget = useMemo(() => {
+    if (!isOAuthAuthorizeRedirect(redirectParam)) {
+      return null
+    }
+    return resolveSafeRedirectTarget(redirectParam, resolvedApiBase)
+  }, [redirectParam, resolvedApiBase])
 
   const redirectAfterLogin = useCallback(() => {
     const target = resolveSafeRedirectTarget(redirectParam, resolvedApiBase)
     if (!target) return false
 
-    window.location.href = target
+    if (isOAuthAuthorizeRedirect(redirectParam)) {
+      setIsRedirectingToOAuth(true)
+      return true
+    }
+    window.location.replace(target)
     return true
   }, [redirectParam, resolvedApiBase])
 
@@ -108,6 +120,18 @@ function TenantLogin() {
     }
   }, [setError, t])
 
+  useEffect(() => {
+    if (!isRedirectingToOAuth || !oauthRedirectTarget) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      window.location.replace(oauthRedirectTarget)
+    }, 50)
+
+    return () => window.clearTimeout(timeout)
+  }, [isRedirectingToOAuth, oauthRedirectTarget])
+
   const displayError = tenantLoadError || error
   const hasTenantMismatch = useMemo(() => {
     if (!tenantInfo || isAuthLoading || !isAuthenticated) {
@@ -121,6 +145,10 @@ function TenantLogin() {
 
     return currentScope === 'user' && currentTenantID > 0 && currentTenantID !== tenantInfo.id
   }, [isAuthenticated, isAuthLoading, tenantInfo])
+
+  if (isRedirectingToOAuth) {
+    return <OAuthRedirecting appName={tenantInfo?.name} />
+  }
 
   if (loadingTenant || isResolvingTenantSession) {
     return (

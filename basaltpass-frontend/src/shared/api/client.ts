@@ -1,6 +1,5 @@
 import axios from 'axios'
-import { clearAllAccessTokens, clearAllScopeCookies, clearAccessToken, getAccessToken, getAuthScope, setAccessToken } from '../utils/auth'
-import { updateStoredUserSessionToken } from '../utils/userSessions'
+import { clearAllAccessTokens, clearAllScopeCookies, clearAccessToken, getAuthScope, getCSRFCookie, setAccessToken } from '../utils/auth'
 import { setSessionNotice } from '../utils/sessionNotice'
 import { getApiBase, getApiTimeoutMs, getConsoleUserUrl } from '../config/env'
 
@@ -62,16 +61,14 @@ const processQueue = (error: any, token: string | null = null) => {
 }
 
 client.interceptors.request.use((config) => {
-  const token = getAccessToken()
-  if (token) {
-    config.headers = config.headers || {}
-    config.headers.Authorization = `Bearer ${token}`
-  }
-
   // Scope header: user/tenant/admin (defaults to user)
   config.headers = config.headers || {}
   const scope = getAuthScope()
   ;(config.headers as any)['X-Auth-Scope'] = scope
+  const csrfToken = getCSRFCookie()
+  if (csrfToken) {
+    ;(config.headers as any)['X-CSRF-Token'] = csrfToken
+  }
   
   return config
 })
@@ -99,8 +96,7 @@ client.interceptors.response.use(
         // translatedtoken，translatedrequesttranslated
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
-        }).then(token => {
-          originalRequest.headers.Authorization = 'Bearer ' + token
+        }).then(() => {
           return client(originalRequest)
         }).catch(err => {
           return Promise.reject(err)
@@ -129,17 +125,13 @@ client.interceptors.response.use(
         
         const { access_token } = response!.data
         
-        // updatetranslatedtoken
+        // Keep the latest access token only in memory for same-page helpers.
         setAccessToken(access_token)
-        if (getAuthScope() === 'user') {
-          updateStoredUserSessionToken(access_token)
-        }
         
         // translatedrequest
-        processQueue(null, access_token)
+        processQueue(null, null)
         
         // translatedrequest
-        originalRequest.headers.Authorization = 'Bearer ' + access_token
         return client(originalRequest)
         
       } catch (refreshError) {

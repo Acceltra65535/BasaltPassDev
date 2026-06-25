@@ -243,6 +243,15 @@ export default function TenantUserManagement() {
     }
   }
 
+  const getAccountTypeBadge = (user: Pick<TenantUser, 'account_type' | 'is_local_user' | 'is_global_user'>) => {
+    const isLocal = user.is_local_user || user.account_type === 'local'
+    return (
+      <PBadge variant={isLocal ? 'warning' : 'info'}>
+        {isLocal ? t('tenantUserManagement.accountType.local') : t('tenantUserManagement.accountType.global')}
+      </PBadge>
+    )
+  }
+
   const isInvalidTenantDate = (value?: string | null) => {
     if (!value || value.startsWith('0001-') || value.startsWith('0000-')) {
       return true
@@ -417,7 +426,10 @@ export default function TenantUserManagement() {
             </div>
           )}
           <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">{user.nickname}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-900">{user.nickname}</span>
+              {getAccountTypeBadge(user)}
+            </div>
             <div className="text-sm text-gray-500">{user.email}</div>
           </div>
         </div>
@@ -434,9 +446,6 @@ export default function TenantUserManagement() {
       render: (user) => (
         <div className="flex items-center gap-2">
           <PBadge variant={getRoleVariant(user.role) as any}>{getRoleText(user.role)}</PBadge>
-          {!user.is_tenant_user ? (
-            <PBadge variant="default">{t('tenantUserManagement.table.appUser')}</PBadge>
-          ) : null}
         </div>
       )
     },

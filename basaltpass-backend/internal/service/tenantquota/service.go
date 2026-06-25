@@ -108,11 +108,8 @@ func EnsureUserCanJoin(db *gorm.DB, tenantID uint, userID uint) error {
 	}
 
 	var user model.User
-	if err := db.Select("id", "tenant_id", "deleted_at").First(&user, userID).Error; err != nil {
+	if err := db.Select("id", "deleted_at").First(&user, userID).Error; err != nil {
 		return err
-	}
-	if user.TenantID == tenantID {
-		return nil
 	}
 
 	var count int64
@@ -171,13 +168,6 @@ func EnsureTokensWithinLimit(db *gorm.DB, tenantID uint, now time.Time) error {
 }
 
 func CountTenantUsers(db *gorm.DB, tenantID uint) (int64, error) {
-	var primaryIDs []uint
-	if err := db.Model(&model.User{}).
-		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
-		Pluck("id", &primaryIDs).Error; err != nil {
-		return 0, err
-	}
-
 	var membershipIDs []uint
 	if err := db.Model(&model.TenantUser{}).
 		Where("tenant_id = ? AND role != ?", tenantID, model.TenantRoleBanned).
@@ -185,10 +175,7 @@ func CountTenantUsers(db *gorm.DB, tenantID uint) (int64, error) {
 		return 0, err
 	}
 
-	seen := make(map[uint]struct{}, len(primaryIDs)+len(membershipIDs))
-	for _, id := range primaryIDs {
-		seen[id] = struct{}{}
-	}
+	seen := make(map[uint]struct{}, len(membershipIDs))
 	for _, id := range membershipIDs {
 		seen[id] = struct{}{}
 	}

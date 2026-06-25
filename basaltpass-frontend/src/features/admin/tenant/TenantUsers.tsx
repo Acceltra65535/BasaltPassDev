@@ -291,6 +291,15 @@ const TenantUsers: React.FC = () => {
     }
   }
 
+  const getAccountTypeBadge = (user: TenantUser) => {
+    const isLocal = user.is_local_user || user.account_type === 'local'
+    return (
+      <PBadge variant={isLocal ? 'warning' : 'info'}>
+        {isLocal ? t('adminTenantUsers.accountType.local') : t('adminTenantUsers.accountType.global')}
+      </PBadge>
+    )
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
@@ -407,6 +416,9 @@ const TenantUsers: React.FC = () => {
                             </div>
                             <div className="ml-2">
                               {getStatusBadge(user.status)}
+                            </div>
+                            <div className="ml-2">
+                              {getAccountTypeBadge(user)}
                             </div>
                           </div>
                           <div className="mt-1 flex items-center text-sm text-gray-500">

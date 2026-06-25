@@ -72,7 +72,7 @@ func TestProcessStripeWebhookRejectsTenantMismatch(t *testing.T) {
 		t.Fatalf("create tenant B failed: %v", err)
 	}
 
-	user := model.User{Email: "tenant-b-user@example.com", TenantID: tenantB.ID, PasswordHash: "x"}
+	user := model.User{Email: "tenant-b-user@example.com", EnforcedTenantID: tenantB.ID, PasswordHash: "x"}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}

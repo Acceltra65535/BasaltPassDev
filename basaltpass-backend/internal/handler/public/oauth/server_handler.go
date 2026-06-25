@@ -6,9 +6,12 @@ import (
 	"basaltpass-backend/internal/service/aduit"
 	serviceauth "basaltpass-backend/internal/service/auth"
 	"basaltpass-backend/internal/utils"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -22,6 +25,11 @@ import (
 )
 
 var oauthServerService = NewOAuthServerService()
+
+const (
+	remoteJWKSHTTPTimeout      = 5 * time.Second
+	remoteJWKSMaxResponseBytes = 64 * 1024
+)
 
 func oidcRequestValue(c *fiber.Ctx, requestObjectClaims map[string]string, key string) string {
 	if value := strings.TrimSpace(requestObjectClaims[key]); value != "" {
@@ -951,29 +959,155 @@ func clientAssertionKeyFunc(client *model.OAuthClient) (jwt.Keyfunc, error) {
 func clientPublicKeyForAssertion(client *model.OAuthClient, kid string) (interface{}, error) {
 	jwksText := strings.TrimSpace(client.ClientJWKS)
 	if jwksText == "" && strings.TrimSpace(client.ClientJWKSURI) != "" {
-		resp, err := http.Get(strings.TrimSpace(client.ClientJWKSURI))
+		remoteJWKS, err := fetchRemoteClientJWKS(strings.TrimSpace(client.ClientJWKSURI))
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return nil, errors.New("client jwks uri unavailable")
-		}
-		var payload map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, err
-		}
-		bytes, err := json.Marshal(payload)
-		if err != nil {
-			return nil, err
-		}
-		jwksText = string(bytes)
+		jwksText = remoteJWKS
 	}
 	key, err := rsaPublicKeyFromJWKS(jwksText, kid)
 	if err != nil {
 		return nil, err
 	}
 	return key, nil
+}
+
+func fetchRemoteClientJWKS(rawURI string) (string, error) {
+	if err := validateClientJWKSURI(rawURI); err != nil {
+		return "", err
+	}
+
+	client := &http.Client{
+		Timeout: remoteJWKSHTTPTimeout,
+		Transport: &http.Transport{
+			Proxy:                 nil,
+			DialContext:           safeRemoteJWKSDialContext,
+			ResponseHeaderTimeout: remoteJWKSHTTPTimeout,
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 3 {
+				return errors.New("too many jwks redirects")
+			}
+			return validateClientJWKSURI(req.URL.String())
+		},
+	}
+
+	req, err := http.NewRequest(http.MethodGet, rawURI, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", errors.New("client jwks uri unavailable")
+	}
+
+	limitedBody := io.LimitReader(resp.Body, remoteJWKSMaxResponseBytes+1)
+	body, err := io.ReadAll(limitedBody)
+	if err != nil {
+		return "", err
+	}
+	if len(body) > remoteJWKSMaxResponseBytes {
+		return "", errors.New("client jwks response too large")
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return "", err
+	}
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
+func safeRemoteJWKSDialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	ips, err := safeResolveRemoteJWKSHost(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	dialer := &net.Dialer{Timeout: 3 * time.Second}
+	var lastErr error
+	for _, ip := range ips {
+		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		if err == nil {
+			return conn, nil
+		}
+		lastErr = err
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, errors.New("no safe jwks address available")
+}
+
+func safeResolveRemoteJWKSHost(ctx context.Context, host string) ([]net.IP, error) {
+	if ip := net.ParseIP(host); ip != nil {
+		if isDangerousRemoteJWKSIP(ip) {
+			return nil, errors.New("client_jwks_uri resolves to a disallowed address")
+		}
+		return []net.IP{ip}, nil
+	}
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	ips := make([]net.IP, 0, len(addrs))
+	for _, addr := range addrs {
+		ip := addr.IP
+		if ip == nil {
+			continue
+		}
+		if isDangerousRemoteJWKSIP(ip) {
+			return nil, errors.New("client_jwks_uri resolves to a disallowed address")
+		}
+		ips = append(ips, ip)
+	}
+	if len(ips) == 0 {
+		return nil, errors.New("client_jwks_uri has no usable addresses")
+	}
+	return ips, nil
+}
+
+func validateClientJWKSURI(rawURI string) error {
+	parsed, err := url.Parse(strings.TrimSpace(rawURI))
+	if err != nil {
+		return errors.New("invalid client_jwks_uri")
+	}
+	if parsed.Scheme != "https" {
+		return errors.New("client_jwks_uri must use https")
+	}
+	if parsed.User != nil || strings.TrimSpace(parsed.Hostname()) == "" {
+		return errors.New("invalid client_jwks_uri")
+	}
+	if ip := net.ParseIP(parsed.Hostname()); ip != nil && isDangerousRemoteJWKSIP(ip) {
+		return errors.New("client_jwks_uri host is disallowed")
+	}
+	return nil
+}
+
+func isDangerousRemoteJWKSIP(ip net.IP) bool {
+	if ip == nil {
+		return true
+	}
+	return ip.IsUnspecified() ||
+		ip.IsLoopback() ||
+		ip.IsPrivate() ||
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() ||
+		ip.IsMulticast()
 }
 
 func rsaPublicKeyFromJWKS(jwksText string, kid string) (interface{}, error) {

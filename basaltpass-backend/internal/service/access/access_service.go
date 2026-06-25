@@ -28,7 +28,7 @@ func NewService() *Service {
 // ResolveTenantContext resolves a user's tenant context and validates tenant status.
 func (s *Service) ResolveTenantContext(userID uint, requestedTenantID uint) (uint, model.TenantRole, error) {
 	var user model.User
-	if err := s.db.Select("id", "tenant_id").First(&user, userID).Error; err != nil {
+	if err := s.db.Select("id", "enforced_tenant_id").First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, "", ErrUserNotFound
 		}
@@ -37,32 +37,26 @@ func (s *Service) ResolveTenantContext(userID uint, requestedTenantID uint) (uin
 
 	tenantID := requestedTenantID
 	if tenantID == 0 {
-		if user.TenantID > 0 {
-			tenantID = user.TenantID
-		} else {
-			var membership model.TenantUser
-			if err := s.db.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return 0, "", ErrNoTenantAssociation
-				}
-				return 0, "", err
+		var membership model.TenantUser
+		if err := s.db.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return 0, "", ErrNoTenantAssociation
 			}
-			tenantID = membership.TenantID
+			return 0, "", err
 		}
+		tenantID = membership.TenantID
 	}
 
 	if tenantID == 0 {
 		return 0, "", ErrNoTenantAssociation
 	}
 
-	if user.TenantID != tenantID {
-		var membershipCount int64
-		if err := s.db.Model(&model.TenantUser{}).Where("user_id = ? AND tenant_id = ?", userID, tenantID).Count(&membershipCount).Error; err != nil {
-			return 0, "", err
-		}
-		if membershipCount == 0 {
-			return 0, "", ErrInvalidTenantAssociation
-		}
+	var membershipCount int64
+	if err := s.db.Model(&model.TenantUser{}).Where("user_id = ? AND tenant_id = ?", userID, tenantID).Count(&membershipCount).Error; err != nil {
+		return 0, "", err
+	}
+	if membershipCount == 0 {
+		return 0, "", ErrInvalidTenantAssociation
 	}
 
 	var tenant model.Tenant
@@ -95,21 +89,19 @@ func (s *Service) GetTenantRole(userID, tenantID uint) (model.TenantRole, error)
 	}
 
 	var user model.User
-	if err := s.db.Select("id", "tenant_id").First(&user, userID).Error; err != nil {
+	if err := s.db.Select("id", "enforced_tenant_id").First(&user, userID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", ErrUserNotFound
 		}
 		return "", err
 	}
 
-	if user.TenantID != tenantID {
-		var membershipCount int64
-		if err := s.db.Model(&model.TenantUser{}).Where("user_id = ? AND tenant_id = ?", userID, tenantID).Count(&membershipCount).Error; err != nil {
-			return "", err
-		}
-		if membershipCount == 0 {
-			return "", ErrTenantMembershipNotFound
-		}
+	var membershipCount int64
+	if err := s.db.Model(&model.TenantUser{}).Where("user_id = ? AND tenant_id = ?", userID, tenantID).Count(&membershipCount).Error; err != nil {
+		return "", err
+	}
+	if membershipCount == 0 {
+		return "", ErrTenantMembershipNotFound
 	}
 
 	var tenantUser model.TenantUser

@@ -46,13 +46,6 @@ func resolvePaymentTenantID(c *fiber.Ctx) uint {
 		return 0
 	}
 
-	var user model.User
-	if err := common.DB().Select("id", "tenant_id").First(&user, userID).Error; err == nil {
-		if user.TenantID > 0 {
-			return user.TenantID
-		}
-	}
-
 	var membership model.TenantUser
 	if err := common.DB().Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err == nil {
 		return membership.TenantID

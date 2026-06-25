@@ -11,8 +11,8 @@ import (
 	admindto "basaltpass-backend/internal/dto/tenant"
 	"basaltpass-backend/internal/model"
 	"basaltpass-backend/internal/service/tenantquota"
-	"basaltpass-backend/internal/utils"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -193,45 +193,54 @@ func (s *AdminTenantService) CreateTenant(req admindto.AdminCreateTenantRequest)
 		return nil, errors.New("租户名称已存在")
 	}
 
-	// 查找或创建所有者用户。该用户保持 tenant_id=0，作为系统级用户再绑定到 tenant_users。
+	ownerEmail := strings.TrimSpace(strings.ToLower(req.OwnerEmail))
+	ownerNickname := strings.TrimSpace(req.OwnerUsername)
+	if ownerNickname == "" {
+		ownerNickname = strings.Split(ownerEmail, "@")[0]
+	}
+
+	// 查找或创建所有者用户。该用户保持 enforced_tenant_id=0，作为全局用户再绑定到 tenant_users。
 	var owner model.User
-	if err := s.db.Where("email = ?", req.OwnerEmail).First(&owner).Error; err != nil {
+	if err := s.db.Where("email = ?", ownerEmail).First(&owner).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			if strings.TrimSpace(req.OwnerPassword) == "" {
-				return nil, fmt.Errorf("所有者用户不存在且未提供 owner_password: %s", req.OwnerEmail)
+				return nil, fmt.Errorf("所有者用户不存在且未提供 owner_password: %s", ownerEmail)
 			}
-			hash, hashErr := utils.HashPassword(req.OwnerPassword)
+			hash, hashErr := bcrypt.GenerateFromPassword([]byte(req.OwnerPassword), bcrypt.DefaultCost)
 			if hashErr != nil {
 				return nil, fmt.Errorf("生成所有者密码失败: %w", hashErr)
 			}
 			owner = model.User{
-				Email:         req.OwnerEmail,
-				PasswordHash:  hash,
-				Nickname:      req.OwnerUsername,
+				Email:         ownerEmail,
+				PasswordHash:  string(hash),
+				Nickname:      ownerNickname,
 				EmailVerified: true,
-				TenantID:      0,
 			}
-			if err := s.db.Create(&owner).Error; err != nil {
-				return nil, fmt.Errorf("创建所有者用户失败: %w", err)
+			if createErr := s.db.Create(&owner).Error; createErr != nil {
+				return nil, fmt.Errorf("创建所有者用户失败: %w", createErr)
 			}
 		} else {
 			return nil, fmt.Errorf("查询用户失败: %w", err)
 		}
 	} else {
-		updates := map[string]interface{}{}
-		if req.OwnerUsername != "" && strings.TrimSpace(owner.Nickname) == "" {
-			updates["nickname"] = req.OwnerUsername
+		updates := map[string]any{}
+		if owner.Nickname == "" && ownerNickname != "" {
+			updates["nickname"] = ownerNickname
 		}
 		if strings.TrimSpace(req.OwnerPassword) != "" {
-			hash, hashErr := utils.HashPassword(req.OwnerPassword)
+			hash, hashErr := bcrypt.GenerateFromPassword([]byte(req.OwnerPassword), bcrypt.DefaultCost)
 			if hashErr != nil {
 				return nil, fmt.Errorf("生成所有者密码失败: %w", hashErr)
 			}
-			updates["password_hash"] = hash
+			updates["password_hash"] = string(hash)
+			updates["password_changed_at"] = time.Now()
 		}
 		if len(updates) > 0 {
-			if err := s.db.Model(&owner).Updates(updates).Error; err != nil {
-				return nil, fmt.Errorf("更新所有者用户失败: %w", err)
+			if updateErr := s.db.Model(&owner).Updates(updates).Error; updateErr != nil {
+				return nil, fmt.Errorf("更新所有者用户失败: %w", updateErr)
+			}
+			if reloadErr := s.db.First(&owner, owner.ID).Error; reloadErr != nil {
+				return nil, fmt.Errorf("重新加载所有者用户失败: %w", reloadErr)
 			}
 		}
 	}
@@ -369,7 +378,20 @@ func (s *AdminTenantService) GetTenantUsers(tenantID uint, req admindto.AdminTen
 	}
 	users := make([]admindto.AdminTenantUser, 0, len(records))
 	for _, r := range records {
-		users = append(users, admindto.AdminTenantUser{ID: r.UserID, Email: r.User.Email, Nickname: r.User.Nickname, Role: string(r.Role), UserType: "tenant_user", Status: "active", CreatedAt: r.CreatedAt})
+		accountType, isLocalUser, isGlobalUser := adminTenantAccountType(r.User.EnforcedTenantID, tenantID)
+		users = append(users, admindto.AdminTenantUser{
+			ID:               r.UserID,
+			Email:            r.User.Email,
+			Nickname:         r.User.Nickname,
+			Role:             string(r.Role),
+			UserType:         "tenant_user",
+			Status:           tenantUserStatus(r.User, r.Role),
+			AccountType:      accountType,
+			IsLocalUser:      isLocalUser,
+			IsGlobalUser:     isGlobalUser,
+			EnforcedTenantID: r.User.EnforcedTenantID,
+			CreatedAt:        r.CreatedAt,
+		})
 	}
 	totalPages := int(math.Ceil(float64(total) / float64(req.Limit)))
 	return &admindto.AdminTenantUserListResponse{Users: users, Pagination: admindto.PaginationResponse{Page: req.Page, Limit: req.Limit, Total: total, TotalPages: totalPages}}, nil
@@ -392,16 +414,21 @@ func (s *AdminTenantService) GetTenantUserDetail(tenantID uint, userID uint) (*a
 	}
 
 	phone := record.User.Phone
+	accountType, isLocalUser, isGlobalUser := adminTenantAccountType(record.User.EnforcedTenantID, tenantID)
 	response := &admindto.AdminTenantUserDetailResponse{
 		AdminTenantUser: admindto.AdminTenantUser{
-			ID:           record.UserID,
-			Email:        record.User.Email,
-			Nickname:     record.User.Nickname,
-			Role:         string(record.Role),
-			UserType:     "tenant_user",
-			Status:       "active",
-			LastActiveAt: nil,
-			CreatedAt:    record.CreatedAt,
+			ID:               record.UserID,
+			Email:            record.User.Email,
+			Nickname:         record.User.Nickname,
+			Role:             string(record.Role),
+			UserType:         "tenant_user",
+			Status:           tenantUserStatus(record.User, record.Role),
+			AccountType:      accountType,
+			IsLocalUser:      isLocalUser,
+			IsGlobalUser:     isGlobalUser,
+			EnforcedTenantID: record.User.EnforcedTenantID,
+			LastActiveAt:     nil,
+			CreatedAt:        record.CreatedAt,
 		},
 		Phone:       &phone,
 		LastLoginAt: lastLoginAt,
@@ -419,6 +446,29 @@ func (s *AdminTenantService) GetTenantUserDetail(tenantID uint, userID uint) (*a
 	}
 
 	return response, nil
+}
+
+func adminTenantAccountType(enforcedTenantID, tenantID uint) (string, bool, bool) {
+	if enforcedTenantID == 0 {
+		return "global", false, true
+	}
+	if enforcedTenantID == tenantID {
+		return "local", true, false
+	}
+	return "local", false, false
+}
+
+func tenantUserStatus(user model.User, role model.TenantRole) string {
+	if role == model.TenantRoleBanned {
+		return string(model.TenantRoleBanned)
+	}
+	if user.DeletedAt.Valid {
+		return "suspended"
+	}
+	if !user.EmailVerified {
+		return "inactive"
+	}
+	return "active"
 }
 
 // RemoveTenantUser 移除租户管理员

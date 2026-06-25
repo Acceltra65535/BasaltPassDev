@@ -55,14 +55,6 @@ func userHasTenantIdentity(tx *gorm.DB, userID uint, tenantID uint64) (bool, err
 		return false, nil
 	}
 
-	var user model.User
-	if err := tx.Select("tenant_id").First(&user, userID).Error; err != nil {
-		return false, err
-	}
-	if user.TenantID > 0 && uint64(user.TenantID) == tenantID {
-		return true, nil
-	}
-
 	var membershipCount int64
 	if err := tx.Model(&model.TenantUser{}).
 		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
@@ -71,6 +63,14 @@ func userHasTenantIdentity(tx *gorm.DB, userID uint, tenantID uint64) (bool, err
 	}
 
 	return membershipCount > 0, nil
+}
+
+func resolveFirstUserTenantID(tx *gorm.DB, userID uint) (uint64, error) {
+	var membership model.TenantUser
+	if err := tx.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
+		return 0, err
+	}
+	return uint64(membership.TenantID), nil
 }
 
 // ========== 产品管理 ==========
@@ -661,12 +661,13 @@ func (s *Service) CreateSubscription(req *subdto.CreateSubscriptionRequest) (*mo
 	}
 
 	tenantID := parseTenantIDFromMetadata(req.Metadata)
-	if tenantID == 0 && user.TenantID > 0 {
-		tenantID = uint64(user.TenantID)
-	}
 	if tenantID == 0 {
-		tx.Rollback()
-		return nil, fmt.Errorf("用户未绑定租户")
+		var resolveErr error
+		tenantID, resolveErr = resolveFirstUserTenantID(tx, req.UserID)
+		if resolveErr != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("用户未绑定租户")
+		}
 	}
 
 	hasIdentity, err := userHasTenantIdentity(tx, req.UserID, tenantID)

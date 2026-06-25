@@ -16,14 +16,14 @@ import (
 type User struct {
 	gorm.Model
 
-	// TenantID 用户所属租户ID
-	// 普通用户必须属于某个租户
-	// admin和tenant_user可以为0（平台级用户）
-	TenantID uint `gorm:"index;not null;default:0" json:"tenant_id"`
+	// EnforcedTenantID 强制租户ID。
+	// 仅用于标记 tenant-local 用户必须通过指定租户入口登录。
+	// 用户是否属于某租户以 tenant_users 为唯一事实来源。
+	EnforcedTenantID uint `gorm:"column:enforced_tenant_id;index;not null;default:0" json:"enforced_tenant_id"`
 
-	// Email和Phone的唯一性由迁移层创建“租户范围”复合唯一索引保证：
-	// (email, tenant_id) 与 (phone, tenant_id)
-	// 这样同一个邮箱/手机号可以在不同租户下注册不同账户。
+	// Email和Phone的唯一性由迁移层创建“强制租户范围”复合唯一索引保证：
+	// (email, enforced_tenant_id) 与 (phone, enforced_tenant_id)
+	// 这样 tenant-local 账号仍可与全局账号区分；普通租户成员关系不靠这里表达。
 	// 注意：这里不声明 unique，避免 AutoMigrate 误建成单列唯一索引。
 	UserUUID      string `gorm:"column:user_uuid;size:36;<-:create" json:"user_uuid"`
 	Email         string `gorm:"size:128;index;default:null" json:"email"`

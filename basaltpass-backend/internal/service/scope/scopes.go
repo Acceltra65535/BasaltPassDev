@@ -81,7 +81,7 @@ func Describe(s string) Meta {
 	case S2SProductsRead:
 		return Meta{Scope: s, Category: "s2s", Title: "S2S Products Read", Description: "读取用户产品拥有情况（/products、/ownership）"}
 	case S2SEmailSend:
-		return Meta{Scope: s, Category: "s2s", Title: "S2S Email Send", Description: "向当前应用已授权用户发送邮件（POST /api/v1/s2s/emails/send）"}
+		return Meta{Scope: s, Category: "s2s", Title: "S2S Email Send", Description: "通过 BasaltPass 发送邮件，可指定用户或收件地址（POST /api/v1/s2s/emails/send）"}
 	case S2STokenExchange:
 		return Meta{Scope: s, Category: "s2s", Title: "S2S Token Exchange", Description: "允许通过 Token Exchange (RFC 8693) 代用户获取其他应用的受限 token"}
 	default:

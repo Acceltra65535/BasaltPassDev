@@ -19,10 +19,9 @@ func NewService(db *gorm.DB) *Service { return &Service{db: db} }
 
 // CreateTeam 创建团队
 func (s *Service) CreateTeam(userID uint, req *userdto.CreateTeamRequest) (*model.Team, error) {
-	// 获取当前用户的tenant_id
-	var user model.User
-	if err := s.db.Select("tenant_id").First(&user, userID).Error; err != nil {
-		return nil, fmt.Errorf("获取用户信息失败: %w", err)
+	var membership model.TenantUser
+	if err := s.db.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
+		return nil, fmt.Errorf("获取用户租户关系失败: %w", err)
 	}
 
 	tx := s.db.Begin()
@@ -32,7 +31,7 @@ func (s *Service) CreateTeam(userID uint, req *userdto.CreateTeamRequest) (*mode
 		}
 	}()
 
-	team := &model.Team{TenantID: user.TenantID, Name: req.Name, Description: req.Description, AvatarURL: req.AvatarURL, IsActive: true}
+	team := &model.Team{TenantID: membership.TenantID, Name: req.Name, Description: req.Description, AvatarURL: req.AvatarURL, IsActive: true}
 	if err := tx.Create(team).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("创建团队失败: %w", err)
@@ -52,10 +51,9 @@ func (s *Service) CreateTeam(userID uint, req *userdto.CreateTeamRequest) (*mode
 
 // GetTeam 获取团队信息
 func (s *Service) GetTeam(teamID uint, userID uint) (*userdto.TeamResponse, error) {
-	// 获取当前用户的tenant_id
-	var user model.User
-	if err := s.db.Select("tenant_id").First(&user, userID).Error; err != nil {
-		return nil, fmt.Errorf("获取用户信息失败: %w", err)
+	var membership model.TenantUser
+	if err := s.db.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
+		return nil, fmt.Errorf("获取用户租户关系失败: %w", err)
 	}
 
 	var team model.Team
@@ -67,7 +65,7 @@ func (s *Service) GetTeam(teamID uint, userID uint) (*userdto.TeamResponse, erro
 	}
 
 	// 验证团队和用户属于同一租户
-	if team.TenantID != user.TenantID {
+	if team.TenantID != membership.TenantID {
 		return nil, errors.New("无权访问该团队")
 	}
 
@@ -142,17 +140,16 @@ func (s *Service) DeleteTeam(teamID uint, userID uint) error {
 
 // GetUserTeams 获取用户的所有团队
 func (s *Service) GetUserTeams(userID uint) ([]userdto.UserTeamResponse, error) {
-	// 获取当前用户的tenant_id
-	var user model.User
-	if err := s.db.Select("tenant_id").First(&user, userID).Error; err != nil {
-		return nil, fmt.Errorf("获取用户信息失败: %w", err)
+	var membership model.TenantUser
+	if err := s.db.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
+		return nil, fmt.Errorf("获取用户租户关系失败: %w", err)
 	}
 
 	var members []model.TeamMember
 	// 通过JOIN确保只返回同一租户的团队
 	if err := s.db.Preload("Team").
 		Joins("JOIN system_auth_teams ON system_auth_teams.id = system_auth_team_members.team_id").
-		Where("system_auth_team_members.user_id = ? AND system_auth_teams.tenant_id = ?", userID, user.TenantID).
+		Where("system_auth_team_members.user_id = ? AND system_auth_teams.tenant_id = ?", userID, membership.TenantID).
 		Find(&members).Error; err != nil {
 		return nil, fmt.Errorf("获取用户团队失败: %w", err)
 	}
@@ -182,16 +179,12 @@ func (s *Service) AddMember(teamID uint, userID uint, req *userdto.AddMemberRequ
 		return fmt.Errorf("获取团队信息失败: %w", err)
 	}
 
-	var user model.User
-	if err := s.db.First(&user, req.UserID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("用户不存在")
-		}
-		return fmt.Errorf("查询用户失败: %w", err)
-	}
-
 	// 验证被添加用户与团队属于同一租户
-	if user.TenantID != team.TenantID {
+	var targetMembershipCount int64
+	if err := s.db.Model(&model.TenantUser{}).Where("user_id = ? AND tenant_id = ?", req.UserID, team.TenantID).Count(&targetMembershipCount).Error; err != nil {
+		return fmt.Errorf("查询用户租户关系失败: %w", err)
+	}
+	if targetMembershipCount == 0 {
 		return errors.New("只能添加同一租户的用户")
 	}
 

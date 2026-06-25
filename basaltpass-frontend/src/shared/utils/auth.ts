@@ -35,16 +35,18 @@ export function getTokenKeyForScope(scope: ConsoleScope): string {
   }
 }
 
+let accessTokenMemory: string | null = null
+
 export function setAccessToken(token: string) {
-  localStorage.setItem(getTokenKey(), token)
+  accessTokenMemory = token || null
 }
 
 export function getAccessToken(): string | null {
-  return localStorage.getItem(getTokenKey())
+  return accessTokenMemory
 }
 
 export function clearAccessToken() {
-  localStorage.removeItem(getTokenKey())
+  accessTokenMemory = null
 }
 
 export function clearAccessTokenForScope(scope: ConsoleScope) {
@@ -65,15 +67,35 @@ function expireCookie(name: string) {
   document.cookie = `${name}=; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`
 }
 
+export function getCSRFCookie(): string {
+  if (typeof document === 'undefined') {
+    return ''
+  }
+
+  const scope = getAuthScope()
+  const names = scope === 'user' ? ['csrf_token'] : [`csrf_token_${scope}`, 'csrf_token']
+  const cookies = document.cookie.split(';').map((part) => part.trim())
+  for (const name of names) {
+    const prefix = `${name}=`
+    const found = cookies.find((cookie) => cookie.startsWith(prefix))
+    if (found) {
+      return decodeURIComponent(found.slice(prefix.length))
+    }
+  }
+  return ''
+}
+
 export function clearScopeCookies(scope: ConsoleScope) {
   if (scope === 'user') {
     expireCookie('access_token')
     expireCookie('refresh_token')
+    expireCookie('csrf_token')
     return
   }
 
   expireCookie(`access_token_${scope}`)
   expireCookie(`refresh_token_${scope}`)
+  expireCookie(`csrf_token_${scope}`)
 }
 
 export function clearAllScopeCookies() {

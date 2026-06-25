@@ -9,7 +9,7 @@ import type { TenantInfo } from './types'
 interface UseTenantSessionBootstrapOptions {
   isAuthenticated: boolean
   isAuthLoading: boolean
-  login: (token: string) => Promise<void>
+  login: (token?: string) => Promise<void>
   navigate: NavigateFunction
   redirectAfterLogin: () => boolean
   tenantInfo: TenantInfo | null
@@ -55,6 +55,11 @@ export function useTenantSessionBootstrap({
     )
 
     if (!storedTenantSession) {
+      setIsResolvingTenantSession(false)
+      return
+    }
+    if (!storedTenantSession.token) {
+      removeUserConsoleSessionByKey(storedTenantSession.key)
       setIsResolvingTenantSession(false)
       return
     }

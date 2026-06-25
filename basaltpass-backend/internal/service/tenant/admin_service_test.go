@@ -30,6 +30,7 @@ func setupAdminTenantServiceTestDB(t *testing.T) *gorm.DB {
 		&model.TenantRbacRolePermission{},
 		&model.TenantUserRbacRole{},
 		&model.ManualAPIKey{},
+		&model.AuditLog{},
 	); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
@@ -72,12 +73,9 @@ func TestAdminCreateTenantBootstrapsTenantRBAC(t *testing.T) {
 		t.Fatalf("load admin role failed: %v", err)
 	}
 
-	var updatedOwner model.User
-	if err := db.First(&updatedOwner, owner.ID).Error; err != nil {
-		t.Fatalf("reload owner failed: %v", err)
-	}
-	if updatedOwner.TenantID != 0 {
-		t.Fatalf("expected owner to remain a system-level user, got tenant_id %d", updatedOwner.TenantID)
+	var ownerMembership model.TenantUser
+	if err := db.Where("user_id = ? AND tenant_id = ?", owner.ID, tenant.ID).First(&ownerMembership).Error; err != nil {
+		t.Fatalf("expected owner tenant membership: %v", err)
 	}
 
 	var roleCount int64
@@ -140,11 +138,11 @@ func TestAdminCreateTenantCreatesSystemOwnerWhenMissing(t *testing.T) {
 	if err := db.Where("email = ?", "new-owner@example.com").First(&owner).Error; err != nil {
 		t.Fatalf("expected owner user to be created: %v", err)
 	}
-	if owner.TenantID != 0 {
-		t.Fatalf("expected owner to remain system-level, got tenant_id %d", owner.TenantID)
-	}
 	if owner.Nickname != "New Owner" {
 		t.Fatalf("expected nickname to be set, got %q", owner.Nickname)
+	}
+	if owner.EnforcedTenantID != 0 {
+		t.Fatalf("expected owner to remain global/system-level, got enforced_tenant_id %d", owner.EnforcedTenantID)
 	}
 
 	var membership model.TenantUser

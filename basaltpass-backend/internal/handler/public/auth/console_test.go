@@ -35,7 +35,7 @@ func TestUserHasTenantAdminAccess_GlobalUserUsesTenantUserRole(t *testing.T) {
 		t.Fatalf("create tenant failed: %v", err)
 	}
 
-	globalUser := model.User{Email: "global@example.com", PasswordHash: "x", TenantID: 0}
+	globalUser := model.User{Email: "global@example.com", PasswordHash: "x", EnforcedTenantID: 0}
 	if err := db.Create(&globalUser).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestUserDefaultTenantIDForAdminConsole_UsesEarliestAdminMembership(t *testi
 		t.Fatalf("create tenant B failed: %v", err)
 	}
 
-	globalUser := model.User{Email: "multi@example.com", PasswordHash: "x", TenantID: 0}
+	globalUser := model.User{Email: "multi@example.com", PasswordHash: "x", EnforcedTenantID: 0}
 	if err := db.Create(&globalUser).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}

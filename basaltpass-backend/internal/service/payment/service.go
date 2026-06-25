@@ -123,12 +123,12 @@ func resolveTenantStripeConfigByTenantID(db *gorm.DB, tenantID uint) (*tenantStr
 }
 
 func resolveTenantStripeConfigByUser(db *gorm.DB, userID uint) (*tenantStripeConfig, error) {
-	var user model.User
-	if err := db.Select("id", "tenant_id").First(&user, userID).Error; err != nil {
+	var membership model.TenantUser
+	if err := db.Select("tenant_id").Where("user_id = ?", userID).Order("created_at ASC").First(&membership).Error; err != nil {
 		return nil, err
 	}
 
-	return resolveTenantStripeConfigByTenantID(db, user.TenantID)
+	return resolveTenantStripeConfigByTenantID(db, membership.TenantID)
 }
 
 func parseString(v interface{}) string {

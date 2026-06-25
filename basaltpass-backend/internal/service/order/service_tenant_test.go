@@ -80,7 +80,7 @@ func createPriceForTenant(t *testing.T, db *gorm.DB, tenantID uint64, codeSuffix
 func TestOrderServiceTenantIsolation(t *testing.T) {
 	db := setupOrderServiceTestDB(t)
 
-	user := model.User{TenantID: 0, Email: "order-user@example.com", PasswordHash: "x"}
+	user := model.User{EnforcedTenantID: 0, Email: "order-user@example.com", PasswordHash: "x"}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}

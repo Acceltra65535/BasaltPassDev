@@ -46,7 +46,7 @@ interface AuthContextType {
   canUseWallet: boolean
   isAuthenticated: boolean
   isLoading: boolean
-  login: (token: string) => Promise<void>
+  login: (token?: string) => Promise<void>
   logout: () => void
   checkAuth: () => Promise<void>
   switchAccount: (sessionKey: string) => Promise<void>
@@ -124,12 +124,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [setLanguage])
 
-  const loadIdentity = useCallback(async (token: string) => {
-    if (!tokenMatchesScope(token)) {
+  const loadIdentity = useCallback(async (token?: string) => {
+    if (token && !tokenMatchesScope(token)) {
       throw new Error('Token scope mismatch')
     }
 
-    setAccessToken(token)
+    if (token) {
+      setAccessToken(token)
+    }
 
     const response = await client.get('/api/v1/user/profile')
     const profileData = response.data?.data ?? response.data
@@ -150,7 +152,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await syncLanguageFromProfile(profileData)
 
     if (expectedScope === 'user') {
-      upsertUserConsoleSession(profileData, token, tenantList)
+      upsertUserConsoleSession(profileData, undefined, tenantList)
       syncUserSessions()
     }
 
@@ -161,17 +163,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     debugAuth.log('Starting auth check')
     const token = getAccessToken()
 
-    if (!token) {
-      debugAuth.log('No token found, setting unauthenticated immediately')
-      setUser(null)
-      setTenants([])
-      setIsLoading(false)
-      setHasChecked(true)
-      syncUserSessions()
-      return
-    }
-
-    if (!tokenMatchesScope(token)) {
+    if (token && !tokenMatchesScope(token)) {
       debugAuth.log('Token scope mismatch, clearing token')
       clearAccessToken()
       setUser(null)
@@ -183,9 +175,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     try {
-      debugAuth.log('Token found, checking validity')
-      const { profileData } = await loadIdentity(token)
-      debugAuth.log('Token valid, setting user', profileData)
+      debugAuth.log('Checking auth cookie/session validity')
+      const { profileData } = await loadIdentity(token || undefined)
+      debugAuth.log('Session valid, setting user', profileData)
     } catch (error: any) {
       debugAuth.log('Token validation failed', error.response?.status)
       if (error.response?.status === 401) {
@@ -204,8 +196,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [loadIdentity, syncUserSessions, tokenMatchesScope])
 
-  const login = useCallback(async (token: string) => {
-    debugAuth.log('Login called with token', token.substring(0, 20) + '...')
+  const login = useCallback(async (token?: string) => {
+    debugAuth.log('Login called')
     setIsLoading(true)
     try {
       const { profileData } = await loadIdentity(token)
@@ -227,6 +219,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const session = getUserConsoleSession(sessionKey)
     if (!session) {
       throw new Error('translatedsessiontranslatedoralreadytranslated')
+    }
+    if (!session.token) {
+      throw new Error('Stored account switching requires a fresh sign-in')
     }
 
     const previousToken = getAccessToken()
@@ -334,7 +329,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         const targetSession = pruneExpiredUserConsoleSessions().find((session) => Number(session.tenant_id) === targetTenantID)
-        if (!targetSession || !tokenMatchesScope(targetSession.token)) {
+        if (!targetSession?.token || !tokenMatchesScope(targetSession.token)) {
           return
         }
 

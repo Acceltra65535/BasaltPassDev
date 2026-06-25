@@ -4,6 +4,8 @@ import (
 	security "basaltpass-backend/internal/handler/user/security"
 	authsvc "basaltpass-backend/internal/service/auth"
 	passkey2 "basaltpass-backend/internal/service/passkey"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -32,6 +34,42 @@ func normalizeScope(raw string) string {
 		return scope
 	default:
 		return authsvc.ConsoleScopeUser
+	}
+}
+
+func setPasskeyCookie(c *fiber.Ctx, name, value string, maxAge int, httpOnly bool) {
+	c.Cookie(&fiber.Cookie{
+		Name:     name,
+		Value:    value,
+		HTTPOnly: httpOnly,
+		Path:     "/",
+		MaxAge:   maxAge,
+		Secure:   c.Secure(),
+		SameSite: "Lax",
+	})
+}
+
+func newPasskeyCSRFToken() string {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(buf)
+}
+
+func setPasskeyAuthCookies(c *fiber.Ctx, scope string, accessToken string, refreshToken string) {
+	normalizedScope := normalizeScope(scope)
+	setPasskeyCookie(c, "refresh_token", refreshToken, 7*24*60*60, true)
+	setPasskeyCookie(c, "access_token", accessToken, 15*60, true)
+	if csrfToken := newPasskeyCSRFToken(); csrfToken != "" {
+		setPasskeyCookie(c, "csrf_token", csrfToken, 7*24*60*60, false)
+		if normalizedScope != "user" {
+			setPasskeyCookie(c, "csrf_token_"+normalizedScope, csrfToken, 7*24*60*60, false)
+		}
+	}
+	if normalizedScope != "user" {
+		setPasskeyCookie(c, "refresh_token_"+normalizedScope, refreshToken, 7*24*60*60, true)
+		setPasskeyCookie(c, "access_token_"+normalizedScope, accessToken, 15*60, true)
 	}
 }
 
@@ -243,15 +281,7 @@ func FinishLoginHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "refresh_token",
-		Value:    tokens.RefreshToken,
-		HTTPOnly: true,
-		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60,
-		Secure:   c.Secure(),
-		SameSite: "Lax",
-	})
+	setPasskeyAuthCookies(c, scope, tokens.AccessToken, tokens.RefreshToken)
 
 	if err := security.RecordLoginSuccess(user.ID, c.IP(), c.Get("User-Agent")); err != nil {
 		log.Printf("failed to record login history: %v", err)
@@ -363,15 +393,7 @@ func Finish2FAHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "refresh_token",
-		Value:    tokens.RefreshToken,
-		HTTPOnly: true,
-		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60,
-		Secure:   c.Secure(),
-		SameSite: "Lax",
-	})
+	setPasskeyAuthCookies(c, scope, tokens.AccessToken, tokens.RefreshToken)
 
 	if err := security.RecordLoginSuccess(user.ID, c.IP(), c.Get("User-Agent")); err != nil {
 		log.Printf("failed to record login history: %v", err)

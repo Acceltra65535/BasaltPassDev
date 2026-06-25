@@ -3028,6 +3028,10 @@ const en = {
       actions: 'Actions',
       notAvailable: 'N/A',
     },
+    accountType: {
+      local: 'Local',
+      global: 'Global',
+    },
     appUsers: {
       title: 'App User Management',
       noApps: 'No Apps',
@@ -4987,6 +4991,10 @@ const en = {
       suspended: 'Suspended',
       banned: 'Banned',
     },
+    accountType: {
+      local: 'Local',
+      global: 'Global',
+    },
     meta: {
       email: 'Email: {{email}}',
       app: 'App: {{app}}',
@@ -5250,6 +5258,7 @@ const en = {
       nickname: 'Nickname',
       email: 'Email',
       userType: 'User Type',
+      accountType: 'Account Type',
       role: 'Role',
       status: 'Status',
       phone: 'Phone',
@@ -5260,6 +5269,10 @@ const en = {
     userType: {
       tenantAdmin: 'Tenant Admin',
       appUser: 'App User',
+    },
+    accountType: {
+      local: 'Local',
+      global: 'Global',
     },
     role: {
       owner: 'Owner',

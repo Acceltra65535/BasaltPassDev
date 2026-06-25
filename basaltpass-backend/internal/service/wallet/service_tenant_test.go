@@ -38,7 +38,7 @@ func TestWalletTenantIsolationByActiveTenant(t *testing.T) {
 		t.Fatalf("create currency failed: %v", err)
 	}
 
-	user := model.User{TenantID: 0, Email: "wallet-user@example.com", PasswordHash: "x"}
+	user := model.User{EnforcedTenantID: 0, Email: "wallet-user@example.com", PasswordHash: "x"}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestWalletRequiresTenantIdentity(t *testing.T) {
 		t.Fatalf("create currency failed: %v", err)
 	}
 
-	user := model.User{TenantID: 0, Email: "wallet-no-tenant@example.com", PasswordHash: "x"}
+	user := model.User{EnforcedTenantID: 0, Email: "wallet-no-tenant@example.com", PasswordHash: "x"}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}

@@ -1,8 +1,6 @@
 package passwordpolicy
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -89,7 +87,7 @@ func ValidateWithOptions(password string, opts Options, identifiers ...string) e
 	}
 
 	normalized := normalize(password)
-	if opts.RejectLeakedPasswords && leakedPasswordSHA1[sha1Hex(password)] {
+	if opts.RejectLeakedPasswords && isLeakedPassword(password) {
 		return ErrLeakedPassword
 	}
 	if opts.RejectCommonPasswords && isCommonPassword(password, normalized) {
@@ -168,9 +166,8 @@ func normalize(s string) string {
 	return replacer.Replace(s)
 }
 
-func sha1Hex(s string) string {
-	sum := sha1.Sum([]byte(s))
-	return strings.ToUpper(hex.EncodeToString(sum[:]))
+func isLeakedPassword(password string) bool {
+	return leakedPasswords[password]
 }
 
 func containsIdentifier(normalizedPassword string, identifiers []string) bool {
@@ -256,16 +253,16 @@ var commonPasswords = map[string]bool{
 	"testpassword": true,
 }
 
-// A small built-in blocklist of SHA-1 hashes for well-known leaked passwords.
+// A small built-in blocklist for well-known leaked passwords.
 // It is intentionally local so validation never sends user passwords to a third party.
-var leakedPasswordSHA1 = map[string]bool{
-	"5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8": true, // password
-	"E38AD214943DAAD1D64C102FAEC29DE4AFE9DA3D": true, // password1
-	"CBFDAC6008F9CAB4083784CBD1874F76618D2A97": true, // password123
-	"B1B3773A05C0ED0176787A4F1574FF0075F7521E": true, // qwerty
-	"D033E22AE348AEB5660FC2140AEC35850C4DA997": true, // admin
-	"F865B53623B121FD34EE5426C792E5C33AF8C227": true, // admin123
-	"AAF4C61DDCC5E8A2DABEDE0F3B482CD9AEA9434D": true, // hello
-	"B7A875FC1EA228B9061041B7CEC4BD3C52AB3CE3": true, // letmein
-	"EE8D8728F435FD550F83852AABAB5234CE1DA528": true, // iloveyou
+var leakedPasswords = map[string]bool{
+	"password":    true,
+	"password1":   true,
+	"password123": true,
+	"qwerty":      true,
+	"admin":       true,
+	"admin123":    true,
+	"hello":       true,
+	"letmein":     true,
+	"iloveyou":    true,
 }

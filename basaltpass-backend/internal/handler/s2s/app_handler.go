@@ -5,6 +5,7 @@ import (
 	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/model"
 	emailsvc "basaltpass-backend/internal/service/email"
+	"basaltpass-backend/internal/utils"
 	"context"
 	"strconv"
 	"strings"
@@ -35,12 +36,18 @@ type s2sSendEmailsRequest struct {
 	Subject   string            `json:"subject"`
 	TextBody  string            `json:"text_body"`
 	HTMLBody  string            `json:"html_body"`
+	To        []string          `json:"to"`
 	UserIDs   []uint            `json:"user_ids"`
 	Broadcast bool              `json:"broadcast"`
 	ReplyTo   string            `json:"reply_to"`
 	Headers   map[string]string `json:"headers"`
 	From      string            `json:"from"`
 	FromName  string            `json:"from_name"`
+}
+
+type s2sEmailTarget struct {
+	UserID *uint
+	Email  string
 }
 
 func uniqueUint(values []uint) []uint {
@@ -116,6 +123,41 @@ func loadAuthorizedAppUsers(appID uint, requested []uint) ([]model.User, error) 
 		return nil, err
 	}
 	return users, nil
+}
+
+func normalizeEmailAddresses(addresses []string) ([]string, error) {
+	if len(addresses) == 0 {
+		return nil, nil
+	}
+
+	validator := utils.NewEmailValidator()
+	seen := make(map[string]struct{}, len(addresses))
+	out := make([]string, 0, len(addresses))
+	for _, address := range addresses {
+		normalized, err := validator.Normalize(address)
+		if err != nil {
+			return nil, fiber.NewError(fiber.StatusBadRequest, "invalid email address: "+strings.TrimSpace(address))
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out, nil
+}
+
+func appendUniqueEmailTarget(targets []s2sEmailTarget, seen map[string]struct{}, target s2sEmailTarget) []s2sEmailTarget {
+	email := strings.TrimSpace(strings.ToLower(target.Email))
+	if email == "" {
+		return targets
+	}
+	if _, ok := seen[email]; ok {
+		return targets
+	}
+	seen[email] = struct{}{}
+	target.Email = email
+	return append(targets, target)
 }
 
 func teamMemberResponse(m model.TeamMember) fiber.Map {
@@ -538,6 +580,14 @@ func SendEmailsHandler(c *fiber.Ctx) error {
 	req.From = strings.TrimSpace(req.From)
 	req.FromName = strings.TrimSpace(req.FromName)
 	req.UserIDs = uniqueUint(req.UserIDs)
+	req.To, err = normalizeEmailAddresses(req.To)
+	if err != nil {
+		status := fiber.StatusBadRequest
+		if ferr, ok := err.(*fiber.Error); ok {
+			status = ferr.Code
+		}
+		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
+	}
 
 	if req.Subject == "" {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "subject is required"})
@@ -545,22 +595,21 @@ func SendEmailsHandler(c *fiber.Ctx) error {
 	if req.TextBody == "" && req.HTMLBody == "" {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "text_body or html_body is required"})
 	}
-	if !req.Broadcast && len(req.UserIDs) == 0 {
-		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "user_ids is required unless broadcast=true"})
+	if !req.Broadcast && len(req.UserIDs) == 0 && len(req.To) == 0 {
+		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "one of user_ids, to, or broadcast=true is required"})
 	}
 
-	targetUsers, err := loadAuthorizedAppUsers(app.ID, req.UserIDs)
-	if err != nil {
-		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
-	}
+	var targetUsers []model.User
 	if req.Broadcast {
 		targetUsers, err = loadAuthorizedAppUsers(app.ID, nil)
 		if err != nil {
 			return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 		}
-	}
-	if len(targetUsers) == 0 {
-		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "no authorized app users matched"})
+	} else if len(req.UserIDs) > 0 {
+		targetUsers, err = loadAuthorizedAppUsers(app.ID, req.UserIDs)
+		if err != nil {
+			return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
+		}
 	}
 
 	service, err := emailsvc.NewServiceFromConfig(config.Get())
@@ -568,25 +617,30 @@ func SendEmailsHandler(c *fiber.Ctx) error {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "email_unavailable", "message": err.Error()})
 	}
 
-	results := make([]fiber.Map, 0, len(targetUsers))
+	targets := make([]s2sEmailTarget, 0, len(targetUsers)+len(req.To))
+	seenEmails := make(map[string]struct{}, len(targetUsers)+len(req.To))
+	for _, user := range targetUsers {
+		userID := user.ID
+		targets = appendUniqueEmailTarget(targets, seenEmails, s2sEmailTarget{
+			UserID: &userID,
+			Email:  user.Email,
+		})
+	}
+	for _, email := range req.To {
+		targets = appendUniqueEmailTarget(targets, seenEmails, s2sEmailTarget{Email: email})
+	}
+	if len(targets) == 0 {
+		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "no email targets matched"})
+	}
+
+	results := make([]fiber.Map, 0, len(targets))
 	sentCount := 0
 	failedCount := 0
-	for _, user := range targetUsers {
-		if strings.TrimSpace(user.Email) == "" {
-			failedCount++
-			results = append(results, fiber.Map{
-				"user_id": user.ID,
-				"email":   "",
-				"status":  model.EmailStatusFailed,
-				"error":   "user email is empty",
-			})
-			continue
-		}
-
+	for _, target := range targets {
 		msg := &emailsvc.Message{
 			From:     req.From,
 			FromName: req.FromName,
-			To:       []string{user.Email},
+			To:       []string{target.Email},
 			Subject:  req.Subject,
 			TextBody: req.TextBody,
 			HTMLBody: req.HTMLBody,
@@ -609,9 +663,11 @@ func SendEmailsHandler(c *fiber.Ctx) error {
 		}
 
 		item := fiber.Map{
-			"user_id": user.ID,
-			"email":   user.Email,
-			"status":  status,
+			"email":  target.Email,
+			"status": status,
+		}
+		if target.UserID != nil {
+			item["user_id"] = *target.UserID
 		}
 		if emailLog != nil {
 			item["email_log_id"] = emailLog.ID

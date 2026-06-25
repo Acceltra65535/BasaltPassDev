@@ -3,6 +3,8 @@ package auth
 import (
 	"errors"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"basaltpass-backend/internal/common"
@@ -63,11 +65,11 @@ func TestLoginV2GlobalPortalRejectsTenantOnlyAccount(t *testing.T) {
 	db := setupAuthLoginTestDB(t)
 
 	user := model.User{
-		TenantID:      100,
-		Email:         "tenant-only@example.com",
-		PasswordHash:  mustPasswordHash(t, "pass-123"),
-		Nickname:      "tenant-user",
-		EmailVerified: true,
+		EnforcedTenantID: 100,
+		Email:            "tenant-only@example.com",
+		PasswordHash:     mustPasswordHash(t, "pass-123"),
+		Nickname:         "tenant-user",
+		EmailVerified:    true,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create tenant user failed: %v", err)
@@ -89,11 +91,11 @@ func TestLoginV2GlobalPortalAllowsGlobalAccount(t *testing.T) {
 	db := setupAuthLoginTestDB(t)
 
 	user := model.User{
-		TenantID:      0,
-		Email:         "global@example.com",
-		PasswordHash:  mustPasswordHash(t, "pass-456"),
-		Nickname:      "global-user",
-		EmailVerified: true,
+		EnforcedTenantID: 0,
+		Email:            "global@example.com",
+		PasswordHash:     mustPasswordHash(t, "pass-456"),
+		Nickname:         "global-user",
+		EmailVerified:    true,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create global user failed: %v", err)
@@ -117,11 +119,11 @@ func TestRefreshRotatesAndRejectsReuse(t *testing.T) {
 	db := setupAuthLoginTestDB(t)
 
 	user := model.User{
-		TenantID:      0,
-		Email:         "refresh@example.com",
-		PasswordHash:  mustPasswordHash(t, "pass-refresh"),
-		Nickname:      "refresh-user",
-		EmailVerified: true,
+		EnforcedTenantID: 0,
+		Email:            "refresh@example.com",
+		PasswordHash:     mustPasswordHash(t, "pass-refresh"),
+		Nickname:         "refresh-user",
+		EmailVerified:    true,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -149,15 +151,66 @@ func TestRefreshRotatesAndRejectsReuse(t *testing.T) {
 	}
 }
 
+func TestConsumeRefreshTokenAllowsOnlyOneConcurrentConsumer(t *testing.T) {
+	db := setupAuthLoginTestDB(t)
+
+	user := model.User{
+		EnforcedTenantID: 0,
+		Email:            "refresh-race@example.com",
+		PasswordHash:     mustPasswordHash(t, "pass-refresh-race"),
+		Nickname:         "refresh-race-user",
+		EmailVerified:    true,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+
+	pair, err := GenerateTokenPairWithTenantAndScope(user.ID, 0, ConsoleScopeUser)
+	if err != nil {
+		t.Fatalf("generate token pair failed: %v", err)
+	}
+
+	token, err := ParseToken(pair.RefreshToken)
+	if err != nil || token == nil || !token.Valid {
+		t.Fatalf("parse refresh token failed: %v", err)
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		t.Fatalf("unexpected claims type: %T", token.Claims)
+	}
+	jti, _ := claims["jti"].(string)
+	familyID, _ := claims["fam"].(string)
+	if jti == "" || familyID == "" {
+		t.Fatalf("refresh token missing jti/fam claims: %+v", claims)
+	}
+
+	var successCount int64
+	var wg sync.WaitGroup
+	for i := 0; i < 12; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := consumeRefreshToken(jti, familyID, pair.RefreshToken); err == nil {
+				atomic.AddInt64(&successCount, 1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt64(&successCount); got != 1 {
+		t.Fatalf("expected exactly one concurrent refresh token consumer, got %d", got)
+	}
+}
+
 func TestLoginV2GlobalPortalAllowsRegularUserInAdminScope(t *testing.T) {
 	db := setupAuthLoginTestDB(t)
 
 	user := model.User{
-		TenantID:      0,
-		Email:         "regular-admin-scope@example.com",
-		PasswordHash:  mustPasswordHash(t, "pass-789"),
-		Nickname:      "regular-user",
-		EmailVerified: true,
+		EnforcedTenantID: 0,
+		Email:            "regular-admin-scope@example.com",
+		PasswordHash:     mustPasswordHash(t, "pass-789"),
+		Nickname:         "regular-user",
+		EmailVerified:    true,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)

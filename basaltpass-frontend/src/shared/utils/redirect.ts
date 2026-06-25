@@ -23,3 +23,17 @@ export function resolveSafeRedirectTarget(rawRedirect: string, baseUrl: string):
     return null
   }
 }
+
+export function isOAuthAuthorizeRedirect(rawRedirect: string): boolean {
+  try {
+    const redirect = String(rawRedirect || '').trim()
+    if (!redirect) {
+      return false
+    }
+
+    const target = new URL(redirect, 'http://basaltpass.local')
+    return target.pathname === '/api/v1/oauth/authorize'
+  } catch {
+    return false
+  }
+}
