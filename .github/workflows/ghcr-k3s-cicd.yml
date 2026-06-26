@@ -209,12 +209,23 @@ jobs:
         shell: bash
         run: |
           OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          HARBOR_HOST="${{ secrets.BEANCS_REGISTRY_HOST }}"
+          HARBOR_HOST="${HARBOR_HOST#http://}"
+          HARBOR_HOST="${HARBOR_HOST#https://}"
+          HARBOR_HOST="${HARBOR_HOST%/}"
           kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
           kubectl -n "${NAMESPACE}" create secret docker-registry ghcr-creds \
             --docker-server=ghcr.io \
             --docker-username="${OWNER_LC}" \
             --docker-password="${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" \
             --dry-run=client -o yaml | kubectl apply -f -
+          if [[ -n "${HARBOR_HOST}" && -n "${{ secrets.BEANCS_REGISTRY_USERNAME }}" && -n "${{ secrets.BEANCS_REGISTRY_TOKEN }}" ]]; then
+            kubectl -n "${NAMESPACE}" create secret docker-registry beancs-registry-pull \
+              --docker-server="${HARBOR_HOST}" \
+              --docker-username="${{ secrets.BEANCS_REGISTRY_USERNAME }}" \
+              --docker-password="${{ secrets.BEANCS_REGISTRY_TOKEN }}" \
+              --dry-run=client -o yaml | kubectl apply -f -
+          fi
 
       - name: Configure BasaltPass backend secret
         shell: bash
@@ -240,8 +251,14 @@ jobs:
       - name: Deploy BasaltPass workloads
         shell: bash
         run: |
-          BACKEND_IMAGE="${{ needs.build_and_push.outputs.backend_image }}:${GITHUB_SHA}"
-          FRONTEND_IMAGE="${{ needs.build_and_push.outputs.frontend_image }}:${GITHUB_SHA}"
+          BACKEND_IMAGE="${{ needs.build_and_push.outputs.harbor_backend_image }}:${GITHUB_SHA}"
+          FRONTEND_IMAGE="${{ needs.build_and_push.outputs.harbor_frontend_image }}:${GITHUB_SHA}"
+          PULL_SECRET="beancs-registry-pull"
+          if [[ "${BACKEND_IMAGE}" == ":${GITHUB_SHA}" || "${FRONTEND_IMAGE}" == ":${GITHUB_SHA}" ]]; then
+            BACKEND_IMAGE="${{ needs.build_and_push.outputs.backend_image }}:${GITHUB_SHA}"
+            FRONTEND_IMAGE="${{ needs.build_and_push.outputs.frontend_image }}:${GITHUB_SHA}"
+            PULL_SECRET="ghcr-creds"
+          fi
 
           cat <<YAML | kubectl apply -f -
           apiVersion: apps/v1
@@ -268,7 +285,7 @@ jobs:
                 nodeSelector:
                   kubernetes.io/arch: amd64
                 imagePullSecrets:
-                  - name: ghcr-creds
+                  - name: ${PULL_SECRET}
                 containers:
                   - name: backend
                     image: ${BACKEND_IMAGE}
@@ -357,7 +374,7 @@ jobs:
                 nodeSelector:
                   kubernetes.io/arch: amd64
                 imagePullSecrets:
-                  - name: ghcr-creds
+                  - name: ${PULL_SECRET}
                 containers:
                   - name: frontend
                     image: ${FRONTEND_IMAGE}
