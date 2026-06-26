@@ -251,10 +251,16 @@ jobs:
       - name: Deploy BasaltPass workloads
         shell: bash
         run: |
-          BACKEND_IMAGE="${{ needs.build_and_push.outputs.harbor_backend_image }}:${GITHUB_SHA}"
-          FRONTEND_IMAGE="${{ needs.build_and_push.outputs.harbor_frontend_image }}:${GITHUB_SHA}"
-          PULL_SECRET="beancs-registry-pull"
-          if [[ "${BACKEND_IMAGE}" == ":${GITHUB_SHA}" || "${FRONTEND_IMAGE}" == ":${GITHUB_SHA}" ]]; then
+          HARBOR_HOST="${{ secrets.BEANCS_REGISTRY_HOST }}"
+          HARBOR_HOST="${HARBOR_HOST#http://}"
+          HARBOR_HOST="${HARBOR_HOST#https://}"
+          HARBOR_HOST="${HARBOR_HOST%/}"
+          HARBOR_PROJECT="${{ vars.BEANCS_HARBOR_PROJECT || 'basaltpass' }}"
+          if [[ -n "${HARBOR_HOST}" && -n "${{ secrets.BEANCS_REGISTRY_USERNAME }}" && -n "${{ secrets.BEANCS_REGISTRY_TOKEN }}" ]]; then
+            BACKEND_IMAGE="${HARBOR_HOST}/${HARBOR_PROJECT}/basaltpass-backend:${GITHUB_SHA}"
+            FRONTEND_IMAGE="${HARBOR_HOST}/${HARBOR_PROJECT}/basaltpass-frontend:${GITHUB_SHA}"
+            PULL_SECRET="beancs-registry-pull"
+          else
             BACKEND_IMAGE="${{ needs.build_and_push.outputs.backend_image }}:${GITHUB_SHA}"
             FRONTEND_IMAGE="${{ needs.build_and_push.outputs.frontend_image }}:${GITHUB_SHA}"
             PULL_SECRET="ghcr-creds"
