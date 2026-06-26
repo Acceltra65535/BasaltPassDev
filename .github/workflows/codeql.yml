@@ -8,20 +8,16 @@ on:
   schedule:
     - cron: "0 3 * * 1"
 
-jobs:
-  analyze:
-    name: Analyze
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      packages: read
-      actions: read
-      contents: read
+permissions:
+  security-events: write
+  packages: read
+  actions: read
+  contents: read
 
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["javascript-typescript", "go"]
+jobs:
+  analyze-javascript-typescript:
+    name: Analyze JavaScript/TypeScript
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -30,14 +26,35 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: ${{ matrix.language }}
+          languages: javascript-typescript
 
-      - name: Autobuild JavaScript/TypeScript
-        if: matrix.language == 'javascript-typescript'
-        uses: github/codeql-action/autobuild@v4
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+
+  analyze-go:
+    name: Analyze Go
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.2"
+          cache-dependency-path: |
+            go.sum
+            basaltpass-backend/go.sum
+            basaltpass-backend/sdk/go/go.sum
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: go
+          build-mode: manual
 
       - name: Build Go modules
-        if: matrix.language == 'go'
         shell: bash
         run: |
           set -euo pipefail
