@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
-    "axios": "^1.6.7",
+    "axios": "^1.18.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.18.0",
     "react": "19.2.7",
