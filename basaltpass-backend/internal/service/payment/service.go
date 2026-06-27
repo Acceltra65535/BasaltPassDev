@@ -18,6 +18,7 @@ import (
 
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -390,8 +391,8 @@ func collectCandidateWebhookSecrets(db *gorm.DB, eventObject map[string]interfac
 
 	if metadata, ok := eventObject["metadata"].(map[string]interface{}); ok {
 		if tenantIDStr := parseString(metadata["tenant_id"]); tenantIDStr != "" {
-			if tenantID64, err := strconv.ParseUint(tenantIDStr, 10, 64); err == nil {
-				secrets = appendUniqueSecret(secrets, findWebhookSecretByTenantID(db, uint(tenantID64)))
+			if tenantID, err := utils.ParsePositiveUint(tenantIDStr); err == nil {
+				secrets = appendUniqueSecret(secrets, findWebhookSecretByTenantID(db, tenantID))
 			}
 		}
 	}
@@ -440,12 +441,12 @@ func collectCandidateWebhookSecrets(db *gorm.DB, eventObject map[string]interfac
 func parseUIntFromAny(v interface{}) uint {
 	s := parseString(v)
 	if s != "" {
-		if n, err := strconv.ParseUint(s, 10, 64); err == nil {
-			return uint(n)
+		if n, err := utils.ParseUint(s); err == nil {
+			return n
 		}
 	}
-	if n, ok := v.(float64); ok {
-		return uint(n)
+	if n, err := utils.UintFromAny(v); err == nil {
+		return n
 	}
 	return 0
 }
@@ -1315,36 +1316,11 @@ func parseOrderIDFromMetadata(metadata map[string]interface{}) (uint, error) {
 		return 0, fmt.Errorf("order_id not found")
 	}
 
-	switch typed := v.(type) {
-	case float64:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid order_id")
-		}
-		return uint(typed), nil
-	case int:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid order_id")
-		}
-		return uint(typed), nil
-	case int64:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid order_id")
-		}
-		return uint(typed), nil
-	case uint:
-		if typed == 0 {
-			return 0, fmt.Errorf("invalid order_id")
-		}
-		return typed, nil
-	case string:
-		parsed, err := strconv.ParseUint(strings.TrimSpace(typed), 10, 64)
-		if err != nil || parsed == 0 {
-			return 0, fmt.Errorf("invalid order_id string")
-		}
-		return uint(parsed), nil
-	default:
+	parsed, err := utils.PositiveUintFromAny(v)
+	if err != nil {
 		return 0, fmt.Errorf("unsupported order_id type")
 	}
+	return parsed, nil
 }
 
 func parseSubscriptionIDFromMetadata(metadata map[string]interface{}) (uint, error) {
@@ -1356,36 +1332,11 @@ func parseSubscriptionIDFromMetadata(metadata map[string]interface{}) (uint, err
 		return 0, fmt.Errorf("subscription_id not found")
 	}
 
-	switch typed := v.(type) {
-	case float64:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid subscription_id")
-		}
-		return uint(typed), nil
-	case int:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid subscription_id")
-		}
-		return uint(typed), nil
-	case int64:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid subscription_id")
-		}
-		return uint(typed), nil
-	case uint:
-		if typed == 0 {
-			return 0, fmt.Errorf("invalid subscription_id")
-		}
-		return typed, nil
-	case string:
-		parsed, err := strconv.ParseUint(strings.TrimSpace(typed), 10, 64)
-		if err != nil || parsed == 0 {
-			return 0, fmt.Errorf("invalid subscription_id string")
-		}
-		return uint(parsed), nil
-	default:
+	parsed, err := utils.PositiveUintFromAny(v)
+	if err != nil {
 		return 0, fmt.Errorf("unsupported subscription_id type")
 	}
+	return parsed, nil
 }
 
 func parseInvoiceIDFromMetadata(metadata map[string]interface{}) (uint, error) {
@@ -1397,36 +1348,11 @@ func parseInvoiceIDFromMetadata(metadata map[string]interface{}) (uint, error) {
 		return 0, fmt.Errorf("invoice_id not found")
 	}
 
-	switch typed := v.(type) {
-	case float64:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid invoice_id")
-		}
-		return uint(typed), nil
-	case int:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid invoice_id")
-		}
-		return uint(typed), nil
-	case int64:
-		if typed <= 0 {
-			return 0, fmt.Errorf("invalid invoice_id")
-		}
-		return uint(typed), nil
-	case uint:
-		if typed == 0 {
-			return 0, fmt.Errorf("invalid invoice_id")
-		}
-		return typed, nil
-	case string:
-		parsed, err := strconv.ParseUint(strings.TrimSpace(typed), 10, 64)
-		if err != nil || parsed == 0 {
-			return 0, fmt.Errorf("invalid invoice_id string")
-		}
-		return uint(parsed), nil
-	default:
+	parsed, err := utils.PositiveUintFromAny(v)
+	if err != nil {
 		return 0, fmt.Errorf("unsupported invoice_id type")
 	}
+	return parsed, nil
 }
 
 // FinalizeOrderPaymentBySessionForUser 在确认用户归属后，按会话立即完成订单支付并创建订阅。

@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
 	"basaltpass-backend/internal/service/aduit"
+	"basaltpass-backend/internal/utils"
 	"strconv"
 	"time"
 
@@ -27,7 +28,7 @@ func init() {
 func GetAppUsersHandler(c *fiber.Ctx) error {
 	// 获取应用ID
 	appIDStr := c.Params("app_id")
-	appID, err := strconv.ParseUint(appIDStr, 10, 32)
+	appID, err := utils.ParsePositiveUint(appIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid app ID",
@@ -44,7 +45,7 @@ func GetAppUsersHandler(c *fiber.Ctx) error {
 		limit = 20
 	}
 
-	users, total, err := appUserService.GetAppUsers(uint(appID), page, limit)
+	users, total, err := appUserService.GetAppUsers(appID, page, limit)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get app users",
@@ -82,21 +83,21 @@ func RevokeUserAppHandler(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 
 	appIDStr := c.Params("app_id")
-	appID, err := strconv.ParseUint(appIDStr, 10, 32)
+	appID, err := utils.ParsePositiveUint(appIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid app ID",
 		})
 	}
 
-	if err := appUserService.RevokeUserAppAuthorization(uint(appID), userID); err != nil {
+	if err := appUserService.RevokeUserAppAuthorization(appID, userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to revoke authorization",
 		})
 	}
 
 	// 记录审计日志
-	aduit.LogAudit(userID, "撤销应用授权", "app_user", strconv.Itoa(int(appID)), "", "")
+	aduit.LogAudit(userID, "撤销应用授权", "app_user", strconv.FormatUint(uint64(appID), 10), "", "")
 
 	return c.JSON(fiber.Map{
 		"message": "Authorization revoked successfully",
@@ -106,14 +107,14 @@ func RevokeUserAppHandler(c *fiber.Ctx) error {
 // GetAppUserStatsHandler 获取应用用户统计（租户管理员权限）
 func GetAppUserStatsHandler(c *fiber.Ctx) error {
 	appIDStr := c.Params("app_id")
-	appID, err := strconv.ParseUint(appIDStr, 10, 32)
+	appID, err := utils.ParsePositiveUint(appIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid app ID",
 		})
 	}
 
-	stats, err := appUserService.GetAppUserStats(uint(appID))
+	stats, err := appUserService.GetAppUserStats(appID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get app user stats",
@@ -130,7 +131,7 @@ func AdminRevokeUserAppHandler(c *fiber.Ctx) error {
 	adminUserID := c.Locals("userID").(uint)
 
 	appIDStr := c.Params("app_id")
-	appID, err := strconv.ParseUint(appIDStr, 10, 32)
+	appID, err := utils.ParsePositiveUint(appIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid app ID",
@@ -138,14 +139,14 @@ func AdminRevokeUserAppHandler(c *fiber.Ctx) error {
 	}
 
 	userIDStr := c.Params("user_id")
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	userID, err := utils.ParsePositiveUint(userIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid user ID",
 		})
 	}
 
-	if err := appUserService.RevokeUserAppAuthorization(uint(appID), uint(userID)); err != nil {
+	if err := appUserService.RevokeUserAppAuthorization(appID, userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to revoke authorization",
 		})
@@ -153,7 +154,7 @@ func AdminRevokeUserAppHandler(c *fiber.Ctx) error {
 
 	// 记录审计日志
 	aduit.LogAudit(adminUserID, "管理员撤销应用授权", "app_user",
-		strconv.Itoa(int(appID))+"_"+strconv.Itoa(int(userID)), "", "")
+		strconv.FormatUint(uint64(appID), 10)+"_"+strconv.FormatUint(uint64(userID), 10), "", "")
 
 	return c.JSON(fiber.Map{
 		"message": "Authorization revoked successfully",
@@ -165,7 +166,7 @@ func UpdateAppUserStatusHandler(c *fiber.Ctx) error {
 	adminUserID := c.Locals("userID").(uint)
 
 	appIDStr := c.Params("app_id")
-	appID, err := strconv.ParseUint(appIDStr, 10, 32)
+	appID, err := utils.ParsePositiveUint(appIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid app ID",
@@ -173,7 +174,7 @@ func UpdateAppUserStatusHandler(c *fiber.Ctx) error {
 	}
 
 	userIDStr := c.Params("user_id")
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	userID, err := utils.ParsePositiveUint(userIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid user ID",
@@ -197,7 +198,7 @@ func UpdateAppUserStatusHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := appUserService.UpdateAppUserStatus(uint(appID), uint(userID), adminUserID, req.Status, req.Reason, req.BanUntil); err != nil {
+	if err := appUserService.UpdateAppUserStatus(appID, userID, adminUserID, req.Status, req.Reason, req.BanUntil); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -205,7 +206,7 @@ func UpdateAppUserStatusHandler(c *fiber.Ctx) error {
 
 	// 记录审计日志
 	aduit.LogAudit(adminUserID, "更新应用用户状态", "app_user",
-		strconv.Itoa(int(appID))+"_"+strconv.Itoa(int(userID)), string(req.Status), "")
+		strconv.FormatUint(uint64(appID), 10)+"_"+strconv.FormatUint(uint64(userID), 10), string(req.Status), "")
 
 	return c.JSON(fiber.Map{
 		"message": "User status updated successfully",
@@ -215,7 +216,7 @@ func UpdateAppUserStatusHandler(c *fiber.Ctx) error {
 // GetAppUsersByStatusHandler 根据状态获取应用用户列表
 func GetAppUsersByStatusHandler(c *fiber.Ctx) error {
 	appIDStr := c.Params("app_id")
-	appID, err := strconv.ParseUint(appIDStr, 10, 32)
+	appID, err := utils.ParsePositiveUint(appIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid app ID",
@@ -240,7 +241,7 @@ func GetAppUsersByStatusHandler(c *fiber.Ctx) error {
 		status = &s
 	}
 
-	users, total, err := appUserService.GetAppUsersByStatus(uint(appID), status, page, limit)
+	users, total, err := appUserService.GetAppUsersByStatus(appID, status, page, limit)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get app users",

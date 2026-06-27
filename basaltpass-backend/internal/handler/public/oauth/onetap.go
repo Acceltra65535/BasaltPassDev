@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	security "basaltpass-backend/internal/handler/user/security"
 	"basaltpass-backend/internal/model"
 	auth "basaltpass-backend/internal/service/auth"
+	"basaltpass-backend/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -282,11 +282,13 @@ func getUserFromSession(c *fiber.Ctx) (*model.User, error) {
 		switch v := userVal.(type) {
 		case uint:
 			return loadActiveUser(v)
-		case int:
-			return loadActiveUser(uint(v))
 		case string:
-			if parsed, err := strconv.ParseUint(v, 10, 64); err == nil {
-				return loadActiveUser(uint(parsed))
+			if parsed, err := utils.ParsePositiveUint(v); err == nil {
+				return loadActiveUser(parsed)
+			}
+		default:
+			if parsed, err := utils.PositiveUintFromAny(v); err == nil {
+				return loadActiveUser(parsed)
 			}
 		}
 	}
@@ -314,14 +316,18 @@ func getUserFromSession(c *fiber.Ctx) (*model.User, error) {
 	var userID uint
 	switch v := rawSub.(type) {
 	case float64:
-		userID = uint(v)
+		if parsed, parseErr := utils.PositiveUintFromAny(v); parseErr == nil {
+			userID = parsed
+		}
 	case json.Number:
 		if parsed, parseErr := v.Int64(); parseErr == nil {
-			userID = uint(parsed)
+			if converted, convertErr := utils.Int64ToUint(parsed); convertErr == nil {
+				userID = converted
+			}
 		}
 	case string:
-		if parsed, parseErr := strconv.ParseUint(v, 10, 64); parseErr == nil {
-			userID = uint(parsed)
+		if parsed, parseErr := utils.ParsePositiveUint(v); parseErr == nil {
+			userID = parsed
 		}
 	default:
 		return nil, errors.New("unsupported subject claim type")

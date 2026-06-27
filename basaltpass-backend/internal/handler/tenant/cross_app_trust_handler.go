@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
 	txsvc "basaltpass-backend/internal/service/tokenexchange"
+	"basaltpass-backend/internal/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -169,13 +170,13 @@ func CreateCrossAppTrustHandler(c *fiber.Ctx) error {
 func UpdateCrossAppTrustHandler(c *fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uint)
 
-	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
-	if err != nil || id == 0 {
+	id, err := utils.ParsePositiveUint(c.Params("id"))
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid trust id"})
 	}
 
 	var trust model.CrossAppTrust
-	if err := common.DB().Where("id = ? AND tenant_id = ?", uint(id), tenantID).First(&trust).Error; err != nil {
+	if err := common.DB().Where("id = ? AND tenant_id = ?", id, tenantID).First(&trust).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "trust not found"})
 	}
 
@@ -224,12 +225,12 @@ func UpdateCrossAppTrustHandler(c *fiber.Ctx) error {
 func DeleteCrossAppTrustHandler(c *fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uint)
 
-	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
-	if err != nil || id == 0 {
+	id, err := utils.ParsePositiveUint(c.Params("id"))
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid trust id"})
 	}
 
-	result := common.DB().Where("id = ? AND tenant_id = ?", uint(id), tenantID).Delete(&model.CrossAppTrust{})
+	result := common.DB().Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&model.CrossAppTrust{})
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": result.Error.Error()})
 	}

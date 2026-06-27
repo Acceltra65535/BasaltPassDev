@@ -234,12 +234,15 @@ func parseOIDCSessionFromJWT(tokenStr string) (uint, OIDCAuthContext, bool) {
 	}
 	ctx := authContextFromJWTClaims(claims)
 	if subFloat, ok := sub.(float64); ok {
-		return uint(subFloat), ctx, true
+		if uid, err := utils.PositiveUintFromAny(subFloat); err == nil {
+			return uid, ctx, true
+		}
+		return 0, OIDCAuthContext{}, false
 	}
 	if subStr, ok := sub.(string); ok {
-		uid, err := strconv.ParseUint(subStr, 10, 64)
+		uid, err := utils.ParsePositiveUint(subStr)
 		if err == nil {
-			return uint(uid), ctx, true
+			return uid, ctx, true
 		}
 	}
 	return 0, OIDCAuthContext{}, false

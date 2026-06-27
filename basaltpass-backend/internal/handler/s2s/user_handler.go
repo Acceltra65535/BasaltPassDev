@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
 	"basaltpass-backend/internal/service/wallet"
+	"basaltpass-backend/internal/utils"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,6 +20,10 @@ func unifiedResponse(c *fiber.Ctx, status int, data interface{}, errObj interfac
 		return c.Status(status).JSON(fiber.Map{"error": errObj, "data": nil, "request_id": requestID})
 	}
 	return c.Status(status).JSON(fiber.Map{"data": data, "error": nil, "request_id": requestID})
+}
+
+func parseS2SPositiveUint(value string) (uint, error) {
+	return utils.ParsePositiveUint(value)
 }
 
 func userSummary(u model.User) fiber.Map {
@@ -50,11 +55,10 @@ func s2sTenantID(c *fiber.Ctx) (uint, error) {
 	if tenantStr == "" {
 		return clientTenantID, nil
 	}
-	tid64, err := strconv.ParseUint(tenantStr, 10, 64)
-	if err != nil || tid64 == 0 {
+	requestedTenantID, err := parseS2SPositiveUint(tenantStr)
+	if err != nil {
 		return 0, fiber.NewError(fiber.StatusBadRequest, "invalid tenant id")
 	}
-	requestedTenantID := uint(tid64)
 	if requestedTenantID != clientTenantID {
 		return 0, fiber.NewError(fiber.StatusForbidden, "tenant mismatch")
 	}
@@ -81,8 +85,8 @@ func s2sAppID(c *fiber.Ctx) (uint, error) {
 // GET /api/v1/s2s/users/:id
 func GetUserByIDHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 
@@ -95,7 +99,7 @@ func GetUserByIDHandler(c *fiber.Ctx) error {
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
 
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -104,7 +108,7 @@ func GetUserByIDHandler(c *fiber.Ctx) error {
 	}
 
 	var user model.User
-	if err := common.DB().First(&user, uint(uid64)).Error; err != nil {
+	if err := common.DB().First(&user, userID).Error; err != nil {
 		return unifiedResponse(c, fiber.StatusNotFound, nil, fiber.Map{"code": "not_found", "message": "user not found"})
 	}
 
@@ -115,8 +119,8 @@ func GetUserByIDHandler(c *fiber.Ctx) error {
 // GET /api/v1/s2s/users/:id/roles?tenant_id=xxx
 func GetUserRolesHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 	tenantID, err := s2sTenantID(c)
@@ -127,7 +131,7 @@ func GetUserRolesHandler(c *fiber.Ctx) error {
 		}
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -148,7 +152,7 @@ func GetUserRolesHandler(c *fiber.Ctx) error {
 	err = common.DB().Table("app_user_roles").
 		Select("app_roles.*").
 		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", uint(uid64), appID).
+		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
 		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", time.Now()).
 		Order("app_roles.id ASC").
 		Find(&roles).Error
@@ -166,8 +170,8 @@ func GetUserRolesHandler(c *fiber.Ctx) error {
 // GET /api/v1/s2s/users/:id/permissions?tenant_id=xxx
 func GetUserPermissionsHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 	tenantID, err := s2sTenantID(c)
@@ -178,7 +182,7 @@ func GetUserPermissionsHandler(c *fiber.Ctx) error {
 		}
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -201,7 +205,7 @@ func GetUserPermissionsHandler(c *fiber.Ctx) error {
 	err = common.DB().Table("app_user_permissions").
 		Select("app_permissions.code").
 		Joins("JOIN app_permissions ON app_permissions.id = app_user_permissions.permission_id").
-		Where("app_user_permissions.user_id = ? AND app_user_permissions.app_id = ?", uint(uid64), appID).
+		Where("app_user_permissions.user_id = ? AND app_user_permissions.app_id = ?", userID, appID).
 		Where("app_user_permissions.expires_at IS NULL OR app_user_permissions.expires_at > ?", time.Now()).
 		Pluck("app_permissions.code", &directPermissionCodes).Error
 	if err != nil {
@@ -217,7 +221,7 @@ func GetUserPermissionsHandler(c *fiber.Ctx) error {
 		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
 		Joins("JOIN app_role_permissions ON app_role_permissions.app_role_id = app_roles.id").
 		Joins("JOIN app_permissions ON app_permissions.id = app_role_permissions.app_permission_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", uint(uid64), appID).
+		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
 		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", time.Now()).
 		Pluck("app_permissions.code", &rolePermissionCodes).Error
 	if err != nil {
@@ -238,7 +242,7 @@ func GetUserPermissionsHandler(c *fiber.Ctx) error {
 	err = common.DB().Table("app_user_roles").
 		Select("DISTINCT app_roles.code").
 		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", uint(uid64), appID).
+		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
 		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", time.Now()).
 		Pluck("app_roles.code", &roleCodes).Error
 	if err != nil {
@@ -256,8 +260,8 @@ func GetUserPermissionsHandler(c *fiber.Ctx) error {
 // GET /api/v1/s2s/users/:id/role-codes?tenant_id=xxx
 func GetUserRoleCodesHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 	tenantID, err := s2sTenantID(c)
@@ -268,7 +272,7 @@ func GetUserRoleCodesHandler(c *fiber.Ctx) error {
 		}
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -289,7 +293,7 @@ func GetUserRoleCodesHandler(c *fiber.Ctx) error {
 	err = common.DB().Table("app_user_roles").
 		Select("DISTINCT app_roles.code").
 		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", uint(uid64), appID).
+		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
 		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", time.Now()).
 		Pluck("app_roles.code", &roleCodes).Error
 	if err != nil {
@@ -397,11 +401,10 @@ type adjustUserWalletRequest struct {
 // Body: {"nickname": "..."} (or legacy alias "username")
 func PatchUserHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
-	userID := uint(uid64)
 
 	tenantAny := c.Locals("s2s_tenant_id")
 	if tenantAny == nil {
@@ -450,8 +453,8 @@ func PatchUserHandler(c *fiber.Ctx) error {
 // 支持可选参数：currency=CODE（如 CNY, USD），limit=20（交易记录条数）
 func GetUserWalletHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 	tenantID, err := s2sTenantID(c)
@@ -462,7 +465,7 @@ func GetUserWalletHandler(c *fiber.Ctx) error {
 		}
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -481,12 +484,12 @@ func GetUserWalletHandler(c *fiber.Ctx) error {
 	}
 
 	// 查询余额
-	w, err := wallet.GetBalanceByCode(uint(uid64), currency)
+	w, err := wallet.GetBalanceByCode(userID, currency)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "wallet_error", "message": err.Error()})
 	}
 	// 查询交易记录
-	txs, err := wallet.HistoryByCode(uint(uid64), currency, limit)
+	txs, err := wallet.HistoryByCode(userID, currency, limit)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "wallet_error", "message": err.Error()})
 	}
@@ -506,11 +509,10 @@ func GetUserWalletHandler(c *fiber.Ctx) error {
 // Body: {"operation":"increase|decrease","amount":100,"currency":"USD","reference":"invoice_123"}
 func AdjustUserWalletHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
-	userID := uint(uid64)
 
 	tenantID, err := s2sTenantID(c)
 	if err != nil {
