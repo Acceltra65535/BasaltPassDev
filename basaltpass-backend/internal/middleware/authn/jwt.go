@@ -4,9 +4,9 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/middleware/transport"
 	serviceauth "basaltpass-backend/internal/service/auth"
+	"basaltpass-backend/internal/utils"
 	"crypto/subtle"
 	"errors"
-	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -142,24 +142,14 @@ func JWTMiddleware() fiber.Handler {
 		}
 
 		if userID, exists := claims["sub"]; exists {
-			switch typed := userID.(type) {
-			case float64:
-				c.Locals("userID", uint(typed))
-			case string:
-				if parsed, parseErr := strconv.ParseUint(typed, 10, 64); parseErr == nil {
-					c.Locals("userID", uint(parsed))
-				}
+			if parsed, parseErr := utils.UintFromAny(userID); parseErr == nil {
+				c.Locals("userID", parsed)
 			}
 		}
 
 		if tenantID, exists := claims["tid"]; exists {
-			switch typed := tenantID.(type) {
-			case float64:
-				c.Locals("tenantID", uint(typed))
-			case string:
-				if parsed, parseErr := strconv.ParseUint(typed, 10, 64); parseErr == nil {
-					c.Locals("tenantID", uint(parsed))
-				}
+			if parsed, parseErr := utils.UintFromAny(tenantID); parseErr == nil {
+				c.Locals("tenantID", parsed)
 			}
 		}
 

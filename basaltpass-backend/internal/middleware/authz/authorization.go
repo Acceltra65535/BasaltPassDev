@@ -2,9 +2,9 @@ package authz
 
 import (
 	accesssvc "basaltpass-backend/internal/service/access"
+	"basaltpass-backend/internal/utils"
 	"errors"
 	"log"
-	"strconv"
 
 	"basaltpass-backend/internal/middleware/transport"
 	"basaltpass-backend/internal/model"
@@ -181,28 +181,20 @@ func tenantContextIDs(c *fiber.Ctx) (uint, uint, bool) {
 
 	userID, ok := userIDAny.(uint)
 	if !ok || userID == 0 {
-		s, ok := userIDAny.(string)
-		if !ok {
+		parsed, err := utils.PositiveUintFromAny(userIDAny)
+		if err != nil {
 			return 0, 0, false
 		}
-		parsed, err := strconv.ParseUint(s, 10, 64)
-		if err != nil || parsed == 0 {
-			return 0, 0, false
-		}
-		userID = uint(parsed)
+		userID = parsed
 	}
 
 	tenantID, ok := tenantIDAny.(uint)
 	if !ok || tenantID == 0 {
-		s, ok := tenantIDAny.(string)
-		if !ok {
+		parsed, err := utils.PositiveUintFromAny(tenantIDAny)
+		if err != nil {
 			return 0, 0, false
 		}
-		parsed, err := strconv.ParseUint(s, 10, 64)
-		if err != nil || parsed == 0 {
-			return 0, 0, false
-		}
-		tenantID = uint(parsed)
+		tenantID = parsed
 	}
 
 	return userID, tenantID, true

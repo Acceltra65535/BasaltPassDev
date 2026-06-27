@@ -12,8 +12,8 @@ import (
 // 可选参数：status=unread|all（默认all），page=1，page_size=20
 func GetUserMessagesHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 	tenantID, err := s2sTenantID(c)
@@ -24,7 +24,7 @@ func GetUserMessagesHandler(c *fiber.Ctx) error {
 		}
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -42,7 +42,7 @@ func GetUserMessagesHandler(c *fiber.Ctx) error {
 	}
 
 	db := common.DB()
-	q := db.Model(&model.Notification{}).Where("receiver_id = ? OR receiver_id = 0", uint(uid64))
+	q := db.Model(&model.Notification{}).Where("receiver_id = ? OR receiver_id = 0", userID)
 	if status == "unread" {
 		q = q.Where("is_read = ?", false)
 	}
@@ -67,8 +67,8 @@ func GetUserMessagesHandler(c *fiber.Ctx) error {
 // 返回用户通过活跃订阅或已支付订单拥有的产品列表
 func GetUserPurchasedProductsHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 	tenantID, err := s2sTenantID(c)
@@ -79,7 +79,7 @@ func GetUserPurchasedProductsHandler(c *fiber.Ctx) error {
 		}
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -98,7 +98,7 @@ func GetUserPurchasedProductsHandler(c *fiber.Ctx) error {
 		Joins("JOIN market_prices pr ON s.current_price_id = pr.id").
 		Joins("JOIN market_plans pl ON pr.plan_id = pl.id").
 		Joins("JOIN market_products p ON pl.product_id = p.id").
-		Where("s.user_id = ? AND s.status IN ?", uint(uid64), []string{"trialing", "active"}).
+		Where("s.user_id = ? AND s.status IN ?", userID, []string{"trialing", "active"}).
 		Group("p.id").
 		Scan(&subRows).Error; err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
@@ -114,7 +114,7 @@ func GetUserPurchasedProductsHandler(c *fiber.Ctx) error {
 		Joins("JOIN market_prices pr ON o.price_id = pr.id").
 		Joins("JOIN market_plans pl ON pr.plan_id = pl.id").
 		Joins("JOIN market_products p ON pl.product_id = p.id").
-		Where("o.user_id = ? AND o.status = ?", uint(uid64), "paid").
+		Where("o.user_id = ? AND o.status = ?", userID, "paid").
 		Group("p.id").
 		Scan(&ordRows).Error; err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
@@ -141,8 +141,8 @@ func GetUserPurchasedProductsHandler(c *fiber.Ctx) error {
 // 返回 { has_ownership: bool, via: ["subscription","order"] }
 func CheckUserProductOwnershipHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 	tenantID, err := s2sTenantID(c)
@@ -153,7 +153,7 @@ func CheckUserProductOwnershipHandler(c *fiber.Ctx) error {
 		}
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -161,8 +161,8 @@ func CheckUserProductOwnershipHandler(c *fiber.Ctx) error {
 		return unifiedResponse(c, fiber.StatusNotFound, nil, fiber.Map{"code": "not_found", "message": "user not found"})
 	}
 	pidStr := c.Params("product_id")
-	pid64, err := strconv.ParseUint(pidStr, 10, 64)
-	if err != nil || pid64 == 0 {
+	productID, err := parseS2SPositiveUint(pidStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid product id"})
 	}
 
@@ -173,7 +173,7 @@ func CheckUserProductOwnershipHandler(c *fiber.Ctx) error {
 		Joins("JOIN market_prices pr ON s.current_price_id = pr.id").
 		Joins("JOIN market_plans pl ON pr.plan_id = pl.id").
 		Joins("JOIN market_products p ON pl.product_id = p.id").
-		Where("s.user_id = ? AND s.status IN ? AND p.id = ?", uint(uid64), []string{"trialing", "active"}, uint(pid64)).
+		Where("s.user_id = ? AND s.status IN ? AND p.id = ?", userID, []string{"trialing", "active"}, productID).
 		Count(&count).Error; err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -189,7 +189,7 @@ func CheckUserProductOwnershipHandler(c *fiber.Ctx) error {
 		Joins("JOIN market_prices pr ON o.price_id = pr.id").
 		Joins("JOIN market_plans pl ON pr.plan_id = pl.id").
 		Joins("JOIN market_products p ON pl.product_id = p.id").
-		Where("o.user_id = ? AND o.status = ? AND p.id = ?", uint(uid64), "paid", uint(pid64)).
+		Where("o.user_id = ? AND o.status = ? AND p.id = ?", userID, "paid", productID).
 		Count(&count).Error; err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}

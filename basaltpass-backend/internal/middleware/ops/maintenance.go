@@ -6,7 +6,7 @@ import (
 	"basaltpass-backend/internal/middleware/transport"
 	"basaltpass-backend/internal/model"
 	"basaltpass-backend/internal/service/settings"
-	"strconv"
+	"basaltpass-backend/internal/utils"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -29,13 +29,8 @@ func MaintenanceMiddleware() fiber.Handler {
 			if err == nil && claims != nil {
 				if userID, exists := claims["sub"]; exists {
 					uid := uint(0)
-					switch typed := userID.(type) {
-					case float64:
-						uid = uint(typed)
-					case string:
-						if parsed, parseErr := strconv.ParseUint(strings.TrimSpace(typed), 10, 64); parseErr == nil {
-							uid = uint(parsed)
-						}
+					if parsed, parseErr := utils.UintFromAny(userID); parseErr == nil {
+						uid = parsed
 					}
 
 					if uid > 0 {

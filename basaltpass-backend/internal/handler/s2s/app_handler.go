@@ -100,7 +100,7 @@ func ensureUsersInTenant(tenantID uint, userIDs []uint) error {
 	if err := common.DB().Table("tenant_users").Where("tenant_id = ? AND user_id IN ?", tenantID, userIDs).Count(&count).Error; err != nil {
 		return err
 	}
-	if int(count) != len(userIDs) {
+	if count != int64(len(userIDs)) {
 		return fiber.NewError(fiber.StatusBadRequest, "one or more users are outside the tenant")
 	}
 	return nil
@@ -220,11 +220,11 @@ func ListTeamsHandler(c *fiber.Ctx) error {
 	userIDStr := strings.TrimSpace(c.Query("user_id"))
 	var userID uint
 	if userIDStr != "" {
-		uid64, parseErr := strconv.ParseUint(userIDStr, 10, 64)
-		if parseErr != nil || uid64 == 0 {
+		parsedUserID, parseErr := parseS2SPositiveUint(userIDStr)
+		if parseErr != nil {
 			return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 		}
-		userID = uint(uid64)
+		userID = parsedUserID
 		ok, checkErr := userInTenant(userID, tenantID)
 		if checkErr != nil {
 			return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": checkErr.Error()})
@@ -385,8 +385,8 @@ func CreateTeamHandler(c *fiber.Ctx) error {
 // GET /api/v1/s2s/teams/:id
 func GetTeamHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	tid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || tid64 == 0 {
+	teamID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid team id"})
 	}
 
@@ -400,7 +400,7 @@ func GetTeamHandler(c *fiber.Ctx) error {
 	}
 
 	var team model.Team
-	if err := common.DB().Preload("Members.User").Where("id = ? AND tenant_id = ?", uint(tid64), tenantID).First(&team).Error; err != nil {
+	if err := common.DB().Preload("Members.User").Where("id = ? AND tenant_id = ?", teamID, tenantID).First(&team).Error; err != nil {
 		return unifiedResponse(c, fiber.StatusNotFound, nil, fiber.Map{"code": "not_found", "message": "team not found"})
 	}
 	return unifiedResponse(c, fiber.StatusOK, teamDetailResponse(team), nil)
@@ -409,8 +409,8 @@ func GetTeamHandler(c *fiber.Ctx) error {
 // GET /api/v1/s2s/users/:id/teams
 func GetUserTeamsHandler(c *fiber.Ctx) error {
 	idStr := c.Params("id")
-	uid64, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || uid64 == 0 {
+	userID, err := parseS2SPositiveUint(idStr)
+	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "invalid_parameter", "message": "invalid user id"})
 	}
 
@@ -422,7 +422,7 @@ func GetUserTeamsHandler(c *fiber.Ctx) error {
 		}
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
-	ok, err := userInTenant(uint(uid64), tenantID)
+	ok, err := userInTenant(userID, tenantID)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
@@ -433,7 +433,7 @@ func GetUserTeamsHandler(c *fiber.Ctx) error {
 	var memberships []model.TeamMember
 	if err := common.DB().
 		Preload("Team.Members").
-		Where("user_id = ?", uint(uid64)).
+		Where("user_id = ?", userID).
 		Joins("JOIN system_auth_teams t ON t.id = system_auth_team_members.team_id").
 		Where("t.tenant_id = ?", tenantID).
 		Order("system_auth_team_members.id DESC").
