@@ -330,7 +330,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
             <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
               <div className="flex-shrink-0 flex items-center gap-3 px-4">
-                <img className="h-9 w-9 flex-shrink-0 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
+                <img className="h-[1.6875rem] w-[1.6875rem] flex-shrink-0 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
                 <h1 className="truncate text-2xl font-bold text-gray-900">{tenantDisplayName}</h1>
               </div>
               <nav className="mt-5 px-2 space-y-1">
@@ -342,9 +342,9 @@ export default function Layout({ children }: LayoutProps) {
                       isActive(item.href)
                         ? 'bg-gray-100 text-gray-900'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-base font-medium rounded-lg`}
+                    } group flex items-center px-2 py-2 text-[0.75rem] font-medium rounded-lg`}
                   >
-                    <item.icon className="text-gray-400 mr-4 h-6 w-6" />
+                    <item.icon className="text-gray-400 mr-4 h-[1.125rem] w-[1.125rem]" />
                     {item.name}
                   </Link>
                 ))}
@@ -470,7 +470,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex flex-col h-0 flex-1 border-r border-gray-200 bg-white">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 gap-3 px-4">
-                <img className="h-9 w-9 flex-shrink-0 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
+                <img className="h-[1.6875rem] w-[1.6875rem] flex-shrink-0 object-contain" src={basaltPassLogoSymbol} alt="" aria-hidden="true" />
                 <h1 className="truncate text-2xl font-bold text-gray-900">{tenantDisplayName}</h1>
               </div>
               <nav className="mt-5 flex-1 px-2 bg-white space-y-1">
@@ -482,9 +482,9 @@ export default function Layout({ children }: LayoutProps) {
                       isActive(item.href)
                         ? 'bg-gray-100 text-gray-900'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-sm font-medium rounded-lg`}
+                    } group flex items-center px-2 py-2 text-[0.65625rem] font-medium rounded-lg`}
                   >
-                    <item.icon className="text-gray-400 mr-3 h-6 w-6" />
+                    <item.icon className="text-gray-400 mr-3 h-[1.125rem] w-[1.125rem]" />
                     {item.name}
                   </Link>
                 ))}
