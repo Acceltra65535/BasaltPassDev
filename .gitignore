@@ -58,3 +58,4 @@ basaltpass-backend/config.yaml
 *.log
 
 .gocache/
+.e2e/
