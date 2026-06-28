@@ -351,7 +351,7 @@ const EntitySearchSelect: React.FC<EntitySearchSelectProps> = ({
                 {item.avatar ? (
                   <img src={item.avatar} alt="" className="w-6 h-6 rounded-full ring-2 ring-white" />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white flex items-center justify-center text-[10px] font-medium ring-2 ring-white">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-medium ring-2 ring-white">
                     {item.label.charAt(0).toUpperCase()}
                   </div>
                 )}

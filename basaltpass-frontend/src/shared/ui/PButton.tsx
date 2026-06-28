@@ -59,7 +59,7 @@ const PButton = forwardRef<HTMLButtonElement, PButtonProps>(
     const sizeStyles = {
       sm: 'min-h-8 px-3 py-1.5 text-sm rounded-lg',
       md: 'min-h-10 px-4 py-2 text-sm rounded-lg',
-      lg: 'min-h-11 px-5 py-2.5 text-base rounded-lg'
+      lg: 'min-h-11 px-5 py-2.5 text-sm rounded-lg'
     };
 
     // translatedstyle

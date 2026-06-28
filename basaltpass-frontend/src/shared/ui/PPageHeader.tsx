@@ -64,7 +64,7 @@ const PPageHeader: React.FC<PPageHeaderProps> = ({
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold text-gray-900 truncate dark:text-gray-50">
+            <h1 className="text-xl font-semibold text-gray-900 truncate dark:text-gray-50">
               {title}
             </h1>
             {description && (

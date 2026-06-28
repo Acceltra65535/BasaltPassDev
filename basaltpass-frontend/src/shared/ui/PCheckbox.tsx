@@ -89,7 +89,7 @@ const PCheckbox = forwardRef<HTMLInputElement, PCheckboxProps>(
 
     // translatedstyle
     const labelStyles = `
-      ${size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-base' : 'text-sm'}
+      text-sm
       ${disabled ? 'text-gray-400' : 'text-gray-700'}
       font-medium select-none cursor-pointer
     `;

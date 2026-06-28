@@ -26,7 +26,7 @@ export default function PManagementStatsGrid({
               <div className={item.icon ? 'ml-5 w-0 flex-1' : 'w-0 flex-1'}>
                 <dl>
                   <dt className="truncate text-sm font-medium text-gray-500">{item.title}</dt>
-                  <dd className="text-lg font-medium text-gray-900">{item.value}</dd>
+                  <dd className="text-base font-semibold text-gray-900">{item.value}</dd>
                 </dl>
               </div>
             </div>

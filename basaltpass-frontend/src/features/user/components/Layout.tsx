@@ -342,7 +342,7 @@ export default function Layout({ children }: LayoutProps) {
                       isActive(item.href)
                         ? 'bg-gray-100 text-gray-900'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-[0.75rem] font-medium rounded-lg`}
+                    } group flex items-center px-2 py-2 text-xs font-medium rounded-lg`}
                   >
                     <item.icon className="text-gray-400 mr-4 h-[1.125rem] w-[1.125rem]" />
                     {item.name}
@@ -482,7 +482,7 @@ export default function Layout({ children }: LayoutProps) {
                       isActive(item.href)
                         ? 'bg-gray-100 text-gray-900'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-[0.65625rem] font-medium rounded-lg`}
+                    } group flex items-center px-2 py-2 text-xs font-medium rounded-lg`}
                   >
                     <item.icon className="text-gray-400 mr-3 h-[1.125rem] w-[1.125rem]" />
                     {item.name}

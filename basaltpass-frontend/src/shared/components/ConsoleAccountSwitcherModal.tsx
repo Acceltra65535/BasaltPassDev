@@ -465,7 +465,7 @@ export default function ConsoleAccountSwitcherModal({
               </span>
               {scopeTitle}
             </div>
-            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-slate-600">
+            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium uppercase tracking-wide text-slate-600">
               {currentScope}
             </span>
           </div>
@@ -571,7 +571,7 @@ export default function ConsoleAccountSwitcherModal({
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="truncate text-sm font-semibold text-slate-900">{displayName}</span>
                                 {isCurrentUser ? (
-                                  <span className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                  <span className="rounded border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
                                     {t('consoleSwitcher.currentInUse')}
                                   </span>
                                 ) : null}
@@ -584,7 +584,7 @@ export default function ConsoleAccountSwitcherModal({
                             {badges.map((badge) => (
                               <span
                                 key={`${session.key}-${badge.label}`}
-                                className={`rounded px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
+                                className={`rounded px-2 py-0.5 text-xs font-medium ${badge.className}`}
                               >
                                 {badge.label}
                               </span>
@@ -678,7 +678,7 @@ export default function ConsoleAccountSwitcherModal({
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="truncate text-sm font-semibold text-slate-900">{displayName}</span>
                                 {isCurrentUser ? (
-                                  <span className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                  <span className="rounded border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
                                     {t('consoleSwitcher.currentInUse')}
                                   </span>
                                 ) : null}
@@ -691,7 +691,7 @@ export default function ConsoleAccountSwitcherModal({
                             {badges.map((badge) => (
                               <span
                                 key={`${session.key}-${badge.label}`}
-                                className={`rounded px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
+                                className={`rounded px-2 py-0.5 text-xs font-medium ${badge.className}`}
                               >
                                 {badge.label}
                               </span>

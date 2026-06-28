@@ -34,7 +34,7 @@ const Modal: React.FC<ModalProps> = ({
       <div className={`relative mx-4 w-full rounded-2xl bg-white shadow-lg dark:bg-gray-900 dark:shadow-black/30 ${widthClass}`}>
         <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5 dark:border-white/10">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">{title}</h3>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50">{title}</h3>
             {description && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>}
           </div>
           <button

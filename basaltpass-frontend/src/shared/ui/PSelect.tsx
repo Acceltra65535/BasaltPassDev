@@ -69,7 +69,7 @@ const PSelect = forwardRef<HTMLSelectElement, PSelectProps>(
     const triggerSizeClasses = {
       sm: 'px-2.5 py-1.5 text-sm min-h-8',
       md: 'px-3 py-2 text-sm min-h-10',
-      lg: 'px-4 py-2.5 text-base min-h-11',
+      lg: 'px-4 py-2.5 text-sm min-h-11',
     };
     const iconSize = { sm: 'h-4 w-4', md: 'h-5 w-5', lg: 'h-6 w-6' };
     const variantClasses = {
