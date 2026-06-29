@@ -1,4 +1,6 @@
 import React from 'react'
+import basaltpassLogo from '../assets/brand/basaltpass-logo-symbol.svg'
+import hollowDataBadge from '../assets/brand/built-with-hollowdata-tech.svg'
 
 // ─────────────────────────────────────────────
 // translated PSkeleton
@@ -295,33 +297,43 @@ interface PageLoaderProps {
 }
 
 function PageLoader({ message = 'loading...', animated = true }: PageLoaderProps) {
-  const pulse = animated ? 'animate-pulse' : ''
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="flex flex-col items-center space-y-6 w-80">
-        {/* Logo translated */}
-        <div className={`h-12 w-12 rounded-2xl bg-gray-200 ${pulse}`} />
-        {/* translated */}
-        <div className="w-full space-y-3">
-          <div className={`h-5 w-2/3 mx-auto rounded bg-gray-200 ${pulse}`} />
-          <div className={`h-3 w-1/2 mx-auto rounded bg-gray-200 ${pulse}`} />
-        </div>
-        {/* translated */}
-        <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
-          <div
-            className="h-1 bg-indigo-400 rounded-full"
-            style={{
-              animation: 'skeleton-slide 1.8s ease-in-out infinite',
-              width: '40%',
-            }}
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+      <div className="absolute inset-0 flex items-center justify-center px-6">
+        <div className="flex w-full max-w-[246px] flex-col items-center gap-8">
+          <img
+            src={basaltpassLogo}
+            alt="BasaltPass"
+            className="h-12 w-auto object-contain drop-shadow-[0_0_18px_rgba(255,255,255,0.12)]"
           />
+          <div
+            className="h-1 w-full overflow-hidden rounded-full bg-white/15"
+            role="progressbar"
+            aria-label={message || 'Loading'}
+            aria-busy={animated}
+          >
+            <div
+              className="h-full w-[38%] rounded-full bg-[linear-gradient(90deg,#8fd8ff_0%,#f7fdff_28%,#ff2d1d_54%,#ff7a1a_78%,#ff7a1a_100%)] shadow-[0_0_18px_rgba(255,90,35,0.7)]"
+              style={{
+                animation: animated ? 'basaltpass-loader-slide 1.65s ease-in-out infinite' : undefined,
+              }}
+            />
+          </div>
+          {message && <p className="sr-only">{message}</p>}
         </div>
-        {message && <p className="text-sm text-gray-400">{message}</p>}
+      </div>
+      <div className="absolute inset-x-0 top-[68%] flex justify-center px-6 sm:top-[70%]">
+        <img
+          src={hollowDataBadge}
+          alt="Built with HollowData's tech"
+          className="h-auto w-[150px] max-w-[42vw] opacity-80"
+        />
       </div>
       <style>{`
-        @keyframes skeleton-slide {
-          0% { transform: translateX(-200%); }
-          100% { transform: translateX(350%); }
+        @keyframes basaltpass-loader-slide {
+          0% { transform: translateX(-115%); }
+          50% { transform: translateX(82%); }
+          100% { transform: translateX(265%); }
         }
       `}</style>
     </div>
