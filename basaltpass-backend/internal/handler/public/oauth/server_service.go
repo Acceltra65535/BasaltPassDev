@@ -41,6 +41,14 @@ func NewOAuthServerService() *OAuthServerService {
 	}
 }
 
+func (s *OAuthServerService) database() *gorm.DB {
+	if s.db != nil {
+		return s.db
+	}
+	s.db = common.DB()
+	return s.db
+}
+
 // AuthorizeRequest 授权请求结构
 type AuthorizeRequest struct {
 	ClientID            string `form:"client_id" binding:"required"`
@@ -196,7 +204,11 @@ func (s *OAuthServerService) ValidateClientCredentials(clientID string, clientSe
 	}
 
 	var client model.OAuthClient
-	if err := s.db.Where("client_id = ? AND is_active = ?", clientID, true).First(&client).Error; err != nil {
+	db := s.database()
+	if db == nil {
+		return nil, errors.New("database_unavailable")
+	}
+	if err := db.Where("client_id = ? AND is_active = ?", clientID, true).First(&client).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("invalid_client")
 		}
@@ -225,16 +237,21 @@ func (s *OAuthServerService) resolveClientTenantID(client *model.OAuthClient) ui
 		return client.App.TenantID
 	}
 
+	db := s.database()
+	if db == nil {
+		return 0
+	}
+
 	if client.AppID > 0 {
 		var app model.App
-		if err := s.db.Select("tenant_id").Where("id = ?", client.AppID).First(&app).Error; err == nil && app.TenantID > 0 {
+		if err := db.Select("tenant_id").Where("id = ?", client.AppID).First(&app).Error; err == nil && app.TenantID > 0 {
 			return app.TenantID
 		}
 	}
 
 	if strings.TrimSpace(client.ClientID) != "" {
 		var code model.OAuthAuthorizationCode
-		if err := s.db.Select("tenant_id").
+		if err := db.Select("tenant_id").
 			Where("client_id = ? AND tenant_id > 0", client.ClientID).
 			Order("id DESC").
 			First(&code).Error; err == nil && code.TenantID > 0 {
@@ -244,7 +261,7 @@ func (s *OAuthServerService) resolveClientTenantID(client *model.OAuthClient) ui
 
 	if client.CreatedBy > 0 {
 		var admin model.TenantUser
-		if err := s.db.Select("tenant_id").
+		if err := db.Select("tenant_id").
 			Where("user_id = ? AND tenant_id > 0", client.CreatedBy).
 			Order("id ASC").
 			First(&admin).Error; err == nil && admin.TenantID > 0 {
@@ -836,7 +853,11 @@ func (s *OAuthServerService) RefreshAccessToken(refreshToken string, clientID st
 // ValidateAccessToken 验证访问令牌
 func (s *OAuthServerService) ValidateAccessToken(token string) (*model.OAuthAccessToken, error) {
 	var oauthToken model.OAuthAccessToken
-	if err := s.db.
+	db := s.database()
+	if db == nil {
+		return nil, errors.New("database_unavailable")
+	}
+	if err := db.
 		Preload("User").
 		Preload("Client").
 		Preload("Tenant").
@@ -857,7 +878,11 @@ func (s *OAuthServerService) ValidateAccessToken(token string) (*model.OAuthAcce
 
 func (s *OAuthServerService) ValidateRefreshToken(token string) (*model.OAuthRefreshToken, error) {
 	var refreshToken model.OAuthRefreshToken
-	if err := s.db.
+	db := s.database()
+	if db == nil {
+		return nil, errors.New("database_unavailable")
+	}
+	if err := db.
 		Preload("User").
 		Preload("Client").
 		Preload("Tenant").
