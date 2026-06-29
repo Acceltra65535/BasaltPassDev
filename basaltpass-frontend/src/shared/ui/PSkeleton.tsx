@@ -296,15 +296,43 @@ interface PageLoaderProps {
   animated?: boolean
 }
 
+const loaderGradients = [
+  {
+    background: 'linear-gradient(90deg,#8fd8ff 0%,#f7fdff 28%,#ff2d1d 54%,#ff7a1a 100%)',
+    shadow: '0 0 18px rgba(255,90,35,0.34)',
+  },
+  {
+    background: 'linear-gradient(90deg,#8be9fd 0%,#60a5fa 34%,#7c3aed 68%,#f472b6 100%)',
+    shadow: '0 0 18px rgba(96,165,250,0.32)',
+  },
+  {
+    background: 'linear-gradient(90deg,#34d399 0%,#a7f3d0 30%,#22d3ee 64%,#2563eb 100%)',
+    shadow: '0 0 18px rgba(34,211,238,0.3)',
+  },
+  {
+    background: 'linear-gradient(90deg,#fbbf24 0%,#fb7185 34%,#ef4444 66%,#7c2d12 100%)',
+    shadow: '0 0 18px rgba(251,113,133,0.3)',
+  },
+  {
+    background: 'linear-gradient(90deg,#c4b5fd 0%,#818cf8 30%,#38bdf8 65%,#14b8a6 100%)',
+    shadow: '0 0 18px rgba(129,140,248,0.3)',
+  },
+]
+
 function PageLoader({ message = 'loading...', animated = true }: PageLoaderProps) {
+  const loaderGradient = React.useMemo(
+    () => loaderGradients[Math.floor(Math.random() * loaderGradients.length)],
+    [],
+  )
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-gray-50 text-gray-900">
       <div className="absolute inset-0 flex items-center justify-center px-6">
-        <div className="flex w-full max-w-[246px] flex-col items-center gap-8">
+        <div className="flex w-full max-w-[280px] flex-col items-center gap-8">
           <img
             src={basaltpassLogo}
             alt="BasaltPass"
-            className="h-12 w-auto object-contain drop-shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+            className="h-16 w-auto object-contain drop-shadow-[0_12px_28px_rgba(15,23,42,0.14)] sm:h-20"
           />
           <div
             className="h-1 w-full overflow-hidden rounded-full bg-gray-200"
@@ -313,8 +341,10 @@ function PageLoader({ message = 'loading...', animated = true }: PageLoaderProps
             aria-busy={animated}
           >
             <div
-              className="h-full w-[38%] rounded-full bg-[linear-gradient(90deg,#8fd8ff_0%,#f7fdff_28%,#ff2d1d_54%,#ff7a1a_78%,#ff7a1a_100%)] shadow-[0_0_18px_rgba(255,90,35,0.34)]"
+              className="h-full w-[38%] rounded-full"
               style={{
+                background: loaderGradient.background,
+                boxShadow: loaderGradient.shadow,
                 animation: animated ? 'basaltpass-loader-slide 1.65s ease-in-out infinite' : undefined,
               }}
             />
@@ -322,7 +352,7 @@ function PageLoader({ message = 'loading...', animated = true }: PageLoaderProps
           {message && <p className="sr-only">{message}</p>}
         </div>
       </div>
-      <div className="absolute inset-x-0 top-[68%] flex justify-center px-6 sm:top-[70%]">
+      <div className="absolute inset-x-0 top-[74%] flex justify-center px-6 sm:top-[76%]">
         <img
           src={hollowDataBadge}
           alt="Built with HollowData's tech"
