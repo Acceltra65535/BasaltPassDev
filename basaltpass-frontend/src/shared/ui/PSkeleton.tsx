@@ -298,22 +298,22 @@ interface PageLoaderProps {
 
 function PageLoader({ message = 'loading...', animated = true }: PageLoaderProps) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-hidden bg-gray-50 text-gray-900">
       <div className="absolute inset-0 flex items-center justify-center px-6">
         <div className="flex w-full max-w-[246px] flex-col items-center gap-8">
           <img
             src={basaltpassLogo}
             alt="BasaltPass"
-            className="h-12 w-auto object-contain drop-shadow-[0_0_18px_rgba(255,255,255,0.12)]"
+            className="h-12 w-auto object-contain drop-shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
           />
           <div
-            className="h-1 w-full overflow-hidden rounded-full bg-white/15"
+            className="h-1 w-full overflow-hidden rounded-full bg-gray-200"
             role="progressbar"
             aria-label={message || 'Loading'}
             aria-busy={animated}
           >
             <div
-              className="h-full w-[38%] rounded-full bg-[linear-gradient(90deg,#8fd8ff_0%,#f7fdff_28%,#ff2d1d_54%,#ff7a1a_78%,#ff7a1a_100%)] shadow-[0_0_18px_rgba(255,90,35,0.7)]"
+              className="h-full w-[38%] rounded-full bg-[linear-gradient(90deg,#8fd8ff_0%,#f7fdff_28%,#ff2d1d_54%,#ff7a1a_78%,#ff7a1a_100%)] shadow-[0_0_18px_rgba(255,90,35,0.34)]"
               style={{
                 animation: animated ? 'basaltpass-loader-slide 1.65s ease-in-out infinite' : undefined,
               }}
@@ -326,7 +326,7 @@ function PageLoader({ message = 'loading...', animated = true }: PageLoaderProps
         <img
           src={hollowDataBadge}
           alt="Built with HollowData's tech"
-          className="h-auto w-[150px] max-w-[42vw] opacity-80"
+          className="h-auto w-[150px] max-w-[42vw] opacity-85"
         />
       </div>
       <style>{`
