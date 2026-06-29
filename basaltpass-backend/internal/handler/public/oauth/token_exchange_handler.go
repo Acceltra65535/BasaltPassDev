@@ -93,6 +93,9 @@ func handleTokenExchangeGrant(c *fiber.Ctx) error {
 		status := fiber.StatusBadRequest
 
 		switch err {
+		case txsvc.ErrDatabaseUnavailable:
+			code = "server_error"
+			status = fiber.StatusServiceUnavailable
 		case txsvc.ErrInvalidSubjectToken, txsvc.ErrTokenExpired:
 			code = "invalid_token"
 			status = fiber.StatusUnauthorized

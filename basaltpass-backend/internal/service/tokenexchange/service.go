@@ -17,6 +17,7 @@ var (
 	ErrInvalidSubjectToken = errors.New("invalid_token")
 	ErrTokenExpired        = errors.New("token_expired")
 	ErrTokenOwnership      = errors.New("subject_token_client_mismatch")
+	ErrDatabaseUnavailable = errors.New("database_unavailable")
 	ErrTargetAppNotFound   = errors.New("target_app_not_found")
 	ErrNoTrustRelation     = errors.New("no_trust_relationship")
 	ErrUserNotAuthorized   = errors.New("user_not_authorized_for_target_app")
@@ -49,9 +50,16 @@ type Service struct {
 // NewService creates a new Token Exchange service.
 func NewService() *Service {
 	return &Service{
-		db:    common.DB(),
 		cache: newTrustCache(60 * time.Second),
 	}
+}
+
+func (s *Service) database() *gorm.DB {
+	if s.db != nil {
+		return s.db
+	}
+	s.db = common.DB()
+	return s.db
 }
 
 // Exchange performs the full token exchange flow:
@@ -64,9 +72,14 @@ func NewService() *Service {
 //  7. Issue a new short-lived access token
 //  8. Write audit log
 func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uint, req ExchangeRequest, ip string) (*ExchangeResult, error) {
+	db := s.database()
+	if db == nil {
+		return nil, ErrDatabaseUnavailable
+	}
+
 	// Step 1: Validate subject_token
 	var subjectToken model.OAuthAccessToken
-	if err := s.db.Where("token = ?", req.SubjectToken).First(&subjectToken).Error; err != nil {
+	if err := db.Where("token = ?", req.SubjectToken).First(&subjectToken).Error; err != nil {
 		s.logExchange(clientTenantID, 0, clientID, clientAppID, 0, 0, req.Scope, "", 0, "denied", "invalid subject token", ip)
 		return nil, ErrInvalidSubjectToken
 	}
@@ -100,7 +113,7 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 
 	// Step 5: Verify user has authorized the target app
 	var appUserCount int64
-	if err := s.db.Model(&model.AppUser{}).
+	if err := db.Model(&model.AppUser{}).
 		Where("app_id = ? AND user_id = ? AND status = ?", targetApp.ID, userID, model.AppUserStatusActive).
 		Count(&appUserCount).Error; err != nil || appUserCount == 0 {
 		s.logExchange(tenantID, userID, clientID, clientAppID, targetApp.ID, trust.ID, req.Scope, "", 0, "denied", "user not authorized for target app", ip)
@@ -128,7 +141,7 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 	targetClientID := s.resolveTargetClientID(targetApp.ID)
 
 	// Step 9: Generate the cross-app token
-	if err := tenantquota.EnsureTokensWithinLimit(s.db, tenantID, time.Now()); err != nil {
+	if err := tenantquota.EnsureTokensWithinLimit(db, tenantID, time.Now()); err != nil {
 		return nil, err
 	}
 
@@ -149,7 +162,7 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 		ActorAppID:    clientAppID,
 		IsExchanged:   true,
 	}
-	if err := s.db.Create(accessToken).Error; err != nil {
+	if err := db.Create(accessToken).Error; err != nil {
 		return nil, err
 	}
 
@@ -169,6 +182,10 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 // against the importer convention (.basalt app_key stored in metadata or as
 // the string ID of the app record).
 func (s *Service) resolveTargetApp(resource string, tenantID uint) (*model.App, error) {
+	db := s.database()
+	if db == nil {
+		return nil, ErrDatabaseUnavailable
+	}
 	resource = strings.TrimSpace(resource)
 	if resource == "" {
 		return nil, ErrTargetAppNotFound
@@ -178,12 +195,12 @@ func (s *Service) resolveTargetApp(resource string, tenantID uint) (*model.App, 
 
 	// Try exact name match within the tenant (the .basalt convention uses
 	// display_name which maps to the App.Name field).
-	if err := s.db.Where("tenant_id = ? AND LOWER(name) = LOWER(?)", tenantID, resource).First(&app).Error; err == nil {
+	if err := db.Where("tenant_id = ? AND LOWER(name) = LOWER(?)", tenantID, resource).First(&app).Error; err == nil {
 		return &app, nil
 	}
 
 	// Fallback: numeric ID
-	if err := s.db.Where("id = ? AND tenant_id = ?", resource, tenantID).First(&app).Error; err == nil {
+	if err := db.Where("id = ? AND tenant_id = ?", resource, tenantID).First(&app).Error; err == nil {
 		return &app, nil
 	}
 
@@ -193,13 +210,17 @@ func (s *Service) resolveTargetApp(resource string, tenantID uint) (*model.App, 
 // findTrust looks up an active CrossAppTrust for the given source→target
 // within the tenant, using the in-memory cache first.
 func (s *Service) findTrust(sourceAppID, targetAppID, tenantID uint) (*model.CrossAppTrust, error) {
+	db := s.database()
+	if db == nil {
+		return nil, ErrDatabaseUnavailable
+	}
 	// Try cache first
 	if t := s.cache.get(sourceAppID, targetAppID, tenantID); t != nil {
 		return t, nil
 	}
 
 	var trust model.CrossAppTrust
-	if err := s.db.Where(
+	if err := db.Where(
 		"source_app_id = ? AND target_app_id = ? AND tenant_id = ? AND is_active = ?",
 		sourceAppID, targetAppID, tenantID, true,
 	).First(&trust).Error; err != nil {
@@ -256,8 +277,12 @@ func splitScopes(s string) []string {
 
 // resolveTargetClientID finds the primary OAuth client_id for the target app.
 func (s *Service) resolveTargetClientID(appID uint) string {
+	db := s.database()
+	if db == nil {
+		return ""
+	}
 	var client model.OAuthClient
-	if err := s.db.Select("client_id").
+	if err := db.Select("client_id").
 		Where("app_id = ? AND is_active = ?", appID, true).
 		Order("id ASC").
 		First(&client).Error; err != nil {
@@ -268,6 +293,10 @@ func (s *Service) resolveTargetClientID(appID uint) string {
 
 // logExchange writes a TokenExchangeLog record.
 func (s *Service) logExchange(tenantID, userID uint, sourceClientID string, sourceAppID, targetAppID, trustID uint, requestedScopes, grantedScopes string, ttl int, status, denyReason, ip string) {
+	db := s.database()
+	if db == nil {
+		return
+	}
 	entry := model.TokenExchangeLog{
 		TenantID:        tenantID,
 		UserID:          userID,
@@ -283,7 +312,7 @@ func (s *Service) logExchange(tenantID, userID uint, sourceClientID string, sour
 		IP:              ip,
 	}
 	// Best-effort; don't fail the exchange if logging fails.
-	_ = s.db.Create(&entry).Error
+	_ = db.Create(&entry).Error
 }
 
 // InvalidateCache clears the trust cache. Call when a trust is created/updated/deleted.
