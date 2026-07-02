@@ -314,31 +314,6 @@ export default function Withdraw() {
             </PAlert>
 
             {/*  */}
-            <PCard padding="none">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('pages.walletWithdraw.faq.title')}</h3>
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <p className="font-medium text-gray-900">{t('pages.walletWithdraw.faq.q1')}</p>
-                    <p className="text-gray-600">{t('pages.walletWithdraw.faq.a1')}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{t('pages.walletWithdraw.faq.q2')}</p>
-                    <p className="text-gray-600">{t('pages.walletWithdraw.faq.a2')}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{t('pages.walletWithdraw.faq.q3')}</p>
-                    <p className="text-gray-600">{t('pages.walletWithdraw.faq.a3')}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{t('pages.walletWithdraw.faq.q4')}</p>
-                    <p className="text-gray-600">{t('pages.walletWithdraw.faq.a4')}</p>
-                  </div>
-                </div>
-              </div>
-            </PCard>
-
-            {/*  */}
             <PAlert variant="info" title="Security Tips">
               <ul className="list-disc list-inside space-y-1">
                 <li>Please operate in a secure network environment</li>

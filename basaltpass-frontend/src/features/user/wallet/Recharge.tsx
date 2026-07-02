@@ -355,26 +355,6 @@ export default function Recharge() {
               </ul>
             </PAlert>
 
-            {/*  */}
-            <PCard padding="none">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('pages.walletRecharge.faq.title')}</h3>
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <p className="font-medium text-gray-900">{t('pages.walletRecharge.faq.q1')}</p>
-                    <p className="text-gray-600">{t('pages.walletRecharge.faq.a1')}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{t('pages.walletRecharge.faq.q2')}</p>
-                    <p className="text-gray-600">{t('pages.walletRecharge.faq.a2')}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{t('pages.walletRecharge.faq.q3')}</p>
-                    <p className="text-gray-600">{t('pages.walletRecharge.faq.a3')}</p>
-                  </div>
-                </div>
-              </div>
-            </PCard>
           </div>
         </div>
       </div>

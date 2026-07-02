@@ -8,7 +8,7 @@ import { Product, Price } from '@types/domain/subscription'
 import { Link, useNavigate } from 'react-router-dom'
 import client from '@api/client'
 import { ChevronRightIcon, CreditCardIcon } from '@heroicons/react/24/outline'
-import { CubeIcon, WalletIcon, QuestionMarkCircleIcon, SparklesIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
+import { CubeIcon, WalletIcon, SparklesIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
 
@@ -244,7 +244,7 @@ export default function ProductsPage() {
         {/*  */}
         <PCard variant="bordered" className="rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-medium text-gray-900 mb-4">{t('pages.userSubscriptionProducts.links.title')}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link
               to={ROUTES.user.subscriptions}
               className="flex items-center rounded-lg bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
@@ -263,16 +263,6 @@ export default function ProductsPage() {
               <div>
                 <p className="text-sm font-medium text-gray-900">{t('pages.userSubscriptionProducts.links.walletTitle')}</p>
                 <p className="text-xs text-gray-500">{t('pages.userSubscriptionProducts.links.walletDesc')}</p>
-              </div>
-            </Link>
-            <Link
-              to={ROUTES.user.help}
-              className="flex items-center rounded-lg bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <QuestionMarkCircleIcon className="h-5 w-5 text-indigo-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{t('pages.userSubscriptionProducts.links.helpTitle')}</p>
-                <p className="text-xs text-gray-500">{t('pages.userSubscriptionProducts.links.helpDesc')}</p>
               </div>
             </Link>
           </div>

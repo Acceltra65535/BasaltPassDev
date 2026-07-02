@@ -716,15 +716,6 @@ const en = {
           support: 'Contact support promptly if issues occur',
         },
       },
-      faq: {
-        title: 'FAQ',
-        q1: 'How long does recharge take?',
-        a1: 'Usually 1-5 minutes. If delayed, please check later.',
-        q2: 'What if recharge fails?',
-        a2: 'Check network and payment details, or try another method.',
-        q3: 'Can I cancel a recharge?',
-        a3: 'Successful recharge cannot be canceled. Confirm amount before payment.',
-      },
     },
     walletWithdraw: {
       header: {
@@ -795,17 +786,6 @@ const en = {
           worktime: 'Requests are processed on business days 9:00-18:00',
         },
       },
-      faq: {
-        title: 'FAQ',
-        q1: 'How long does withdrawal take?',
-        a1: 'Alipay/WeChat within 24 hours, bank card 1-3 business days.',
-        q2: 'What if withdrawal fails?',
-        a2: 'Check account details or contact support for help.',
-        q3: 'Can I cancel a withdrawal?',
-        a3: 'No, it cannot be canceled after submission.',
-        q4: 'How much is the withdrawal fee?',
-        a4: 'Currently free of charge.',
-      },
     },
     userSubscriptionIndex: {
       header: {
@@ -837,8 +817,6 @@ const en = {
         productsDesc: 'Browse available products and services',
         walletTitle: 'Wallet',
         walletDesc: 'Manage your account balance and payments',
-        helpTitle: 'Help Center',
-        helpDesc: 'Get subscription-related help',
       },
       cancelModal: {
         title: 'Confirm Subscription Cancellation',
@@ -889,8 +867,6 @@ const en = {
         subscriptionsDesc: 'View and manage your subscriptions',
         walletTitle: 'Wallet',
         walletDesc: 'Manage your account balance',
-        helpTitle: 'Help Center',
-        helpDesc: 'Get subscription-related help',
       },
     },
     userSubscriptionCheckout: {
@@ -1260,8 +1236,6 @@ const en = {
         profileDesc: 'Edit profile information',
         settings: 'System Settings',
         settingsDesc: 'Configure system preferences',
-        help: 'Help Center',
-        helpDesc: 'Get usage help',
       },
       recentTransactions: {
         title: 'Recent Transactions',
@@ -1482,7 +1456,6 @@ const en = {
       myApps: 'My Apps',
       security: 'Security',
       settings: 'Settings',
-      help: 'Help',
     },
     theme: {
       openMenu: '主题',
@@ -3670,103 +3643,6 @@ const en = {
       copyFailed: 'Copy failed:',
     },
   },
-  userHelp: {
-    title: 'Help Center',
-    search: {
-      title: 'Search Help',
-      placeholder: 'Search questions or keywords...',
-    },
-    categories: {
-      title: 'Browse by Category',
-      all: 'All',
-      account: 'Account Management',
-      security: 'Security Settings',
-      payment: 'Payments & Top-ups',
-      wallet: 'Wallet Management',
-      subscription: 'Subscription Services',
-    },
-    faq: {
-      titleWithCount: 'FAQs ({{count}})',
-      clearSearch: 'Clear Search',
-      items: {
-        faq1: {
-          question: 'How do I register a new account?',
-          answer: 'Click the "Sign Up" button at the top-right corner, enter your email and password, and complete email verification to create your account. You can also register with a phone number.',
-        },
-        faq2: {
-          question: 'What should I do if I forgot my password?',
-          answer: 'You can reset your password via email or phone number. Click the "Forgot Password" link on the login page and follow the instructions. The reset link is valid for 30 minutes.',
-        },
-        faq3: {
-          question: 'How do I enable two-factor authentication?',
-          answer: 'Go to the "Security Settings" page, open "Two-Factor Authentication", then scan the QR code or enter the key and input the verification code to finish setup. Enabling a backup method is recommended.',
-        },
-        faq4: {
-          question: 'How do I set up a passkey?',
-          answer: 'Open "Passkey Management" in Security Settings, click "Add Passkey", and follow your browser prompts for biometrics or PIN setup. Passkeys provide a more secure passwordless login experience.',
-        },
-        faq5: {
-          question: 'How can I top up my wallet?',
-          answer: 'You can top up your wallet in multiple ways: 1) Alipay QR payment 2) WeChat Pay 3) Bank card transfer. Most top-ups arrive within 1-5 minutes, while large amounts may require manual review.',
-        },
-        faq6: {
-          question: 'How long does withdrawal take?',
-          answer: 'Withdrawal time depends on your method: bank card withdrawals usually take 1-3 business days, and Alipay withdrawals usually arrive within 24 hours. The single withdrawal limit is ¥50,000.',
-        },
-        faq7: {
-          question: 'How can I view transaction history?',
-          answer: 'In the wallet page, click "Transaction History", or check recent transactions on the dashboard. You can filter by time, type, or status, and export records in CSV format.',
-        },
-        faq8: {
-          question: 'What if my wallet balance is insufficient?',
-          answer: 'When your wallet balance is low, the system will prompt you to recharge. You can also enable auto top-up to recharge a specified amount once balance falls below your threshold.',
-        },
-        faq9: {
-          question: 'How do I manage subscription plans?',
-          answer: 'On the subscription page, you can view your current plan, upgrade or downgrade, and cancel your subscription. After cancellation, service continues until the current billing cycle ends.',
-        },
-        faq10: {
-          question: 'How is subscription billing calculated?',
-          answer: 'Subscription fees are charged monthly or yearly based on your plan. Annual plans usually include a discount. Fees are automatically deducted from your wallet at the start of each billing cycle.',
-        },
-        faq11: {
-          question: 'How is account security protected?',
-          answer: 'We use bank-grade protections including SSL encryption, two-factor authentication, real-time abnormal login monitoring, regular security audits, and data backups. All sensitive data is encrypted at rest.',
-        },
-        faq12: {
-          question: 'How can I update my personal information?',
-          answer: 'In the profile page, you can update your avatar, nickname, email, phone number, and other details. Identity verification is required when changing sensitive information.',
-        },
-      },
-    },
-    empty: {
-      title: 'No related questions found',
-      description: 'Try different keywords or contact our support team.',
-    },
-    feedback: {
-      question: 'Was this answer helpful?',
-      helpful: 'Helpful',
-      notHelpful: 'Not Helpful',
-      thanks: 'Thanks for your feedback!',
-    },
-    system: {
-      title: 'System Status',
-      description: 'Check real-time service status',
-      allServicesRunning: 'All services are running normally',
-      services: {
-        api: 'API Service',
-        payment: 'Payment System',
-        database: 'Database',
-      },
-      status: {
-        normal: 'Normal',
-      },
-    },
-    footer: {
-      copyrightPrefix: 'Copyright 2024 - {{year}} BasaltPass BasaltBase powered by ',
-      copyrightSuffix: '',
-    },
-  },
   adminDashboard: {
     layoutTitle: 'Admin Console',
     title: 'Admin Dashboard',
@@ -4195,11 +4071,6 @@ const en = {
       viewSubscriptions: 'View My Subscriptions',
       backToConsole: 'Back to Console',
       viewMoreProducts: 'View More Products',
-    },
-    footer: {
-      prefix: 'If you have any questions, please visit our ',
-      helpCenter: 'Help Center',
-      suffix: ' or contact support.',
     },
     logs: {
       fetchOrderFailed: 'Failed to fetch order:',

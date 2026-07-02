@@ -15,7 +15,6 @@ import Privacy from '../../../src/features/auth/Privacy'
 import Dashboard from '../../../src/features/user/Dashboard'
 import Profile from '../../../src/features/user/profile/Index'
 import Settings from '../../../src/features/user/Settings'
-import Help from '../../../src/features/user/Help'
 import About from '../../../src/features/user/About'
 import SoftwareCopyright from '../../../src/features/user/SoftwareCopyright'
 import Notifications from '../../../src/features/user/Notifications'
@@ -152,14 +151,6 @@ export default function AppRouter() {
         element={
           <ProtectedRoute>
             <Settings />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/help"
-        element={
-          <ProtectedRoute>
-            <Help />
           </ProtectedRoute>
         }
       />
