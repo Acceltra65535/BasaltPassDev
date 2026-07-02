@@ -1912,6 +1912,8 @@ const en = {
       permissionManagement: 'Permission Management',
       userManagement: 'User Management',
       createRole: 'Create Role',
+      edit: 'Edit',
+      delete: 'Delete',
       cancel: 'Cancel',
       update: 'Update',
       create: 'Create',
