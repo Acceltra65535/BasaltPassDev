@@ -122,8 +122,8 @@ func CreateCrossAppTrustHandler(c *fiber.Ctx) error {
 	if req.MaxTokenTTL <= 0 {
 		req.MaxTokenTTL = 300
 	}
-	if req.MaxTokenTTL > 600 {
-		req.MaxTokenTTL = 600
+	if req.MaxTokenTTL > 3600 {
+		req.MaxTokenTTL = 3600
 	}
 
 	// Verify both apps belong to this tenant
@@ -194,8 +194,8 @@ func UpdateCrossAppTrustHandler(c *fiber.Ctx) error {
 		if ttl <= 0 {
 			ttl = 300
 		}
-		if ttl > 600 {
-			ttl = 600
+		if ttl > 3600 {
+			ttl = 3600
 		}
 		updates["max_token_ttl"] = ttl
 	}

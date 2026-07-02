@@ -133,8 +133,8 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 	if ttl <= 0 {
 		ttl = 300
 	}
-	if ttl > 600 {
-		ttl = 600 // hard cap at 10 minutes
+	if ttl > 3600 {
+		ttl = 3600 // hard cap at 1 hour
 	}
 
 	// Step 8: Resolve the target app's OAuth client_id for the token record
