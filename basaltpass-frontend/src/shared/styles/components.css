@@ -18,15 +18,15 @@
   --bp-border: rgb(17 24 39 / 0.14);
   --bp-border-strong: rgb(17 24 39 / 0.24);
 
-  --bp-shadow-sm: 0 0 #0000;
-  --bp-shadow-md: 0 0 #0000;
-  --bp-shadow-lg: 0 0 #0000;
+  --bp-shadow-sm: 0 1px 2px rgb(17 24 39 / 0.04);
+  --bp-shadow-md: 0 3px 8px rgb(17 24 39 / 0.06);
+  --bp-shadow-lg: 0 4px 12px rgb(17 24 39 / 0.08);
 
-  --bp-radius-sm: 0.375rem;
-  --bp-radius-md: 0.5rem;
-  --bp-radius-lg: 0.5rem;
-  --bp-radius-xl: 0.5rem;
-  --bp-radius-2xl: 0.5rem;
+  --bp-radius-sm: 0.625rem;
+  --bp-radius-md: 0.875rem;
+  --bp-radius-lg: 1rem;
+  --bp-radius-xl: 1.125rem;
+  --bp-radius-2xl: 1.375rem;
 
   --bp-font-size-xs: 0.75rem;
   --bp-font-size-sm: 0.875rem;
@@ -171,58 +171,58 @@
   padding-inline: clamp(1.5rem, 4vw, 3.5rem);
 }
 
-.user-console-shell .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+.user-console-shell main .space-y-6 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-y-reverse: 0;
   margin-top: calc(2rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(2rem * var(--tw-space-y-reverse));
 }
 
-.user-console-shell :is(h1, h2, h3) {
+.user-console-shell main :is(h1, h2, h3) {
   letter-spacing: 0;
 }
 
-.user-console-shell h1 {
+.user-console-shell main h1 {
   font-size: clamp(2rem, 4vw, 3.5rem);
   line-height: 1.05;
   font-weight: 750;
 }
 
-.user-console-shell [class*="grid-cols"] > .bg-white[class*="border"],
-.user-console-shell [class*="grid-cols"] > .rounded-lg.bg-white,
-.user-console-shell [class*="grid-cols"] > .rounded-xl.bg-white,
-.user-console-shell [class*="grid-cols"] > .rounded-2xl.bg-white {
+.user-console-shell main [class*="grid-cols"] > .bg-white[class*="border"],
+.user-console-shell main [class*="grid-cols"] > .rounded-lg.bg-white,
+.user-console-shell main [class*="grid-cols"] > .rounded-xl.bg-white,
+.user-console-shell main [class*="grid-cols"] > .rounded-2xl.bg-white {
   background-color: transparent;
 }
 
-.user-console-shell label.rounded-xl.border,
-.user-console-shell label.rounded-lg.border {
+.user-console-shell main label.rounded-xl.border,
+.user-console-shell main label.rounded-lg.border {
   border-radius: 0;
   border-width: 0 0 1px;
   padding-inline: 0;
 }
 
-.user-console-shell input,
-.user-console-shell textarea,
-.user-console-shell button[aria-haspopup="listbox"] {
+.user-console-shell main input,
+.user-console-shell main textarea,
+.user-console-shell main button[aria-haspopup="listbox"] {
   box-shadow: none !important;
 }
 
-.user-console-shell input:not([type="checkbox"]):not([type="radio"]),
-.user-console-shell textarea,
-.user-console-shell button[aria-haspopup="listbox"] {
+.user-console-shell main input:not([type="checkbox"]):not([type="radio"]),
+.user-console-shell main textarea,
+.user-console-shell main button[aria-haspopup="listbox"] {
   border-radius: 9999px;
   min-height: 3rem;
 }
 
-.user-console-shell textarea {
+.user-console-shell main textarea {
   border-radius: 0.5rem;
 }
 
-.user-console-shell table thead {
+.user-console-shell main table thead {
   background-color: rgb(17 24 39 / 0.035);
 }
 
-.user-console-shell table th {
+.user-console-shell main table th {
   font-weight: 650;
 }
 
