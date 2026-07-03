@@ -18,15 +18,15 @@
   --bp-border: rgb(17 24 39 / 0.14);
   --bp-border-strong: rgb(17 24 39 / 0.24);
 
-  --bp-shadow-sm: 0 1px 2px rgb(17 24 39 / 0.04);
-  --bp-shadow-md: 0 3px 8px rgb(17 24 39 / 0.06);
-  --bp-shadow-lg: 0 4px 12px rgb(17 24 39 / 0.08);
+  --bp-shadow-sm: 0 0 #0000;
+  --bp-shadow-md: 0 0 #0000;
+  --bp-shadow-lg: 0 0 #0000;
 
-  --bp-radius-sm: 0.625rem;
-  --bp-radius-md: 0.875rem;
-  --bp-radius-lg: 1rem;
-  --bp-radius-xl: 1.125rem;
-  --bp-radius-2xl: 1.375rem;
+  --bp-radius-sm: 0.375rem;
+  --bp-radius-md: 0.5rem;
+  --bp-radius-lg: 0.5rem;
+  --bp-radius-xl: 0.5rem;
+  --bp-radius-2xl: 0.5rem;
 
   --bp-font-size-xs: 0.75rem;
   --bp-font-size-sm: 0.875rem;
@@ -127,4 +127,113 @@
 
 .bp-button-gradient {
   @apply rounded-lg border-transparent bg-blue-600 text-white hover:bg-indigo-700 focus:ring-blue-500 shadow-sm;
+}
+
+.user-console-shell {
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  background: var(--bp-white);
+}
+
+.user-console-shell :is(.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl) {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+
+.user-console-shell :is(.rounded-xl, .rounded-2xl, .rounded-3xl) {
+  border-radius: 0.5rem !important;
+}
+
+.user-console-shell :is(.bg-gray-100, .bg-gray-50) {
+  background-color: #ffffff;
+}
+
+.user-console-shell :is(.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover) {
+  background-color: rgb(17 24 39 / 0.035);
+}
+
+.user-console-shell :is(.border-gray-200, .border-gray-300) {
+  border-color: rgb(17 24 39 / 0.12);
+}
+
+.user-console-shell :is(.ring-black, .ring-opacity-5) {
+  --tw-ring-color: rgb(17 24 39 / 0.12);
+}
+
+.user-console-shell main > div {
+  padding-block: clamp(2rem, 4vw, 3.5rem);
+}
+
+.user-console-shell main > div > div {
+  width: 100%;
+  max-width: 72rem;
+  padding-inline: clamp(1.5rem, 4vw, 3.5rem);
+}
+
+.user-console-shell .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(2rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(2rem * var(--tw-space-y-reverse));
+}
+
+.user-console-shell :is(h1, h2, h3) {
+  letter-spacing: 0;
+}
+
+.user-console-shell h1 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  font-weight: 750;
+}
+
+.user-console-shell [class*="grid-cols"] > .bg-white[class*="border"],
+.user-console-shell [class*="grid-cols"] > .rounded-lg.bg-white,
+.user-console-shell [class*="grid-cols"] > .rounded-xl.bg-white,
+.user-console-shell [class*="grid-cols"] > .rounded-2xl.bg-white {
+  background-color: transparent;
+}
+
+.user-console-shell label.rounded-xl.border,
+.user-console-shell label.rounded-lg.border {
+  border-radius: 0;
+  border-width: 0 0 1px;
+  padding-inline: 0;
+}
+
+.user-console-shell input,
+.user-console-shell textarea,
+.user-console-shell button[aria-haspopup="listbox"] {
+  box-shadow: none !important;
+}
+
+.user-console-shell input:not([type="checkbox"]):not([type="radio"]),
+.user-console-shell textarea,
+.user-console-shell button[aria-haspopup="listbox"] {
+  border-radius: 9999px;
+  min-height: 3rem;
+}
+
+.user-console-shell textarea {
+  border-radius: 0.5rem;
+}
+
+.user-console-shell table thead {
+  background-color: rgb(17 24 39 / 0.035);
+}
+
+.user-console-shell table th {
+  font-weight: 650;
+}
+
+.dark .user-console-shell {
+  background: var(--bp-black);
+}
+
+.dark .user-console-shell :is(.bg-gray-100, .bg-gray-50) {
+  background-color: rgb(17 24 39);
+}
+
+.dark .user-console-shell :is(.border-gray-200, .border-gray-300) {
+  border-color: rgb(255 255 255 / 0.12);
 }
