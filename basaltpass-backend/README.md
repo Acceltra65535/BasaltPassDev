@@ -112,8 +112,8 @@ go run ./cmd/basaltpass
 
 本仓库包含本地 OpenID Foundation conformance suite 辅助文件：
 
-- `cmd/conformance-seed`: 为本地 SQLite conformance 数据库写入 static client、用户和 profile 数据。
-- `scripts/seed_conformance_sqlite.py`: 轻量 seed 脚本，适合快速重置本地测试数据。
+- `tools/conformance-seed`: Go 版 seed 工具，用于本地 SQLite conformance 数据库。
+- `../tools/conformance/seed_conformance_sqlite.py`: 轻量 Python seed 脚本，适合快速重置本地测试数据。
 - `conformance.config.yaml`: 本地 conformance 后端配置示例。
 
 `conformance.env`、suite 日志、临时证书、测试结果 zip 和本地数据库属于运行产物，不应提交。
