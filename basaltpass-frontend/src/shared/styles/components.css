@@ -128,3 +128,112 @@
 .bp-button-gradient {
   @apply rounded-lg border-transparent bg-blue-600 text-white hover:bg-indigo-700 focus:ring-blue-500 shadow-sm;
 }
+
+.user-console-shell {
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  background: var(--bp-white);
+}
+
+.user-console-shell :is(.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl) {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+
+.user-console-shell :is(.rounded-xl, .rounded-2xl, .rounded-3xl) {
+  border-radius: 0.5rem !important;
+}
+
+.user-console-shell :is(.bg-gray-100, .bg-gray-50) {
+  background-color: #ffffff;
+}
+
+.user-console-shell :is(.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover) {
+  background-color: rgb(17 24 39 / 0.035);
+}
+
+.user-console-shell :is(.border-gray-200, .border-gray-300) {
+  border-color: rgb(17 24 39 / 0.12);
+}
+
+.user-console-shell :is(.ring-black, .ring-opacity-5) {
+  --tw-ring-color: rgb(17 24 39 / 0.12);
+}
+
+.user-console-shell main > div {
+  padding-block: clamp(2rem, 4vw, 3.5rem);
+}
+
+.user-console-shell main > div > div {
+  width: 100%;
+  max-width: 72rem;
+  padding-inline: clamp(1.5rem, 4vw, 3.5rem);
+}
+
+.user-console-shell main .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(2rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(2rem * var(--tw-space-y-reverse));
+}
+
+.user-console-shell main :is(h1, h2, h3) {
+  letter-spacing: 0;
+}
+
+.user-console-shell main h1 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  font-weight: 750;
+}
+
+.user-console-shell main [class*="grid-cols"] > .bg-white[class*="border"],
+.user-console-shell main [class*="grid-cols"] > .rounded-lg.bg-white,
+.user-console-shell main [class*="grid-cols"] > .rounded-xl.bg-white,
+.user-console-shell main [class*="grid-cols"] > .rounded-2xl.bg-white {
+  background-color: transparent;
+}
+
+.user-console-shell main label.rounded-xl.border,
+.user-console-shell main label.rounded-lg.border {
+  border-radius: 0;
+  border-width: 0 0 1px;
+  padding-inline: 0;
+}
+
+.user-console-shell main input,
+.user-console-shell main textarea,
+.user-console-shell main button[aria-haspopup="listbox"] {
+  box-shadow: none !important;
+}
+
+.user-console-shell main input:not([type="checkbox"]):not([type="radio"]),
+.user-console-shell main textarea,
+.user-console-shell main button[aria-haspopup="listbox"] {
+  border-radius: 9999px;
+  min-height: 3rem;
+}
+
+.user-console-shell main textarea {
+  border-radius: 0.5rem;
+}
+
+.user-console-shell main table thead {
+  background-color: rgb(17 24 39 / 0.035);
+}
+
+.user-console-shell main table th {
+  font-weight: 650;
+}
+
+.dark .user-console-shell {
+  background: var(--bp-black);
+}
+
+.dark .user-console-shell :is(.bg-gray-100, .bg-gray-50) {
+  background-color: rgb(17 24 39);
+}
+
+.dark .user-console-shell :is(.border-gray-200, .border-gray-300) {
+  border-color: rgb(255 255 255 / 0.12);
+}
