@@ -10,11 +10,11 @@ import "time"
 type CrossAppTrust struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`
 	TenantID      uint      `gorm:"not null;index" json:"tenant_id"`
-	SourceAppID   uint      `gorm:"not null;index" json:"source_app_id"`   // the app that initiates token exchange (e.g. WeavInt)
-	TargetAppID   uint      `gorm:"not null;index" json:"target_app_id"`   // the app whose API is being called (e.g. Araneae)
-	AllowedScopes string    `gorm:"type:text" json:"allowed_scopes"`       // comma-separated scope list that can be granted
-	MaxTokenTTL   int       `gorm:"default:300" json:"max_token_ttl"`      // max token lifetime in seconds (default 5 min)
-	Description   string    `gorm:"size:500" json:"description"`           // optional human-readable description
+	SourceAppID   uint      `gorm:"not null;index" json:"source_app_id"` // the app that initiates token exchange (e.g. WeavInt)
+	TargetAppID   uint      `gorm:"not null;index" json:"target_app_id"` // the app whose API is being called (e.g. Araneae)
+	AllowedScopes string    `gorm:"type:text" json:"allowed_scopes"`     // comma-separated scope list that can be granted
+	MaxTokenTTL   int       `gorm:"default:3600" json:"max_token_ttl"`   // max token lifetime in seconds (default 1 hour)
+	Description   string    `gorm:"size:500" json:"description"`         // optional human-readable description
 	IsActive      bool      `gorm:"default:true" json:"is_active"`
 	CreatedBy     uint      `gorm:"not null" json:"created_by"`
 	CreatedAt     time.Time `json:"created_at"`

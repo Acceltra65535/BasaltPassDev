@@ -120,10 +120,10 @@ func CreateCrossAppTrustHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "allowed_scopes is required"})
 	}
 	if req.MaxTokenTTL <= 0 {
-		req.MaxTokenTTL = 300
+		req.MaxTokenTTL = 3600
 	}
-	if req.MaxTokenTTL > 600 {
-		req.MaxTokenTTL = 600
+	if req.MaxTokenTTL > 3600 {
+		req.MaxTokenTTL = 3600
 	}
 
 	// Verify both apps belong to this tenant
@@ -192,10 +192,10 @@ func UpdateCrossAppTrustHandler(c *fiber.Ctx) error {
 	if req.MaxTokenTTL != nil {
 		ttl := *req.MaxTokenTTL
 		if ttl <= 0 {
-			ttl = 300
+			ttl = 3600
 		}
-		if ttl > 600 {
-			ttl = 600
+		if ttl > 3600 {
+			ttl = 3600
 		}
 		updates["max_token_ttl"] = ttl
 	}

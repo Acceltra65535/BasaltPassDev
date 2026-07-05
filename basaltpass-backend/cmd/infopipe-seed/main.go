@@ -112,9 +112,10 @@ func seed(db *gorm.DB, envPath string) (*report, error) {
 		{"orion", "Orion", "Mission control and review service.", "http://orion:8120", []string{"s2s.read", "s2s.token_exchange", "apicred.llm", "llm.plan_mission", "llm.generate_product_spec", "llm.review_artifact", "llm.summarize_evidence"}},
 		{"vesper", "Vesper", "Analysis and brief generation service.", "http://vesper:8121", []string{"s2s.read", "s2s.token_exchange", "apicred.llm", "llm.extract_entities", "llm.extract_claims", "llm.summarize_event", "llm.generate_brief"}},
 		{"cis", "CIS", "Source planning service.", "http://cis:8195", []string{"s2s.read", "s2s.token_exchange", "apicred.llm", "cis.source_plan", "araneae.read", "araneae.write", "hashslip.read", "hashslip.write"}},
+		{"docode", "DoCode", "Crawler and code generation service.", "http://docode:8110", []string{"s2s.read", "s2s.token_exchange", "docode.jobs", "docode.write", "llm", "apicred.read"}},
 		{"hashslip", "HashSlip", "Fact and artifact store.", "http://hashslip:8106", []string{"s2s.read", "hashslip.read", "hashslip.write"}},
 		{"araneae", "Araneae", "Crawler execution service.", "http://araneae-control:8180", []string{"s2s.read", "araneae.read", "araneae.write", "hashslip.write"}},
-		{"apicred", "APICred", "LLM capability and provider gateway.", "http://apicred:8103", []string{"s2s.read", "llm.gateway", "llm.grants"}},
+		{"apicred", "APICred", "LLM capability and provider gateway.", "http://apicred:8103", []string{"s2s.read", "llm", "apicred.read", "llm.gateway", "llm.grants"}},
 		{"atlas", "Atlas", "Graph projection service.", "http://atlas:8130", []string{"s2s.read", "hashslip.read", "atlas.read"}},
 		{"forge", "Forge", "Replay and evaluation service.", "http://forge:8150", []string{"s2s.read", "hashslip.read", "forge.eval"}},
 		{"dispatch", "Dispatch", "Artifact delivery service.", "http://dispatch:8140", []string{"s2s.read", "hashslip.read", "atlas.read", "dispatch.read"}},
@@ -135,6 +136,19 @@ func seed(db *gorm.DB, envPath string) (*report, error) {
 			return nil, fmt.Errorf("upsert app %s: %w", svc.ID, err)
 		}
 		appIDs[svc.ID] = app.ID
+		appUser := model.AppUser{
+			AppID:             app.ID,
+			UserID:            admin.ID,
+			FirstAuthorizedAt: now,
+			LastAuthorizedAt:  now,
+			Scopes:            strings.Join(svc.Scopes, " "),
+			Status:            model.AppUserStatusActive,
+		}
+		if err := db.Where("app_id = ? AND user_id = ?", app.ID, admin.ID).
+			Assign(appUser).
+			FirstOrCreate(&model.AppUser{AppID: app.ID, UserID: admin.ID, FirstAuthorizedAt: now, LastAuthorizedAt: now, Scopes: appUser.Scopes, Status: model.AppUserStatusActive}).Error; err != nil {
+			return nil, fmt.Errorf("authorize admin for app %s: %w", svc.ID, err)
+		}
 
 		secret := "bp-infopipe-" + svc.ID + "-secret"
 		client := model.OAuthClient{
@@ -188,7 +202,8 @@ func seed(db *gorm.DB, envPath string) (*report, error) {
 	trustPairs := [][2]string{
 		{"orion", "cis"}, {"orion", "vesper"}, {"orion", "hashslip"}, {"orion", "apicred"}, {"orion", "dispatch"}, {"orion", "atlas"},
 		{"vesper", "hashslip"}, {"vesper", "apicred"}, {"vesper", "atlas"},
-		{"cis", "araneae"}, {"cis", "hashslip"}, {"cis", "apicred"},
+		{"cis", "araneae"}, {"cis", "hashslip"}, {"cis", "apicred"}, {"cis", "docode"},
+		{"docode", "apicred"},
 		{"araneae", "hashslip"},
 		{"forge", "orion"}, {"forge", "vesper"}, {"forge", "hashslip"}, {"forge", "atlas"},
 		{"dispatch", "hashslip"}, {"dispatch", "atlas"},
@@ -200,8 +215,8 @@ func seed(db *gorm.DB, envPath string) (*report, error) {
 			TenantID:      tenant.ID,
 			SourceAppID:   sourceID,
 			TargetAppID:   targetID,
-			AllowedScopes: "s2s.read,s2s.token_exchange,apicred.llm,hashslip.read,hashslip.write,araneae.read,araneae.write,llm.gateway,llm.grants,atlas.read,forge.eval,dispatch.read",
-			MaxTokenTTL:   300,
+			AllowedScopes: "s2s.read,s2s.token_exchange,apicred.llm,llm,apicred.read,docode.jobs,docode.write,hashslip.read,hashslip.write,araneae.read,araneae.write,llm.gateway,llm.grants,atlas.read,forge.eval,dispatch.read",
+			MaxTokenTTL:   3600,
 			Description:   "Info pipeline local integration trust: " + pair[0] + " -> " + pair[1],
 			IsActive:      true,
 			CreatedBy:     admin.ID,
