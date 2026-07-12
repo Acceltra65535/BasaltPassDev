@@ -11,11 +11,14 @@ BasaltPass 是一个包含后端和前端代码的 monorepo (单仓库)。
 -   `basaltpass-backend/`: Go (Fiber + GORM) 应用。
 -   `basaltpass-frontend/`: React (Vite) 应用。
 -   `basaltpass-docs/`: 本文档站点。
--   `scripts/`: 用于开发和部署的实用脚本。
+-   `scripts/`: 稳定的全栈开发入口脚本。
+-   `tools/`: 本地开发、测试数据和一次性辅助脚本。
 
 ## 后端结构
 
 -   `cmd/basaltpass/`: 入口点。
+-   `cmd/basaltpass-import/`: Basalt bundle 导入 CLI。
+-   `tools/`: 需要引用 internal 包的后端本地开发工具。
 -   `internal/api/v1/`: 路由定义。
 -   `internal/handler/`: HTTP 请求处理器。
 -   `internal/middleware/`: 认证、租户上下文、速率限制。
