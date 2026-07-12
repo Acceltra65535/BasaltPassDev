@@ -279,6 +279,8 @@ settings:
             - openid
             - profile
             - email
+            - groups
+            - offline_access
         category: oauth
         description: 允许的 OAuth Scope 列表
     oauth.enable_refresh_tokens:

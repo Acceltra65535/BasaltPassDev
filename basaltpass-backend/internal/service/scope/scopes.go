@@ -16,6 +16,7 @@ func DefaultAllowedScopes() []string {
 		Email,
 		Address,
 		Phone,
+		Groups,
 		OfflineAccess,
 		S2SRead,
 		S2SUserRead,
@@ -56,6 +57,8 @@ func Describe(s string) Meta {
 		return Meta{Scope: s, Category: "oidc", Title: "Address", Description: "允许通过 userinfo 获取地址信息"}
 	case Phone:
 		return Meta{Scope: s, Category: "oidc", Title: "Phone", Description: "允许通过 userinfo 获取手机号与验证状态"}
+	case Groups:
+		return Meta{Scope: s, Category: "oidc", Title: "Groups", Description: "允许在 ID Token 和 UserInfo 中返回用户所属角色组"}
 	case OfflineAccess:
 		return Meta{Scope: s, Category: "oidc", Title: "Offline access", Description: "允许申请 refresh_token（需要服务端启用刷新令牌）"}
 	case S2SRead:
@@ -96,6 +99,7 @@ const (
 	Email         = "email"
 	Address       = "address"
 	Phone         = "phone"
+	Groups        = "groups"
 	OfflineAccess = "offline_access"
 )
 

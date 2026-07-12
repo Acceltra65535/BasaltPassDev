@@ -36,7 +36,7 @@ func setupOIDCE2EDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open sqlite failed: %v", err)
 	}
-	if err := db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantUser{}, &model.Gender{}, &model.UserProfile{}, &model.App{}, &model.AppUser{}, &model.OAuthClient{}, &model.OAuthAuthorizationCode{}, &model.OAuthAccessToken{}, &model.OAuthRefreshToken{}, &model.OIDCSigningKey{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Role{}, &model.UserRole{}, &model.Tenant{}, &model.TenantUser{}, &model.TenantRbacRole{}, &model.TenantUserRbacRole{}, &model.Gender{}, &model.UserProfile{}, &model.App{}, &model.AppUser{}, &model.OAuthClient{}, &model.OAuthAuthorizationCode{}, &model.OAuthAccessToken{}, &model.OAuthRefreshToken{}, &model.OIDCSigningKey{}); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
 	common.SetDBForTest(db)
@@ -62,6 +62,8 @@ func TestOIDCAuthCodePKCEIssuesIDTokenAndJWKSVerifies(t *testing.T) {
 		AvatarURL:        "https://rp.example/avatar.png",
 		EmailVerified:    true,
 	}
+	isSystemAdmin := true
+	user.IsSystemAdmin = &isSystemAdmin
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -74,7 +76,7 @@ func TestOIDCAuthCodePKCEIssuesIDTokenAndJWKSVerifies(t *testing.T) {
 	}
 	client := model.OAuthClient{AppID: app.ID, ClientID: "oidc-client", ClientSecret: "oidc-secret", RedirectURIs: "https://rp.example/callback", IsActive: true}
 	client.HashClientSecret()
-	client.SetScopeList([]string{"openid", "profile", "email", "offline_access"})
+	client.SetScopeList([]string{"openid", "profile", "email", "groups", "offline_access"})
 	if err := db.Create(&client).Error; err != nil {
 		t.Fatalf("create client: %v", err)
 	}
@@ -82,7 +84,7 @@ func TestOIDCAuthCodePKCEIssuesIDTokenAndJWKSVerifies(t *testing.T) {
 	svc := NewOAuthServerService()
 	verifier := "verifier-123"
 	challenge := base64.RawURLEncoding.EncodeToString(sha256sum(verifier))
-	authReq := &AuthorizeRequest{ClientID: client.ClientID, RedirectURI: "https://rp.example/callback", ResponseType: "code", Scope: "openid profile email offline_access", CodeChallenge: challenge, CodeChallengeMethod: "S256", Nonce: "nonce-xyz"}
+	authReq := &AuthorizeRequest{ClientID: client.ClientID, RedirectURI: "https://rp.example/callback", ResponseType: "code", Scope: "openid profile email groups offline_access", CodeChallenge: challenge, CodeChallengeMethod: "S256", Nonce: "nonce-xyz"}
 	code, err := svc.GenerateAuthorizationCode(user.ID, authReq, &client)
 	if err != nil {
 		t.Fatalf("generate code: %v", err)
@@ -124,9 +126,13 @@ func TestOIDCAuthCodePKCEIssuesIDTokenAndJWKSVerifies(t *testing.T) {
 		t.Fatalf("expected email claims in id_token: email=%v email_verified=%v", claims["email"], claims["email_verified"])
 	}
 	for _, claim := range []string{"name", "preferred_username", "given_name", "family_name", "middle_name", "picture"} {
-		if _, exists := claims[claim]; exists {
-			t.Fatalf("code-flow id_token should leave %s to userinfo, claims=%v", claim, claims)
+		if _, exists := claims[claim]; !exists {
+			t.Fatalf("code-flow id_token should include %s for automatic RP onboarding, claims=%v", claim, claims)
 		}
+	}
+	groups := stringSliceClaim(claims["groups"])
+	if !containsString(groups, "basaltpass-system-admin") || !containsString(groups, "tenant:oidc:member") {
+		t.Fatalf("expected system and tenant groups in id_token, groups=%v", groups)
 	}
 	if claims["acr"] == "" || len(stringSliceClaim(claims["amr"])) == 0 {
 		t.Fatalf("expected acr/amr claims: acr=%v amr=%v", claims["acr"], claims["amr"])
