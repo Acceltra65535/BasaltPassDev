@@ -237,6 +237,7 @@
 | POST | /api/v1/admin/wallets/:id/unfreeze |
 | GET | /api/v1/admin/wallets/stats |
 | HEAD | /api/v1/admin/wallets/stats |
+| POST | /api/v1/auth/2fa/email/send |
 | POST | /api/v1/auth/console/authorize |
 | POST | /api/v1/auth/console/exchange |
 | POST | /api/v1/auth/identity/switch |
@@ -698,10 +699,6 @@
 | PUT | /api/v1/tenant/notifications/:id |
 | GET | /api/v1/tenant/notifications/stats |
 | HEAD | /api/v1/tenant/notifications/stats |
-| GET | /api/v1/tenant/notifications/users |
-| HEAD | /api/v1/tenant/notifications/users |
-| GET | /api/v1/tenant/notifications/users/search |
-| HEAD | /api/v1/tenant/notifications/users/search |
 | GET | /api/v1/tenant/oauth/clients/ |
 | GET | /api/v1/tenant/oauth/clients/ |
 | HEAD | /api/v1/tenant/oauth/clients/ |
@@ -966,6 +963,8 @@
 | HEAD | /api/v1/tenant/users/global-candidates |
 | POST | /api/v1/tenant/users/global-candidates/:id/authorize |
 | POST | /api/v1/tenant/users/invite |
+| GET | /api/v1/tenant/users/search |
+| HEAD | /api/v1/tenant/users/search |
 | GET | /api/v1/tenant/users/stats |
 | GET | /api/v1/tenant/users/stats |
 | HEAD | /api/v1/tenant/users/stats |
@@ -1000,6 +999,7 @@
 | HEAD | /api/v1/tenant/wallets/stats |
 | GET | /api/v1/tenants/by-code/:code |
 | HEAD | /api/v1/tenants/by-code/:code |
+| POST | /api/v1/trust/token |
 | CONNECT | /api/v1/usage |
 | DELETE | /api/v1/usage |
 | GET | /api/v1/usage |

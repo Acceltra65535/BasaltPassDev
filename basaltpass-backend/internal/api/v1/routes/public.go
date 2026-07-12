@@ -7,6 +7,7 @@ import (
 	publicSettings "basaltpass-backend/internal/handler/public/settings"
 	"basaltpass-backend/internal/handler/public/signup"
 	publicTenant "basaltpass-backend/internal/handler/public/tenant"
+	"basaltpass-backend/internal/handler/public/trust"
 	"basaltpass-backend/internal/middleware/ratelimit"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,6 +19,8 @@ func InitPublicRouteDependencies(_ *gorm.DB) {}
 
 // RegisterPublicRoutes 注册公开路由（无需认证）
 func RegisterPublicRoutes(v1 fiber.Router) {
+	v1.Post("/trust/token", trust.IssueTrustTokenHandler)
+
 	// 健康检查端点
 	v1.Get("/health", func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusOK)

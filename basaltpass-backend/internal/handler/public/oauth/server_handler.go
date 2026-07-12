@@ -496,6 +496,8 @@ func TokenHandler(c *fiber.Ctx) error {
 	grantType := c.FormValue("grant_type")
 
 	switch grantType {
+	case "client_credentials":
+		return handleClientCredentialsGrant(c)
 	case "authorization_code":
 		return handleAuthorizationCodeGrant(c)
 	case "refresh_token":
@@ -513,6 +515,161 @@ func TokenHandler(c *fiber.Ctx) error {
 func setOAuthTokenResponseHeaders(c *fiber.Ctx) {
 	c.Set("Cache-Control", "no-store")
 	c.Set("Pragma", "no-cache")
+}
+
+func handleClientCredentialsGrant(c *fiber.Ctx) error {
+	client, err := authenticateOAuthClientForEndpoint(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error":             "invalid_client",
+			"error_description": "Client authentication failed",
+		})
+	}
+	if !clientAllowsGrant(*client, "client_credentials") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":             "unauthorized_client",
+			"error_description": "Client is not allowed to use client_credentials",
+		})
+	}
+
+	scope := strings.TrimSpace(c.FormValue("scope"))
+	if scope == "" {
+		scope = strings.ReplaceAll(client.Scopes, ",", " ")
+	}
+	grantedScopes := strings.Join(intersectScopes(scope, client.Scopes), " ")
+	if grantedScopes == "" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error":             "insufficient_scope",
+			"error_description": "No requested scopes are allowed for this client",
+		})
+	}
+
+	tenantID := oauthServerService.resolveClientTenantID(client)
+	if tenantID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":             "invalid_client",
+			"error_description": "Client tenant is unavailable",
+		})
+	}
+
+	userID, err := serviceSubjectUserID(client.AppID, tenantID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":             "server_error",
+			"error_description": "Failed to resolve service subject",
+		})
+	}
+
+	tokenStr, err := model.GenerateAccessToken()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":             "server_error",
+			"error_description": "Failed to generate token",
+		})
+	}
+
+	if err := common.DB().Create(&model.OAuthAccessToken{
+		Token:     tokenStr,
+		ClientID:  client.ClientID,
+		UserID:    userID,
+		TenantID:  tenantID,
+		AppID:     client.AppID,
+		Scopes:    grantedScopes,
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+	}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":             "server_error",
+			"error_description": "Failed to persist token",
+		})
+	}
+
+	now := time.Now()
+	common.DB().Model(&client).Update("last_used_at", &now)
+	return c.JSON(fiber.Map{
+		"access_token": tokenStr,
+		"token_type":   "Bearer",
+		"expires_in":   3600,
+		"scope":        grantedScopes,
+	})
+}
+
+func intersectScopes(requestedStr string, allowedStr string) []string {
+	requested := splitScopeText(requestedStr)
+	allowed := splitScopeText(allowedStr)
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, scope := range allowed {
+		allowedSet[scope] = struct{}{}
+	}
+	if _, ok := allowedSet["*"]; ok {
+		return requested
+	}
+	out := make([]string, 0, len(requested))
+	for _, scope := range requested {
+		if _, ok := allowedSet[scope]; ok {
+			out = append(out, scope)
+		}
+	}
+	return out
+}
+
+func splitScopeText(value string) []string {
+	value = strings.ReplaceAll(value, ",", " ")
+	fields := strings.Fields(value)
+	out := make([]string, 0, len(fields))
+	seen := map[string]struct{}{}
+	for _, field := range fields {
+		scope := strings.TrimSpace(field)
+		if scope == "" {
+			continue
+		}
+		if _, ok := seen[scope]; ok {
+			continue
+		}
+		seen[scope] = struct{}{}
+		out = append(out, scope)
+	}
+	return out
+}
+
+func serviceSubjectUserID(appID uint, tenantID uint) (uint, error) {
+	email := "service-app-" + strconv.FormatUint(uint64(appID), 10) + "@basalt.local"
+	user := model.User{
+		Email:         email,
+		Nickname:      email,
+		EmailVerified: true,
+	}
+	if err := common.DB().Where("email = ? AND enforced_tenant_id = ?", email, 0).Assign(user).FirstOrCreate(&user).Error; err != nil {
+		return 0, err
+	}
+	if err := common.DB().Where("tenant_id = ? AND user_id = ?", tenantID, user.ID).
+		Assign(model.TenantUser{Role: model.TenantRoleMember}).
+		FirstOrCreate(&model.TenantUser{TenantID: tenantID, UserID: user.ID, Role: model.TenantRoleMember}).Error; err != nil {
+		return 0, err
+	}
+	var apps []model.App
+	if err := common.DB().Where("tenant_id = ? AND status = ?", tenantID, model.AppStatusActive).Find(&apps).Error; err != nil {
+		return 0, err
+	}
+	for _, app := range apps {
+		if err := common.DB().Where("app_id = ? AND user_id = ?", app.ID, user.ID).
+			Assign(model.AppUser{
+				FirstAuthorizedAt: time.Now(),
+				LastAuthorizedAt:  time.Now(),
+				Scopes:            "*",
+				Status:            model.AppUserStatusActive,
+			}).
+			FirstOrCreate(&model.AppUser{
+				AppID:             app.ID,
+				UserID:            user.ID,
+				FirstAuthorizedAt: time.Now(),
+				LastAuthorizedAt:  time.Now(),
+				Scopes:            "*",
+				Status:            model.AppUserStatusActive,
+			}).Error; err != nil {
+			return 0, err
+		}
+	}
+	return user.ID, nil
 }
 
 // handleAuthorizationCodeGrant 处理授权码授权

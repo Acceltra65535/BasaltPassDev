@@ -4,7 +4,7 @@ import { PCard, PButton, PSkeleton, PBadge, PPageHeader } from '@ui'
 import { listSubscriptions, cancelSubscription } from '@api/subscription/subscription'
 import { SubscriptionResponse } from '@types/domain/subscription'
 import { Link } from 'react-router-dom'
-import { ChevronRightIcon, CubeIcon, WalletIcon, QuestionMarkCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { ChevronRightIcon, CubeIcon, WalletIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { ROUTES } from '@constants'
 import { useI18n } from '@shared/i18n'
 
@@ -171,16 +171,6 @@ export default function SubscriptionIndex() {
               <div>
                 <p className="text-sm font-medium text-gray-900">{t('pages.userSubscriptionIndex.links.walletTitle')}</p>
                 <p className="text-xs text-gray-500">{t('pages.userSubscriptionIndex.links.walletDesc')}</p>
-              </div>
-            </Link>
-            <Link
-              to={ROUTES.user.help}
-              className="flex items-center rounded-lg bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <QuestionMarkCircleIcon className="h-5 w-5 text-indigo-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{t('pages.userSubscriptionIndex.links.helpTitle')}</p>
-                <p className="text-xs text-gray-500">{t('pages.userSubscriptionIndex.links.helpDesc')}</p>
               </div>
             </Link>
           </div>

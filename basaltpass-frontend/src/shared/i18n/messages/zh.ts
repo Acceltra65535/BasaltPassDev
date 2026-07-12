@@ -716,15 +716,6 @@ const en = {
           support: 'Contact support promptly if issues occur',
         },
       },
-      faq: {
-        title: 'FAQ',
-        q1: 'How long does recharge take?',
-        a1: 'Usually 1-5 minutes. If delayed, please check later.',
-        q2: 'What if recharge fails?',
-        a2: 'Check network and payment details, or try another method.',
-        q3: 'Can I cancel a recharge?',
-        a3: 'Successful recharge cannot be canceled. Confirm amount before payment.',
-      },
     },
     walletWithdraw: {
       header: {
@@ -795,17 +786,6 @@ const en = {
           worktime: 'Requests are processed on business days 9:00-18:00',
         },
       },
-      faq: {
-        title: 'FAQ',
-        q1: 'How long does withdrawal take?',
-        a1: 'Alipay/WeChat within 24 hours, bank card 1-3 business days.',
-        q2: 'What if withdrawal fails?',
-        a2: 'Check account details or contact support for help.',
-        q3: 'Can I cancel a withdrawal?',
-        a3: 'No, it cannot be canceled after submission.',
-        q4: 'How much is the withdrawal fee?',
-        a4: 'Currently free of charge.',
-      },
     },
     userSubscriptionIndex: {
       header: {
@@ -837,8 +817,6 @@ const en = {
         productsDesc: 'Browse available products and services',
         walletTitle: 'Wallet',
         walletDesc: 'Manage your account balance and payments',
-        helpTitle: 'Help Center',
-        helpDesc: 'Get subscription-related help',
       },
       cancelModal: {
         title: 'Confirm Subscription Cancellation',
@@ -889,8 +867,6 @@ const en = {
         subscriptionsDesc: 'View and manage your subscriptions',
         walletTitle: 'Wallet',
         walletDesc: 'Manage your account balance',
-        helpTitle: 'Help Center',
-        helpDesc: 'Get subscription-related help',
       },
     },
     userSubscriptionCheckout: {
@@ -1260,8 +1236,6 @@ const en = {
         profileDesc: 'Edit profile information',
         settings: 'System Settings',
         settingsDesc: 'Configure system preferences',
-        help: 'Help Center',
-        helpDesc: 'Get usage help',
       },
       recentTransactions: {
         title: 'Recent Transactions',
@@ -1912,6 +1886,8 @@ const en = {
       permissionManagement: 'Permission Management',
       userManagement: 'User Management',
       createRole: 'Create Role',
+      edit: 'Edit',
+      delete: 'Delete',
       cancel: 'Cancel',
       update: 'Update',
       create: 'Create',
@@ -3668,103 +3644,6 @@ const en = {
       copyFailed: 'Copy failed:',
     },
   },
-  userHelp: {
-    title: '帮助中心',
-    search: {
-      title: '搜索帮助',
-      placeholder: '搜索问题或关键词……',
-    },
-    categories: {
-      title: '按分类浏览',
-      all: '全部',
-      account: '账户管理',
-      security: '安全设置',
-      payment: '支付与充值',
-      wallet: '钱包管理',
-      subscription: '订阅服务',
-    },
-    faq: {
-      titleWithCount: '常见问题（{{count}}）',
-      clearSearch: '清除搜索',
-      items: {
-        faq1: {
-          question: '如何注册新账户？',
-          answer: '点击右上角的“注册”按钮，输入邮箱和密码，完成邮箱验证即可创建账户。你也可以使用手机号注册。',
-        },
-        faq2: {
-          question: '忘记密码怎么办？',
-          answer: '你可以通过邮箱或手机号重置密码。点击登录页的“忘记密码”链接并按提示操作。重置链接有效期为 30 分钟。',
-        },
-        faq3: {
-          question: '如何开启两步验证？',
-          answer: '进入“安全设置”页面，打开“两步验证”，然后扫描二维码或输入密钥，并填入验证码完成设置。建议同时开启备用验证方式。',
-        },
-        faq4: {
-          question: '如何设置通行密钥（Passkey）？',
-          answer: '在安全设置中打开“通行密钥管理”，点击“添加通行密钥”，并按浏览器提示完成生物识别或 PIN 设置。通行密钥可提供更安全的无密码登录体验。',
-        },
-        faq5: {
-          question: '如何充值钱包？',
-          answer: '你可以通过多种方式充值：1) 支付宝扫码 2) 微信支付 3) 银行卡转账。多数充值会在 1–5 分钟内到账，大额充值可能需要人工审核。',
-        },
-        faq6: {
-          question: '提现需要多长时间？',
-          answer: '提现时间取决于方式：银行卡提现通常需要 1–3 个工作日，支付宝提现通常 24 小时内到账。单笔提现限额为 ¥50,000。',
-        },
-        faq7: {
-          question: '如何查看交易记录？',
-          answer: '在钱包页面点击“交易记录”，或在仪表盘查看近期交易。你可以按时间、类型或状态筛选，并导出 CSV 格式记录。',
-        },
-        faq8: {
-          question: '钱包余额不足怎么办？',
-          answer: '当钱包余额不足时，系统会提示你充值。你也可以开启自动充值，在余额低于阈值时自动充值指定金额。',
-        },
-        faq9: {
-          question: '如何管理订阅套餐？',
-          answer: '在订阅页面，你可以查看当前套餐、进行升级或降级，并取消订阅。取消后服务将持续到当前计费周期结束。',
-        },
-        faq10: {
-          question: '订阅费用如何计算？',
-          answer: '订阅费用按你的套餐按月或按年收取。年度套餐通常包含折扣。每个计费周期开始时，费用会自动从你的钱包扣除。',
-        },
-        faq11: {
-          question: '账户安全如何保障？',
-          answer: '我们采用银行级防护，包括 SSL 加密、两步验证、实时异常登录监控、定期安全审计和数据备份。所有敏感数据在存储时均经过加密。',
-        },
-        faq12: {
-          question: '如何更新个人信息？',
-          answer: '在个人资料页面，你可以更新头像、昵称、邮箱、手机号等信息。修改敏感信息需要进行身份验证。',
-        },
-      },
-    },
-    empty: {
-      title: '未找到相关问题',
-      description: '请尝试不同的关键词，或联系我们的支持团队。',
-    },
-    feedback: {
-      question: '这个回答有帮助吗？',
-      helpful: '有帮助',
-      notHelpful: '没帮助',
-      thanks: '感谢你的反馈！',
-    },
-    system: {
-      title: '系统状态',
-      description: '查看实时服务状态',
-      allServicesRunning: '所有服务运行正常',
-      services: {
-        api: 'API 服务',
-        payment: '支付系统',
-        database: '数据库',
-      },
-      status: {
-        normal: '正常',
-      },
-    },
-    footer: {
-      copyrightPrefix: 'Copyright 2024 - {{year}} BasaltPass BasaltBase 由 ',
-      copyrightSuffix: '',
-    },
-  },
   adminDashboard: {
     layoutTitle: 'Admin Console',
     title: 'Admin Dashboard',
@@ -4193,11 +4072,6 @@ const en = {
       viewSubscriptions: '查看我的订阅',
       backToConsole: '返回控制台',
       viewMoreProducts: '查看更多产品',
-    },
-    footer: {
-      prefix: '如有任何问题，请访问我们的',
-      helpCenter: '帮助中心',
-      suffix: '或联系客服。',
     },
     logs: {
       fetchOrderFailed: '获取订单失败：',

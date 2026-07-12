@@ -6,7 +6,6 @@ import {
   HomeIcon,
   UserIcon,
   CogIcon,
-  QuestionMarkCircleIcon,
   BellIcon,
   UserGroupIcon,
   WalletIcon,
@@ -98,7 +97,6 @@ export default function Layout({ children }: LayoutProps) {
     { name: t('userLayout.nav.myApps'), href: ROUTES.user.myApps, icon: Squares2X2Icon },
     { name: t('userLayout.nav.security'), href: ROUTES.user.security, icon: ShieldCheckIcon },
     { name: t('userLayout.nav.settings'), href: ROUTES.user.settings, icon: CogIcon },
-    { name: t('userLayout.nav.help'), href: ROUTES.user.help, icon: QuestionMarkCircleIcon },
   ]
 
   useEffect(() => {

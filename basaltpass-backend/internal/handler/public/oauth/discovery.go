@@ -79,6 +79,7 @@ func DiscoveryHandler(c *fiber.Ctx) error {
 			"email",
 			"address",
 			"phone",
+			"groups",
 			"offline_access",
 		},
 		ResponseTypesSupported: []string{
@@ -141,6 +142,7 @@ func DiscoveryHandler(c *fiber.Ctx) error {
 			"birthdate",
 			"picture",
 			"preferred_username",
+			"groups",
 			"locale",
 			"zoneinfo",
 			"updated_at",

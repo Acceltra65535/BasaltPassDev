@@ -132,6 +132,7 @@ func defaultItems() map[string]SettingItem {
 			"openid",
 			"profile",
 			"email",
+			"groups",
 			"offline_access",
 			// S2S / third-party app scopes
 			"s2s.read",

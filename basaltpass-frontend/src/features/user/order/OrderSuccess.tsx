@@ -137,16 +137,6 @@ export default function OrderSuccessPage() {
               </div>
             </PCard>
             
-            {/*  */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500">
-                {t('userOrderSuccess.footer.prefix')}
-                <Link to={ROUTES.user.help} className="font-medium text-indigo-600 hover:text-indigo-500">
-                  {t('userOrderSuccess.footer.helpCenter')}
-                </Link>
-                {t('userOrderSuccess.footer.suffix')}
-              </p>
-            </div>
           </div>
         )}
       </div>

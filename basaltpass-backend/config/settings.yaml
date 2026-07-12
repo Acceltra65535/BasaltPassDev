@@ -292,6 +292,7 @@ settings:
             - openid
             - profile
             - email
+            - groups
             - offline_access
             - s2s.read
             - s2s.user.read

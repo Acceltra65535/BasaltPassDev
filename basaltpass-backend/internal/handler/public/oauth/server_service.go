@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -474,6 +475,25 @@ func (s *OAuthServerService) buildIDToken(clientID string, userID uint, nonce st
 	if nonce != "" {
 		claims["nonce"] = nonce
 	}
+	if hasScope(scopes, "profile") {
+		var user model.User
+		if err := s.db.First(&user, userID).Error; err != nil {
+			return "", err
+		}
+		displayName := oidcDisplayName(user, sub)
+		givenName, familyName, middleName := oidcNameParts(user, displayName)
+		claims["name"] = displayName
+		claims["nickname"] = oidcNickname(user, displayName)
+		claims["preferred_username"] = oidcPreferredUsername(user, sub)
+		claims["given_name"] = givenName
+		claims["family_name"] = familyName
+		if middleName != "" {
+			claims["middle_name"] = middleName
+		}
+		if user.AvatarURL != "" {
+			claims["picture"] = user.AvatarURL
+		}
+	}
 	if hasScope(scopes, "email") {
 		var user model.User
 		if err := s.db.Select("email", "email_verified").First(&user, userID).Error; err != nil {
@@ -484,10 +504,90 @@ func (s *OAuthServerService) buildIDToken(clientID string, userID uint, nonce st
 			claims["email_verified"] = user.EmailVerified
 		}
 	}
+	if hasScope(scopes, "groups") {
+		groups, err := s.oidcGroups(clientID, userID)
+		if err != nil {
+			return "", err
+		}
+		claims["groups"] = groups
+	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = GetKeyID()
 	return token.SignedString(privateKey)
+}
+
+// oidcGroups returns stable, tenant-aware group names suitable for relying
+// parties such as Harbor. System administrators receive a dedicated group
+// that can be mapped directly to an administrator group at the RP.
+func (s *OAuthServerService) oidcGroups(clientID string, userID uint) ([]string, error) {
+	groups := make([]string, 0, 4)
+	seen := map[string]struct{}{}
+	add := func(group string) {
+		group = strings.TrimSpace(group)
+		if group == "" {
+			return
+		}
+		if _, ok := seen[group]; ok {
+			return
+		}
+		seen[group] = struct{}{}
+		groups = append(groups, group)
+	}
+
+	var user model.User
+	if err := s.db.Select("id", "is_system_admin").First(&user, userID).Error; err != nil {
+		return nil, err
+	}
+	if user.IsSuperAdmin() {
+		add("basaltpass-system-admin")
+	}
+
+	var globalRoleCodes []string
+	if err := s.db.Table("system_auth_roles").
+		Select("system_auth_roles.code").
+		Joins("JOIN system_auth_user_roles ON system_auth_user_roles.role_id = system_auth_roles.id").
+		Where("system_auth_user_roles.user_id = ?", userID).
+		Pluck("system_auth_roles.code", &globalRoleCodes).Error; err != nil {
+		return nil, err
+	}
+	for _, code := range globalRoleCodes {
+		add("role:" + code)
+	}
+
+	var client model.OAuthClient
+	if err := s.db.Select("client_id", "app_id").Where("client_id = ?", clientID).First(&client).Error; err != nil {
+		return nil, err
+	}
+	tenantID := s.resolveClientTenantID(&client)
+	if tenantID > 0 {
+		var tenant model.Tenant
+		if err := s.db.Select("id", "code").First(&tenant, tenantID).Error; err != nil {
+			return nil, err
+		}
+		prefix := "tenant:" + strings.TrimSpace(tenant.Code) + ":"
+		var membership model.TenantUser
+		if err := s.db.Where("user_id = ? AND tenant_id = ?", userID, tenantID).First(&membership).Error; err == nil {
+			add(prefix + string(membership.Role))
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+
+		var tenantRoleCodes []string
+		if err := s.db.Table("tenant_roles").
+			Select("tenant_roles.code").
+			Joins("JOIN tenant_user_roles ON tenant_user_roles.role_id = tenant_roles.id").
+			Where("tenant_user_roles.user_id = ? AND tenant_user_roles.tenant_id = ?", userID, tenantID).
+			Pluck("tenant_roles.code", &tenantRoleCodes).Error; err != nil {
+			return nil, err
+		}
+		for _, code := range tenantRoleCodes {
+			add(prefix + "role:" + code)
+		}
+	}
+
+	sort.Strings(groups)
+	return groups, nil
 }
 
 func oidcDisplayName(user model.User, sub string) string {
@@ -508,6 +608,19 @@ func oidcDisplayName(user model.User, sub string) string {
 			return email[:at]
 		}
 		return email
+	}
+	return sub
+}
+
+func oidcPreferredUsername(user model.User, sub string) string {
+	if email := strings.TrimSpace(user.Email); email != "" {
+		if at := strings.Index(email, "@"); at > 0 {
+			return email[:at]
+		}
+		return email
+	}
+	if username := strings.TrimSpace(user.Nickname); username != "" {
+		return username
 	}
 	return sub
 }
@@ -1042,7 +1155,7 @@ func (s *OAuthServerService) GetUserInfo(token string) (*UserInfoResponse, error
 	if hasScope(oauthToken.Scopes, "profile") {
 		response.Nickname = oidcNickname(user, displayName)
 		response.NickName = response.Nickname
-		response.PreferredUsername = displayName
+		response.PreferredUsername = oidcPreferredUsername(user, response.Sub)
 		response.GivenName = givenName
 		response.FamilyName = familyName
 		response.MiddleName = middleName
@@ -1064,6 +1177,13 @@ func (s *OAuthServerService) GetUserInfo(token string) (*UserInfoResponse, error
 		if address := s.oidcAddressClaim(user.ID); address != nil {
 			response.Address = address
 		}
+	}
+	if hasScope(oauthToken.Scopes, "groups") {
+		groups, err := s.oidcGroups(oauthToken.ClientID, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		response.Groups = groups
 	}
 
 	return response, nil
@@ -1161,6 +1281,7 @@ type UserInfoResponse struct {
 	Address           *OIDCAddressClaim `json:"address,omitempty"`               // 地址
 	Picture           string            `json:"picture,omitempty"`               // 头像
 	UpdatedAt         int64             `json:"updated_at"`                      // 更新时间
+	Groups            []string          `json:"groups,omitempty"`                // 用户所属角色组
 }
 
 type OIDCAddressClaim struct {

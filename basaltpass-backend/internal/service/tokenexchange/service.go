@@ -131,7 +131,7 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 	// Step 7: Determine TTL
 	ttl := trust.MaxTokenTTL
 	if ttl <= 0 {
-		ttl = 300
+		ttl = 3600
 	}
 	if ttl > 3600 {
 		ttl = 3600 // hard cap at 1 hour

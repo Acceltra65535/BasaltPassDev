@@ -21,7 +21,6 @@ export const USER_ROUTES = {
   securityPasskey: '/security/passkey',
   securityLoginHistory: '/security/login-history',
   settings: '/settings',
-  help: '/help',
   about: '/about',
   copyright: '/copyright'
 } as const

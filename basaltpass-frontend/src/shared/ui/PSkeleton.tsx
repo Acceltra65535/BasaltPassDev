@@ -1,4 +1,6 @@
 import React from 'react'
+import basaltpassLogo from '../assets/brand/basaltpass-logo-symbol.svg'
+import hollowDataBadge from '../assets/brand/built-with-hollowdata-tech.svg'
 
 // ─────────────────────────────────────────────
 // translated PSkeleton
@@ -294,34 +296,74 @@ interface PageLoaderProps {
   animated?: boolean
 }
 
+const loaderGradients = [
+  {
+    background: 'linear-gradient(90deg,#8fd8ff 0%,#f7fdff 28%,#ff2d1d 54%,#ff7a1a 100%)',
+    shadow: '0 0 18px rgba(255,90,35,0.34)',
+  },
+  {
+    background: 'linear-gradient(90deg,#8be9fd 0%,#60a5fa 34%,#7c3aed 68%,#f472b6 100%)',
+    shadow: '0 0 18px rgba(96,165,250,0.32)',
+  },
+  {
+    background: 'linear-gradient(90deg,#34d399 0%,#a7f3d0 30%,#22d3ee 64%,#2563eb 100%)',
+    shadow: '0 0 18px rgba(34,211,238,0.3)',
+  },
+  {
+    background: 'linear-gradient(90deg,#fbbf24 0%,#fb7185 34%,#ef4444 66%,#7c2d12 100%)',
+    shadow: '0 0 18px rgba(251,113,133,0.3)',
+  },
+  {
+    background: 'linear-gradient(90deg,#c4b5fd 0%,#818cf8 30%,#38bdf8 65%,#14b8a6 100%)',
+    shadow: '0 0 18px rgba(129,140,248,0.3)',
+  },
+]
+
 function PageLoader({ message = 'loading...', animated = true }: PageLoaderProps) {
-  const pulse = animated ? 'animate-pulse' : ''
+  const loaderGradient = React.useMemo(
+    () => loaderGradients[Math.floor(Math.random() * loaderGradients.length)],
+    [],
+  )
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="flex flex-col items-center space-y-6 w-80">
-        {/* Logo translated */}
-        <div className={`h-12 w-12 rounded-2xl bg-gray-200 ${pulse}`} />
-        {/* translated */}
-        <div className="w-full space-y-3">
-          <div className={`h-5 w-2/3 mx-auto rounded bg-gray-200 ${pulse}`} />
-          <div className={`h-3 w-1/2 mx-auto rounded bg-gray-200 ${pulse}`} />
-        </div>
-        {/* translated */}
-        <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
-          <div
-            className="h-1 bg-indigo-400 rounded-full"
-            style={{
-              animation: 'skeleton-slide 1.8s ease-in-out infinite',
-              width: '40%',
-            }}
+    <div className="relative min-h-screen overflow-hidden bg-gray-50 text-gray-900">
+      <div className="absolute inset-0 flex items-center justify-center px-6">
+        <div className="flex w-full max-w-[280px] flex-col items-center gap-8">
+          <img
+            src={basaltpassLogo}
+            alt="BasaltPass"
+            className="h-16 w-auto object-contain drop-shadow-[0_12px_28px_rgba(15,23,42,0.14)] sm:h-20"
           />
+          <div
+            className="h-1 w-full overflow-hidden rounded-full bg-gray-200"
+            role="progressbar"
+            aria-label={message || 'Loading'}
+            aria-busy={animated}
+          >
+            <div
+              className="h-full w-[38%] rounded-full"
+              style={{
+                background: loaderGradient.background,
+                boxShadow: loaderGradient.shadow,
+                animation: animated ? 'basaltpass-loader-slide 1.65s ease-in-out infinite' : undefined,
+              }}
+            />
+          </div>
+          {message && <p className="sr-only">{message}</p>}
         </div>
-        {message && <p className="text-sm text-gray-400">{message}</p>}
+      </div>
+      <div className="absolute inset-x-0 top-[74%] flex justify-center px-6 sm:top-[76%]">
+        <img
+          src={hollowDataBadge}
+          alt="Built with HollowData's tech"
+          className="h-auto w-[150px] max-w-[42vw] opacity-85"
+        />
       </div>
       <style>{`
-        @keyframes skeleton-slide {
-          0% { transform: translateX(-200%); }
-          100% { transform: translateX(350%); }
+        @keyframes basaltpass-loader-slide {
+          0% { transform: translateX(-115%); }
+          50% { transform: translateX(82%); }
+          100% { transform: translateX(265%); }
         }
       `}</style>
     </div>

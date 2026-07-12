@@ -19,8 +19,7 @@ import {
   CogIcon,
   BellIcon,
   CreditCardIcon,
-  ShoppingCartIcon,
-  QuestionMarkCircleIcon
+  ShoppingCartIcon
 } from '@heroicons/react/24/outline'
 
 const quickActionCardClass =
@@ -442,19 +441,6 @@ export default function Dashboard() {
                 </div>
               </Link>
 
-              <Link
-                to={ROUTES.user.help}
-                className={quickActionCardClass}
-              >
-                <div className="flex-shrink-0">
-                  <QuestionMarkCircleIcon className="h-6 w-6 text-indigo-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="absolute inset-0" aria-hidden="true" />
-                  <p className="text-sm font-medium text-gray-900">{t('pages.dashboard.quickActions.help')}</p>
-                  <p className="text-sm text-gray-500">{t('pages.dashboard.quickActions.helpDesc')}</p>
-                </div>
-              </Link>
             </div>
         </PCard>
 
