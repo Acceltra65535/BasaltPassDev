@@ -290,6 +290,7 @@ jobs:
               spec:
                 nodeSelector:
                   kubernetes.io/arch: amd64
+                  kubernetes.io/hostname: hdtbcs-ovh1
                 imagePullSecrets:
                   - name: ${PULL_SECRET}
                 containers:
@@ -379,6 +380,7 @@ jobs:
               spec:
                 nodeSelector:
                   kubernetes.io/arch: amd64
+                  kubernetes.io/hostname: hdtbcs-ovh1
                 imagePullSecrets:
                   - name: ${PULL_SECRET}
                 containers:
