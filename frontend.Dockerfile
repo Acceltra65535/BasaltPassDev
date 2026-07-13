@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /
 COPY basaltpass-frontend/package.json ./
 COPY basaltpass-frontend/package-lock.json ./
 RUN npm ci
-COPY .git ./.git
 COPY basaltpass-frontend/ ./
 RUN npm run build
 
