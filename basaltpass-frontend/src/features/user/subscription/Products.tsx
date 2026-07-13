@@ -139,9 +139,20 @@ export default function ProductsPage() {
                       <CubeIcon className="h-10 w-10 text-indigo-600" />
                     </div>
                     <div className="ml-4 flex-1">
-                      <h3 className="text-xl font-semibold text-gray-900">{product.Name}</h3>
+                      <Link
+                        to={`/products/${product.ID}`}
+                        className="inline-flex items-center text-xl font-semibold text-gray-900 hover:text-indigo-700"
+                      >
+                        {product.Name}
+                        <ChevronRightIcon className="ml-1 h-5 w-5" />
+                      </Link>
                       <p className="text-sm text-gray-500">{t('pages.userSubscriptionProducts.productCode')}: {product.Code}</p>
                     </div>
+                    <Link to={`/products/${product.ID}`}>
+                      <PButton variant="secondary" size="sm">
+                        View service
+                      </PButton>
+                    </Link>
                   </div>
                   
                   {product.Description && (

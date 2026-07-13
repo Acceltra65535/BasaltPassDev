@@ -44,6 +44,7 @@ import UserAppDetail from '../../../src/features/user/apps/Detail'
 
 import SubscriptionIndex from '../../../src/features/user/subscription/Index'
 import ProductsPage from '../../../src/features/user/subscription/Products'
+import ProductDetailPage from '../../../src/features/user/subscription/ProductDetail'
 import SubscriptionCheckout from '../../../src/features/user/subscription/Checkout'
 
 import OrderConfirm from '../../../src/features/user/order/OrderConfirm'
@@ -208,6 +209,8 @@ export default function AppRouter() {
 
       {/* Subscriptions */}
       <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
+      <Route path="/products/code/:productCode" element={<ProtectedRoute><ProductDetailPage /></ProtectedRoute>} />
+      <Route path="/products/:productId" element={<ProtectedRoute><ProductDetailPage /></ProtectedRoute>} />
       <Route path="/subscriptions" element={<ProtectedRoute><SubscriptionIndex /></ProtectedRoute>} />
       <Route path="/subscriptions/checkout" element={<ProtectedRoute><SubscriptionCheckout /></ProtectedRoute>} />
 
