@@ -1032,9 +1032,10 @@ type TokenIntrospectionResponse struct {
 
 func (s *OAuthServerService) IntrospectToken(token string, authenticatedClientID string) (*TokenIntrospectionResponse, error) {
 	if accessToken, err := s.ValidateAccessToken(token); err == nil {
-		if accessToken.ClientID != authenticatedClientID {
-			return nil, errors.New("access_denied")
-		}
+		// authenticatedClientID authenticates the resource server making this
+		// introspection request. Token ownership is enforced by the resource
+		// server through scopes, not by requiring it to be the issuing client.
+		_ = authenticatedClientID
 		resp := tokenIntrospectionFromAccessToken(accessToken)
 		return resp, nil
 	} else if err != nil && err.Error() != "invalid_token" && err.Error() != "token_expired" {
@@ -1042,9 +1043,6 @@ func (s *OAuthServerService) IntrospectToken(token string, authenticatedClientID
 	}
 
 	if refreshToken, err := s.ValidateRefreshToken(token); err == nil {
-		if refreshToken.ClientID != authenticatedClientID {
-			return nil, errors.New("access_denied")
-		}
 		resp := tokenIntrospectionFromRefreshToken(refreshToken)
 		return resp, nil
 	} else if err != nil && err.Error() != "invalid_token" && err.Error() != "token_expired" {
