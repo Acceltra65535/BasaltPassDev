@@ -172,21 +172,21 @@ export default function WalletIndex() {
       <div className="space-y-6">
         <PPageHeader title={t('pages.wallet.title')} description={t('pages.wallet.description')} />
 
-        <div className="rounded-lg bg-indigo-600 shadow-lg">
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
           <div className="px-6 py-8">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-indigo-100">{t('pages.wallet.overview.totalUsd')}</p>
-                <p className="text-4xl font-bold text-white">{formatUSD(totalUSD)}</p>
-                <p className="mt-1 text-sm text-indigo-100">
+                <p className="text-sm font-medium text-gray-600">{t('pages.wallet.overview.totalUsd')}</p>
+                <p className="text-4xl font-bold text-gray-950">{formatUSD(totalUSD)}</p>
+                <p className="mt-1 text-sm text-gray-600">
                   {t('pages.wallet.overview.accountCount', { count: accounts.length })}
                 </p>
-                <p className="mt-1 text-xs text-indigo-100">
+                <p className="mt-1 text-xs text-gray-500">
                   {t('pages.wallet.overview.lastUpdated', { time: new Date().toLocaleString(locale) })}
                 </p>
               </div>
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white bg-opacity-20">
-                <WalletIcon className="h-8 w-8 text-white" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
+                <WalletIcon className="h-8 w-8 text-indigo-600" />
               </div>
             </div>
           </div>
