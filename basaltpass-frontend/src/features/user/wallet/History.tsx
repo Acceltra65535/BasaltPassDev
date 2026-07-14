@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { history } from '@api/user/wallet'
+import type { Currency } from '@api/user/currency'
 import { Link } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
 import { PInput, PSelect, PSkeleton, PBadge, PPageHeader, PEmptyState, PCard } from '@ui'
@@ -25,6 +26,9 @@ interface Tx {
   DeletedAt: string | null
   WalletID: number
   Reference: string
+  Wallet?: {
+    Currency?: Currency | null
+  }
 }
 
 type TxDirection = 'in' | 'out'
@@ -43,11 +47,51 @@ const detectDirection = (tx: Tx): TxDirection => {
   return tx.Amount >= 0 ? 'in' : 'out'
 }
 
+const fallbackCurrencyForTx = (tx: Tx): Currency => {
+  if (tx.Reference?.startsWith('apicred:')) {
+    return {
+      id: 0,
+      code: 'CREDIT',
+      name: 'Credit',
+      name_cn: '信用点',
+      symbol: 'C',
+      decimal_places: 6,
+      type: 'points',
+      is_active: true,
+      sort_order: 0,
+      description: '',
+    }
+  }
+  return {
+    id: 0,
+    code: 'CNY',
+    name: 'Chinese Yuan',
+    name_cn: '人民币',
+    symbol: '¥',
+    decimal_places: 2,
+    type: 'fiat',
+    is_active: true,
+    sort_order: 0,
+    description: '',
+  }
+}
+
+const formatCurrencyAmount = (amountMinor: number, currency: Currency) => {
+  const decimalPlaces = Math.max(0, currency.decimal_places || 0)
+  const displayPlaces = Math.min(decimalPlaces, 8)
+  const value = amountMinor / Math.pow(10, decimalPlaces)
+  let text = value.toFixed(displayPlaces)
+  if (displayPlaces > 2) {
+    text = text.replace(/0+$/, '').replace(/\.$/, '')
+  }
+  return `${currency.symbol || ''}${text} ${currency.code}`
+}
+
 const formatAmount = (tx: Tx, direction: TxDirection) => {
   const absAmount = Math.abs(tx.Amount)
-  const divisor = tx.Reference?.startsWith('apicred:') ? 1_000_000 : 100
+  const currency = tx.Wallet?.Currency || fallbackCurrencyForTx(tx)
   const sign = direction === 'in' ? '+' : '-'
-  return `${sign}¥${(absAmount / divisor).toFixed(2)}`
+  return `${sign}${formatCurrencyAmount(absAmount, currency)}`
 }
 
 export default function History() {

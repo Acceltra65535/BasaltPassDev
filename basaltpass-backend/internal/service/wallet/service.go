@@ -375,7 +375,7 @@ func HistoryWithTenant(userID uint, tenantID uint, currencyID uint, limit int) (
 		return nil, err
 	}
 	var txs []model.WalletTx
-	db.Where("wallet_id = ?", w.ID).Order("created_at desc").Limit(limit).Find(&txs)
+	db.Preload("Wallet.Currency").Where("wallet_id = ?", w.ID).Order("created_at desc").Limit(limit).Find(&txs)
 	return txs, nil
 }
 
@@ -420,7 +420,8 @@ func HistoryAllByUserWithTenant(userID uint, tenantID uint, limit int) ([]model.
 	}
 
 	var txs []model.WalletTx
-	if err := db.Where("wallet_id IN ?", walletIDs).
+	if err := db.Preload("Wallet.Currency").
+		Where("wallet_id IN ?", walletIDs).
 		Order("created_at desc").
 		Limit(limit).
 		Find(&txs).Error; err != nil {
