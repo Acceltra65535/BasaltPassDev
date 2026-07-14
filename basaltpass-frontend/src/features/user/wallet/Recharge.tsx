@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { userGiftCardApi } from '@api/user/giftCard'
 import { Currency } from '@api/user/currency'
 import { useNavigate } from 'react-router-dom'
 import { paymentAPI } from '@api/subscription/payment/payment'
@@ -13,7 +12,7 @@ import {
   ArrowUpIcon,
   CreditCardIcon,
   BanknotesIcon,
-  CheckCircleIcon,
+  GiftIcon,
 } from '@heroicons/react/24/outline'
 
 const quickAmounts = [50, 100, 200, 500, 1000, 2000]
@@ -49,9 +48,6 @@ export default function Recharge() {
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [giftCode, setGiftCode] = useState('')
-  const [giftRedeeming, setGiftRedeeming] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -125,41 +121,6 @@ export default function Recharge() {
     setError('')
   }
 
-  const handleRedeemGiftCard = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!giftCode.trim()) {
-      setError(t('pages.walletRecharge.errors.giftCodeRequired'))
-      return
-    }
-    setGiftRedeeming(true)
-    setError('')
-    try {
-      await userGiftCardApi.redeem(giftCode.trim())
-      setSuccess(true)
-      setTimeout(() => {
-        navigate(ROUTES.user.wallet)
-      }, 2000)
-    } catch (e: any) {
-      setError(e.response?.data?.error || t('pages.walletRecharge.errors.giftRedeemFailed'))
-    } finally {
-      setGiftRedeeming(false)
-    }
-  }
-
-  if (success) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <CheckCircleIcon className="mx-auto h-16 w-16 text-green-600 mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('pages.walletRecharge.success.title')}</h2>
-            <p className="text-gray-600">{t('pages.walletRecharge.success.redirecting')}</p>
-          </div>
-        </div>
-      </Layout>
-    )
-  }
-
   return (
     <Layout>
       <div className="space-y-6">
@@ -175,26 +136,18 @@ export default function Recharge() {
           <PAlert variant="warning" message={t('pages.walletRecharge.notice.disabled')} />
         )}
 
-        <PCard padding="none" className={walletOpsDisabled ? 'opacity-60' : ''}>
-          <div className="px-4 py-5 sm:p-6">
-            <div className="flex items-center mb-4">
-              <CreditCardIcon className="h-6 w-6 text-indigo-600 mr-2" />
-              <h3 className="text-lg font-medium text-gray-900">{t('pages.walletRecharge.giftCard.title')}</h3>
-            </div>
-            <form onSubmit={handleRedeemGiftCard} className={`space-y-4 ${walletOpsDisabled ? 'pointer-events-none' : ''}`}>
-              <PInput
-                id="gift-code"
-                label={t('pages.walletRecharge.giftCard.codeLabel')}
-                value={giftCode}
-                onChange={(e) => setGiftCode(e.target.value.toUpperCase())}
-                placeholder={t('pages.walletRecharge.giftCard.codePlaceholder')}
-              />
-              <PButton type="submit" loading={giftRedeeming} disabled={walletOpsDisabled || !giftCode.trim()}>
-                {t('pages.walletRecharge.giftCard.submit')}
-              </PButton>
-            </form>
-          </div>
-        </PCard>
+        <div className="flex justify-end">
+          <PButton
+            type="button"
+            variant="secondary"
+            onClick={() => navigate(ROUTES.user.walletGiftCardRedeem)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <GiftIcon className="h-5 w-5" />
+              {t('pages.walletRecharge.giftCard.title')}
+            </span>
+          </PButton>
+        </div>
 
         {/*  */}
         {error && (

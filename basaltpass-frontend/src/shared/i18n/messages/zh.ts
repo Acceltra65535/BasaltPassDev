@@ -659,9 +659,6 @@ const en = {
       },
       giftCard: {
         title: 'Gift Card Redeem',
-        codeLabel: 'Card Code',
-        codePlaceholder: 'e.g. GC-XXXXX-XXXXX',
-        submit: 'Redeem Now',
       },
       errors: {
         title: 'Recharge failed',
@@ -669,12 +666,6 @@ const en = {
         invalidAmount: 'Please enter a valid recharge amount',
         selectCurrency: 'Please select recharge currency',
         rechargeFailed: 'Recharge failed, please retry',
-        giftCodeRequired: 'Please enter Gift Card code',
-        giftRedeemFailed: 'Gift Card redemption failed',
-      },
-      success: {
-        title: 'Recharge successful!',
-        redirecting: 'Redirecting to wallet page...',
       },
       form: {
         title: 'Recharge Information',
