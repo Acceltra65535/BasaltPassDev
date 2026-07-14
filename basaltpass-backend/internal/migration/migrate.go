@@ -132,6 +132,9 @@ func RunMigrations() error {
 	} else {
 		log.Printf("[Migration] Ensured CREDIT currency (created=%d, skipped=%d)", created, skipped)
 	}
+	if err := currency.EnsurePaymentDefaults(); err != nil {
+		log.Printf("[Migration] Failed to ensure currency payment defaults: %v", err)
+	}
 
 	// 用户表历史列必须在 User AutoMigrate 之前处理，否则 AutoMigrate 会先创建
 	// enforced_tenant_id，导致旧 tenant_id 无法被直接重命名。

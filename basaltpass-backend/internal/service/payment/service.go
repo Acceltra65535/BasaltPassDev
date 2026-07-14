@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	currencyservice "basaltpass-backend/internal/service/currency"
 	"basaltpass-backend/internal/utils"
 
 	"gorm.io/gorm"
@@ -96,6 +98,49 @@ func walletRechargeTarget(session model.PaymentSession) (string, int64) {
 		amount = session.Amount
 	}
 	return currency, amount
+}
+
+func calculateWalletRechargeCharge(targetCurrencyCode string, targetAmountSmallest int64, chargeCurrencyCode string) (int64, map[string]interface{}, error) {
+	targetCurrencyCode = strings.ToUpper(strings.TrimSpace(targetCurrencyCode))
+	chargeCurrencyCode = strings.ToUpper(strings.TrimSpace(chargeCurrencyCode))
+	if targetCurrencyCode == "" || chargeCurrencyCode == "" {
+		return 0, nil, errors.New("target and payment currencies are required")
+	}
+	if targetAmountSmallest <= 0 {
+		return 0, nil, errors.New("target wallet amount must be greater than zero")
+	}
+
+	targetCurrency, err := currencyservice.GetCurrencyByCode(targetCurrencyCode)
+	if err != nil {
+		return 0, nil, fmt.Errorf("invalid target wallet currency: %s", targetCurrencyCode)
+	}
+	chargeCurrency, err := currencyservice.GetCurrencyByCode(chargeCurrencyCode)
+	if err != nil {
+		return 0, nil, fmt.Errorf("invalid payment currency: %s", chargeCurrencyCode)
+	}
+	if chargeCurrency.Type != "fiat" || !chargeCurrency.PaymentEnabled || len(chargeCurrency.Code) != 3 {
+		return 0, nil, fmt.Errorf("payment currency %s is not available for checkout", chargeCurrencyCode)
+	}
+	if targetCurrency.ExchangeRateUSD <= 0 {
+		return 0, nil, fmt.Errorf("exchange rate is not configured for %s", targetCurrencyCode)
+	}
+	if chargeCurrency.ExchangeRateUSD <= 0 {
+		return 0, nil, fmt.Errorf("exchange rate is not configured for %s", chargeCurrencyCode)
+	}
+
+	targetUnits := float64(targetAmountSmallest) / math.Pow10(targetCurrency.DecimalPlaces)
+	usdValue := targetUnits * targetCurrency.ExchangeRateUSD
+	chargeUnits := usdValue / chargeCurrency.ExchangeRateUSD
+	chargeAmountSmallest := int64(math.Ceil(chargeUnits*math.Pow10(chargeCurrency.DecimalPlaces) - 1e-9))
+	if chargeAmountSmallest < 1 {
+		chargeAmountSmallest = 1
+	}
+
+	return chargeAmountSmallest, map[string]interface{}{
+		"target_exchange_rate_usd": targetCurrency.ExchangeRateUSD,
+		"charge_exchange_rate_usd": chargeCurrency.ExchangeRateUSD,
+		"computed_charge_amount":   strconv.FormatInt(chargeAmountSmallest, 10),
+	}, nil
 }
 
 // generateStripeID 生成模拟的Stripe ID
@@ -802,6 +847,32 @@ func CreatePaymentIntentForTenant(userID uint, tenantID uint, req CreatePaymentI
 		req.Metadata["tenant_id"] = strconv.FormatUint(uint64(effectiveTenantID), 10)
 	}
 	req.Metadata["user_id"] = strconv.FormatUint(uint64(userID), 10)
+	if isWalletRechargeMetadata(req.Metadata) {
+		targetCurrency := strings.ToUpper(strings.TrimSpace(parseString(req.Metadata["target_wallet_currency"])))
+		if targetCurrency == "" {
+			targetCurrency = strings.ToUpper(strings.TrimSpace(parseString(req.Metadata["wallet_currency"])))
+		}
+		targetAmount := int64(parseUIntFromAny(req.Metadata["target_wallet_amount"]))
+		if targetCurrency == "" || targetAmount <= 0 {
+			return nil, nil, errors.New("wallet recharge requires target_wallet_currency and target_wallet_amount metadata")
+		}
+		req.Currency = strings.ToUpper(strings.TrimSpace(req.Currency))
+		if req.Currency == "" {
+			req.Currency = "USD"
+		}
+		computedAmount, computedMetadata, err := calculateWalletRechargeCharge(targetCurrency, targetAmount, req.Currency)
+		if err != nil {
+			return nil, nil, err
+		}
+		req.Amount = computedAmount
+		req.Metadata["target_wallet_currency"] = targetCurrency
+		req.Metadata["target_wallet_amount"] = strconv.FormatInt(targetAmount, 10)
+		req.Metadata["charge_currency"] = req.Currency
+		req.Metadata["charge_amount"] = strconv.FormatInt(computedAmount, 10)
+		for key, value := range computedMetadata {
+			req.Metadata[key] = value
+		}
+	}
 
 	// 序列化元数据
 	metadataJSON, _ := json.Marshal(req.Metadata)

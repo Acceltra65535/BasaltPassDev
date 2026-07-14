@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Currency } from '@api/user/currency'
+import { useEffect, useMemo, useState } from 'react'
+import { Currency, getCurrencies } from '@api/user/currency'
 import { useNavigate } from 'react-router-dom'
 import { paymentAPI } from '@api/subscription/payment/payment'
 import Layout from '@features/user/components/Layout'
@@ -39,6 +39,25 @@ const formatAmount = (amount: number, currency: Currency): string => {
   return amount.toFixed(Math.min(currency.decimal_places, 8))
 }
 
+const fromSmallestUnit = (value: number, currency: Currency): number =>
+  value / Math.pow(10, currency.decimal_places)
+
+const calculatePaymentAmount = (
+  targetAmount: number,
+  targetCurrency: Currency | null,
+  paymentCurrency: Currency | null,
+) => {
+  if (!targetCurrency || !paymentCurrency || !targetAmount || targetAmount <= 0) return null
+  const targetRate = Number(targetCurrency.exchange_rate_usd || 0)
+  const paymentRate = Number(paymentCurrency.exchange_rate_usd || 0)
+  if (targetRate <= 0 || paymentRate <= 0) return null
+  const amount = (targetAmount * targetRate) / paymentRate
+  return {
+    amount,
+    smallestUnit: Math.max(1, Math.ceil(amount * Math.pow(10, paymentCurrency.decimal_places) - 1e-9)),
+  }
+}
+
 export default function Recharge() {
   const { t } = useI18n()
   const { walletRechargeWithdrawEnabled } = useConfig()
@@ -46,8 +65,39 @@ export default function Recharge() {
   const navigate = useNavigate()
   const [amount, setAmount] = useState('')
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null)
+  const [paymentCurrencies, setPaymentCurrencies] = useState<Currency[]>([])
+  const [paymentCurrency, setPaymentCurrency] = useState<Currency | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const targetAmount = Number(amount)
+  const requiresPaymentCurrency = !!selectedCurrency && selectedCurrency.type !== 'fiat'
+  const estimatedPayment = useMemo(
+    () => calculatePaymentAmount(targetAmount, selectedCurrency, paymentCurrency),
+    [targetAmount, selectedCurrency, paymentCurrency],
+  )
+
+  useEffect(() => {
+    getCurrencies()
+      .then((response) => {
+        const currencies = response.data.filter((currency) => currency.type === 'fiat' && currency.payment_enabled)
+        setPaymentCurrencies(currencies)
+      })
+      .catch(() => {
+        setPaymentCurrencies([])
+      })
+  }, [])
+
+  useEffect(() => {
+    if (!selectedCurrency) return
+    const matchingPaymentCurrency = paymentCurrencies.find((currency) => currency.code === selectedCurrency.code)
+    if (selectedCurrency.type === 'fiat' && matchingPaymentCurrency) {
+      setPaymentCurrency(matchingPaymentCurrency)
+      return
+    }
+    if (!paymentCurrency && paymentCurrencies.length > 0) {
+      setPaymentCurrency(paymentCurrencies.find((currency) => currency.code === 'USD') || paymentCurrencies[0])
+    }
+  }, [paymentCurrencies, paymentCurrency, selectedCurrency])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,6 +116,14 @@ export default function Recharge() {
       setError(t('pages.walletRecharge.errors.selectCurrency'))
       return
     }
+    if (!paymentCurrency) {
+      setError(t('pages.walletRecharge.errors.selectPaymentCurrency'))
+      return
+    }
+    if (!estimatedPayment) {
+      setError(t('pages.walletRecharge.errors.exchangeRateMissing'))
+      return
+    }
 
     setIsLoading(true)
     setError('')
@@ -73,10 +131,8 @@ export default function Recharge() {
     try {
       const decimals = selectedCurrency.decimal_places
       const amountInSmallestUnit = Math.round(Number(amount) * Math.pow(10, decimals))
-      const chargeCurrency = selectedCurrency.code.length === 3 ? selectedCurrency.code : 'USD'
-      const chargeAmount = selectedCurrency.code.length === 3
-        ? amountInSmallestUnit
-        : Math.round(Number(amount) * 100)
+      const chargeCurrency = paymentCurrency.code
+      const chargeAmount = estimatedPayment.smallestUnit
 
       const intentResponse = await paymentAPI.createPaymentIntent({
         amount: chargeAmount,
@@ -171,10 +227,37 @@ export default function Recharge() {
                   </label>
                   <CurrencySelector
                     value={selectedCurrency?.code || ''}
-                    onChange={setSelectedCurrency}
+                    onChange={(currency) => {
+                      setSelectedCurrency(currency)
+                      setError('')
+                    }}
                     className="w-full"
                   />
                 </div>
+
+                {requiresPaymentCurrency && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t('pages.walletRecharge.form.paymentCurrencyLabel')}
+                    </label>
+                    <select
+                      value={paymentCurrency?.code || ''}
+                      onChange={(e) => {
+                        const next = paymentCurrencies.find((currency) => currency.code === e.target.value) || null
+                        setPaymentCurrency(next)
+                        setError('')
+                      }}
+                      className="min-h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">{t('pages.walletRecharge.form.paymentCurrencyPlaceholder')}</option>
+                      {paymentCurrencies.map((currency) => (
+                        <option key={currency.code} value={currency.code}>
+                          {currency.name_cn || currency.name} ({currency.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/*  */}
                 <div>
@@ -212,10 +295,27 @@ export default function Recharge() {
                   </div>
                 )}
 
+                {selectedCurrency && paymentCurrency && estimatedPayment && (
+                  <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                    <div className="font-medium">{t('pages.walletRecharge.form.paymentEstimateTitle')}</div>
+                    <div className="mt-1">
+                      {t('pages.walletRecharge.form.paymentEstimate', {
+                        target: `${formatAmount(targetAmount, selectedCurrency)} ${selectedCurrency.code}`,
+                        payment: `${paymentCurrency.symbol}${fromSmallestUnit(estimatedPayment.smallestUnit, paymentCurrency).toFixed(paymentCurrency.decimal_places)} ${paymentCurrency.code}`,
+                      })}
+                    </div>
+                    {requiresPaymentCurrency && (
+                      <div className="mt-1 text-xs text-indigo-700">
+                        {t('pages.walletRecharge.form.exchangeRateHint')}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/*  */}
                 <PButton
                   type="submit"
-                  disabled={walletOpsDisabled || !amount || parseFloat(amount) <= 0 || !selectedCurrency}
+                  disabled={walletOpsDisabled || !amount || parseFloat(amount) <= 0 || !selectedCurrency || !paymentCurrency || !estimatedPayment}
                   loading={isLoading}
                   fullWidth
                 >

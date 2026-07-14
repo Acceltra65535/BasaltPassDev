@@ -49,19 +49,21 @@ func serializeCurrency(currency *model.Currency) fiber.Map {
 	}
 
 	return fiber.Map{
-		"id":             currency.ID,
-		"code":           currency.Code,
-		"name":           currency.Name,
-		"name_cn":        currency.NameCN,
-		"symbol":         currency.Symbol,
-		"decimal_places": currency.DecimalPlaces,
-		"type":           currency.Type,
-		"is_active":      currency.IsActive,
-		"sort_order":     currency.SortOrder,
-		"description":    currency.Description,
-		"icon_url":       currency.IconURL,
-		"created_at":     currency.CreatedAt,
-		"updated_at":     currency.UpdatedAt,
+		"id":                currency.ID,
+		"code":              currency.Code,
+		"name":              currency.Name,
+		"name_cn":           currency.NameCN,
+		"symbol":            currency.Symbol,
+		"decimal_places":    currency.DecimalPlaces,
+		"type":              currency.Type,
+		"exchange_rate_usd": currency.ExchangeRateUSD,
+		"payment_enabled":   currency.PaymentEnabled,
+		"is_active":         currency.IsActive,
+		"sort_order":        currency.SortOrder,
+		"description":       currency.Description,
+		"icon_url":          currency.IconURL,
+		"created_at":        currency.CreatedAt,
+		"updated_at":        currency.UpdatedAt,
 	}
 }
 

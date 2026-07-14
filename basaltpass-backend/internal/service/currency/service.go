@@ -61,81 +61,95 @@ func InitDefaultCurrencies() error {
 
 	defaultCurrencies := []model.Currency{
 		{
-			Code:          "USD",
-			Name:          "US Dollar",
-			NameCN:        "美元",
-			Symbol:        "$",
-			DecimalPlaces: 2,
-			Type:          "fiat",
-			IsActive:      true,
-			SortOrder:     1,
-			Description:   "United States Dollar",
+			Code:            "USD",
+			Name:            "US Dollar",
+			NameCN:          "美元",
+			Symbol:          "$",
+			DecimalPlaces:   2,
+			Type:            "fiat",
+			ExchangeRateUSD: 1,
+			PaymentEnabled:  true,
+			IsActive:        true,
+			SortOrder:       1,
+			Description:     "United States Dollar",
 		},
 		{
-			Code:          "CNY",
-			Name:          "Chinese Yuan",
-			NameCN:        "人民币",
-			Symbol:        "¥",
-			DecimalPlaces: 2,
-			Type:          "fiat",
-			IsActive:      true,
-			SortOrder:     2,
-			Description:   "Chinese Yuan Renminbi",
+			Code:            "CNY",
+			Name:            "Chinese Yuan",
+			NameCN:          "人民币",
+			Symbol:          "¥",
+			DecimalPlaces:   2,
+			Type:            "fiat",
+			ExchangeRateUSD: 0.14,
+			PaymentEnabled:  true,
+			IsActive:        true,
+			SortOrder:       2,
+			Description:     "Chinese Yuan Renminbi",
 		},
 		{
-			Code:          "EUR",
-			Name:          "Euro",
-			NameCN:        "欧元",
-			Symbol:        "€",
-			DecimalPlaces: 2,
-			Type:          "fiat",
-			IsActive:      true,
-			SortOrder:     3,
-			Description:   "European Euro",
+			Code:            "EUR",
+			Name:            "Euro",
+			NameCN:          "欧元",
+			Symbol:          "€",
+			DecimalPlaces:   2,
+			Type:            "fiat",
+			ExchangeRateUSD: 1.08,
+			PaymentEnabled:  true,
+			IsActive:        true,
+			SortOrder:       3,
+			Description:     "European Euro",
 		},
 		{
-			Code:          "BTC",
-			Name:          "Bitcoin",
-			NameCN:        "比特币",
-			Symbol:        "₿",
-			DecimalPlaces: 8,
-			Type:          "crypto",
-			IsActive:      true,
-			SortOrder:     10,
-			Description:   "Bitcoin cryptocurrency",
+			Code:            "BTC",
+			Name:            "Bitcoin",
+			NameCN:          "比特币",
+			Symbol:          "₿",
+			DecimalPlaces:   8,
+			Type:            "crypto",
+			ExchangeRateUSD: 1,
+			PaymentEnabled:  false,
+			IsActive:        true,
+			SortOrder:       10,
+			Description:     "Bitcoin cryptocurrency",
 		},
 		{
-			Code:          "ETH",
-			Name:          "Ethereum",
-			NameCN:        "以太坊",
-			Symbol:        "Ξ",
-			DecimalPlaces: 18,
-			Type:          "crypto",
-			IsActive:      true,
-			SortOrder:     11,
-			Description:   "Ethereum cryptocurrency",
+			Code:            "ETH",
+			Name:            "Ethereum",
+			NameCN:          "以太坊",
+			Symbol:          "Ξ",
+			DecimalPlaces:   18,
+			Type:            "crypto",
+			ExchangeRateUSD: 1,
+			PaymentEnabled:  false,
+			IsActive:        true,
+			SortOrder:       11,
+			Description:     "Ethereum cryptocurrency",
 		},
 		{
-			Code:          "CREDIT",
-			Name:          "Credit",
-			NameCN:        "信用点",
-			Symbol:        "C",
-			DecimalPlaces: 6,
-			Type:          "points",
-			IsActive:      true,
-			SortOrder:     19,
-			Description:   "User credit wallet unit; stored in microcredits",
+			Code:            "CREDIT",
+			Name:            "Credit",
+			NameCN:          "信用点",
+			Symbol:          "C",
+			DecimalPlaces:   6,
+			Type:            "points",
+			ExchangeRateUSD: 1,
+			PaymentEnabled:  false,
+			IsActive:        true,
+			SortOrder:       19,
+			Description:     "User credit wallet unit; stored in microcredits",
 		},
 		{
-			Code:          "POINTS",
-			Name:          "System Points",
-			NameCN:        "系统积分",
-			Symbol:        "P",
-			DecimalPlaces: 0,
-			Type:          "points",
-			IsActive:      true,
-			SortOrder:     20,
-			Description:   "System reward points",
+			Code:            "POINTS",
+			Name:            "System Points",
+			NameCN:          "系统积分",
+			Symbol:          "P",
+			DecimalPlaces:   0,
+			Type:            "points",
+			ExchangeRateUSD: 0.01,
+			PaymentEnabled:  false,
+			IsActive:        true,
+			SortOrder:       20,
+			Description:     "System reward points",
 		},
 	}
 
@@ -151,21 +165,46 @@ func InitDefaultCurrencies() error {
 // predefinedCurrencyCatalog 提供一份可初始化的货币目录（代码 -> Currency 模板）
 func predefinedCurrencyCatalog() map[string]model.Currency {
 	return map[string]model.Currency{
-		"USD":    {Code: "USD", Name: "US Dollar", NameCN: "美元", Symbol: "$", DecimalPlaces: 2, Type: "fiat", IsActive: true, SortOrder: 1, Description: "United States Dollar"},
-		"CNY":    {Code: "CNY", Name: "Chinese Yuan", NameCN: "人民币", Symbol: "¥", DecimalPlaces: 2, Type: "fiat", IsActive: true, SortOrder: 2, Description: "Chinese Yuan Renminbi"},
-		"EUR":    {Code: "EUR", Name: "Euro", NameCN: "欧元", Symbol: "€", DecimalPlaces: 2, Type: "fiat", IsActive: true, SortOrder: 3, Description: "European Euro"},
-		"GBP":    {Code: "GBP", Name: "British Pound", NameCN: "英镑", Symbol: "£", DecimalPlaces: 2, Type: "fiat", IsActive: true, SortOrder: 4, Description: "Great Britain Pound"},
-		"JPY":    {Code: "JPY", Name: "Japanese Yen", NameCN: "日元", Symbol: "¥", DecimalPlaces: 0, Type: "fiat", IsActive: true, SortOrder: 5, Description: "Japanese Yen"},
-		"KRW":    {Code: "KRW", Name: "Korean Won", NameCN: "韩元", Symbol: "₩", DecimalPlaces: 0, Type: "fiat", IsActive: true, SortOrder: 6, Description: "Korean Won"},
-		"HKD":    {Code: "HKD", Name: "Hong Kong Dollar", NameCN: "港币", Symbol: "$", DecimalPlaces: 2, Type: "fiat", IsActive: true, SortOrder: 7, Description: "Hong Kong Dollar"},
-		"INR":    {Code: "INR", Name: "Indian Rupee", NameCN: "印度卢比", Symbol: "₹", DecimalPlaces: 2, Type: "fiat", IsActive: true, SortOrder: 8, Description: "Indian Rupee"},
-		"AUD":    {Code: "AUD", Name: "Australian Dollar", NameCN: "澳元", Symbol: "$", DecimalPlaces: 2, Type: "fiat", IsActive: true, SortOrder: 9, Description: "Australian Dollar"},
-		"CAD":    {Code: "CAD", Name: "Canadian Dollar", NameCN: "加元", Symbol: "$", DecimalPlaces: 2, Type: "fiat", IsActive: true, SortOrder: 10, Description: "Canadian Dollar"},
-		"BTC":    {Code: "BTC", Name: "Bitcoin", NameCN: "比特币", Symbol: "₿", DecimalPlaces: 8, Type: "crypto", IsActive: true, SortOrder: 50, Description: "Bitcoin cryptocurrency"},
-		"ETH":    {Code: "ETH", Name: "Ethereum", NameCN: "以太坊", Symbol: "Ξ", DecimalPlaces: 18, Type: "crypto", IsActive: true, SortOrder: 51, Description: "Ethereum cryptocurrency"},
-		"CREDIT": {Code: "CREDIT", Name: "Credit", NameCN: "信用点", Symbol: "C", DecimalPlaces: 6, Type: "points", IsActive: true, SortOrder: 89, Description: "User credit wallet unit; stored in microcredits"},
-		"POINTS": {Code: "POINTS", Name: "System Points", NameCN: "系统积分", Symbol: "P", DecimalPlaces: 0, Type: "points", IsActive: true, SortOrder: 90, Description: "System reward points"},
+		"USD":    {Code: "USD", Name: "US Dollar", NameCN: "美元", Symbol: "$", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 1, PaymentEnabled: true, IsActive: true, SortOrder: 1, Description: "United States Dollar"},
+		"CNY":    {Code: "CNY", Name: "Chinese Yuan", NameCN: "人民币", Symbol: "¥", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 0.14, PaymentEnabled: true, IsActive: true, SortOrder: 2, Description: "Chinese Yuan Renminbi"},
+		"EUR":    {Code: "EUR", Name: "Euro", NameCN: "欧元", Symbol: "€", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 1.08, PaymentEnabled: true, IsActive: true, SortOrder: 3, Description: "European Euro"},
+		"GBP":    {Code: "GBP", Name: "British Pound", NameCN: "英镑", Symbol: "£", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 1.26, PaymentEnabled: true, IsActive: true, SortOrder: 4, Description: "Great Britain Pound"},
+		"JPY":    {Code: "JPY", Name: "Japanese Yen", NameCN: "日元", Symbol: "¥", DecimalPlaces: 0, Type: "fiat", ExchangeRateUSD: 0.0063, PaymentEnabled: true, IsActive: true, SortOrder: 5, Description: "Japanese Yen"},
+		"KRW":    {Code: "KRW", Name: "Korean Won", NameCN: "韩元", Symbol: "₩", DecimalPlaces: 0, Type: "fiat", ExchangeRateUSD: 0.00073, PaymentEnabled: true, IsActive: true, SortOrder: 6, Description: "Korean Won"},
+		"HKD":    {Code: "HKD", Name: "Hong Kong Dollar", NameCN: "港币", Symbol: "$", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 0.13, PaymentEnabled: true, IsActive: true, SortOrder: 7, Description: "Hong Kong Dollar"},
+		"INR":    {Code: "INR", Name: "Indian Rupee", NameCN: "印度卢比", Symbol: "₹", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 0.012, PaymentEnabled: true, IsActive: true, SortOrder: 8, Description: "Indian Rupee"},
+		"AUD":    {Code: "AUD", Name: "Australian Dollar", NameCN: "澳元", Symbol: "$", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 0.66, PaymentEnabled: true, IsActive: true, SortOrder: 9, Description: "Australian Dollar"},
+		"CAD":    {Code: "CAD", Name: "Canadian Dollar", NameCN: "加元", Symbol: "$", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 0.73, PaymentEnabled: true, IsActive: true, SortOrder: 10, Description: "Canadian Dollar"},
+		"BTC":    {Code: "BTC", Name: "Bitcoin", NameCN: "比特币", Symbol: "₿", DecimalPlaces: 8, Type: "crypto", ExchangeRateUSD: 1, IsActive: true, SortOrder: 50, Description: "Bitcoin cryptocurrency"},
+		"ETH":    {Code: "ETH", Name: "Ethereum", NameCN: "以太坊", Symbol: "Ξ", DecimalPlaces: 18, Type: "crypto", ExchangeRateUSD: 1, IsActive: true, SortOrder: 51, Description: "Ethereum cryptocurrency"},
+		"CREDIT": {Code: "CREDIT", Name: "Credit", NameCN: "信用点", Symbol: "C", DecimalPlaces: 6, Type: "points", ExchangeRateUSD: 1, IsActive: true, SortOrder: 89, Description: "User credit wallet unit; stored in microcredits"},
+		"POINTS": {Code: "POINTS", Name: "System Points", NameCN: "系统积分", Symbol: "P", DecimalPlaces: 0, Type: "points", ExchangeRateUSD: 0.01, IsActive: true, SortOrder: 90, Description: "System reward points"},
 	}
+}
+
+// EnsurePaymentDefaults backfills exchange rates and checkout-enabled flags for existing currency rows.
+func EnsurePaymentDefaults() error {
+	db := common.DB()
+	defaults := predefinedCurrencyCatalog()
+	for code, tpl := range defaults {
+		updates := map[string]interface{}{
+			"payment_enabled": tpl.PaymentEnabled,
+		}
+		if tpl.ExchangeRateUSD > 0 {
+			updates["exchange_rate_usd"] = tpl.ExchangeRateUSD
+		}
+		if err := db.Model(&model.Currency{}).
+			Where("code = ? AND (exchange_rate_usd IS NULL OR exchange_rate_usd <= 0)", code).
+			Updates(updates).Error; err != nil {
+			return err
+		}
+		if err := db.Model(&model.Currency{}).
+			Where("code = ? AND exchange_rate_usd > 0", code).
+			Update("payment_enabled", tpl.PaymentEnabled).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // InitCurrenciesByCodes 根据管理员选择的代码列表初始化货币。如果已存在则跳过。

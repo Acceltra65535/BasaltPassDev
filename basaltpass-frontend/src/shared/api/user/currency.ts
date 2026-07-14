@@ -8,6 +8,8 @@ export interface Currency {
   symbol: string
   decimal_places: number
   type: string
+  exchange_rate_usd?: number
+  payment_enabled?: boolean
   is_active: boolean
   sort_order: number
   description: string
