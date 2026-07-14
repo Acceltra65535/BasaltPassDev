@@ -11,7 +11,7 @@ type Currency struct {
 	Symbol          string  `gorm:"size:8" json:"symbol"`                     // 货币符号，如 $, ¥, ₿
 	DecimalPlaces   int     `gorm:"default:2" json:"decimal_places"`          // 小数位数，如 2 (美元), 8 (比特币)
 	Type            string  `gorm:"size:16;default:'fiat'" json:"type"`       // 货币类型：fiat(法币), crypto(加密货币), points(积分)
-	ExchangeRateUSD float64 `gorm:"default:1" json:"exchange_rate_usd"`       // 1 个该币种折合多少 USD，用于钱包充值换算
+	ExchangeRateUSD float64 `gorm:"default:0" json:"exchange_rate_usd"`       // 1 个该币种折合多少 USD，用于钱包充值换算
 	PaymentEnabled  bool    `gorm:"default:false" json:"payment_enabled"`     // 是否可作为收银台付款币种
 	IsActive        bool    `gorm:"default:true" json:"is_active"`            // 是否启用
 	SortOrder       int     `gorm:"default:0" json:"sort_order"`              // 排序顺序

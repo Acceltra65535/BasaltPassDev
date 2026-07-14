@@ -193,8 +193,12 @@ func EnsurePaymentDefaults() error {
 		if tpl.ExchangeRateUSD > 0 {
 			updates["exchange_rate_usd"] = tpl.ExchangeRateUSD
 		}
+		rateNeedsBackfill := "exchange_rate_usd IS NULL OR exchange_rate_usd <= 0"
+		if code != "USD" && code != "CREDIT" && tpl.ExchangeRateUSD != 1 {
+			rateNeedsBackfill = rateNeedsBackfill + " OR exchange_rate_usd = 1"
+		}
 		if err := db.Model(&model.Currency{}).
-			Where("code = ? AND (exchange_rate_usd IS NULL OR exchange_rate_usd <= 0)", code).
+			Where("code = ? AND ("+rateNeedsBackfill+")", code).
 			Updates(updates).Error; err != nil {
 			return err
 		}
