@@ -43,11 +43,10 @@ func GetAppRechargeConfigHandler(c *fiber.Ctx) error {
 	db := common.DB()
 	if clientID := strings.TrimSpace(c.Query("client_id")); clientID != "" {
 		var client model.OAuthClient
-		query := db.Preload("App").Where("client_id = ? AND is_active = ?", clientID, true)
-		if activeTenantID != 0 {
-			query = query.Where("tenant_id = ?", activeTenantID)
+		if err := db.Preload("App").Where("client_id = ? AND is_active = ?", clientID, true).First(&client).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "app not found"})
 		}
-		if err := query.First(&client).Error; err != nil {
+		if client.App.ID == 0 || (activeTenantID != 0 && client.App.TenantID != activeTenantID) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "app not found"})
 		}
 		app = client.App
