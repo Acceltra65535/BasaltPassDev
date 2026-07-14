@@ -284,7 +284,7 @@ func EnsurePaymentDefaults() error {
 			return err
 		}
 	}
-	return nil
+	return ensureDefaultCurrencyRateOverrides(defaults)
 }
 
 // EnsureDefaultCurrencyRates seeds missing directional pair rates from the built-in USD rates.
@@ -320,6 +320,46 @@ func EnsureDefaultCurrencyRates() error {
 			if err := db.Create(&item).Error; err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func ensureDefaultCurrencyRateOverrides(defaults map[string]model.Currency) error {
+	db := common.DB()
+	for _, pair := range [][2]string{{"CREDIT", "USD"}, {"USD", "CREDIT"}} {
+		baseCode := pair[0]
+		quoteCode := pair[1]
+		base := defaults[baseCode]
+		quote := defaults[quoteCode]
+		if base.ExchangeRateUSD <= 0 || quote.ExchangeRateUSD <= 0 {
+			continue
+		}
+		rate := base.ExchangeRateUSD / quote.ExchangeRateUSD
+		description := fmt.Sprintf("Default rate: 1 %s = %g %s", baseCode, rate, quoteCode)
+		var existing model.CurrencyRate
+		err := db.Where("base_currency_code = ? AND quote_currency_code = ?", baseCode, quoteCode).First(&existing).Error
+		if err == nil {
+			if updateErr := db.Model(&existing).Updates(map[string]interface{}{
+				"rate":        rate,
+				"source":      "system_default",
+				"is_active":   true,
+				"description": description,
+			}).Error; updateErr != nil {
+				return updateErr
+			}
+			continue
+		}
+		item := model.CurrencyRate{
+			BaseCurrencyCode:  baseCode,
+			QuoteCurrencyCode: quoteCode,
+			Rate:              rate,
+			Source:            "system_default",
+			IsActive:          true,
+			Description:       description,
+		}
+		if createErr := db.Create(&item).Error; createErr != nil {
+			return createErr
 		}
 	}
 	return nil
