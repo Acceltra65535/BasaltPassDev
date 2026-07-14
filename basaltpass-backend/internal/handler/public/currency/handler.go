@@ -34,3 +34,14 @@ func GetCurrencyHandler(c *fiber.Ctx) error {
 	}
 	return c.JSON(currency)
 }
+
+// GetCurrencyRatesHandler GET /currencies/rates - 获取所有启用交易对汇率
+func GetCurrencyRatesHandler(c *fiber.Ctx) error {
+	rates, err := currency2.GetAllCurrencyRates()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch currency rates",
+		})
+	}
+	return c.JSON(rates)
+}

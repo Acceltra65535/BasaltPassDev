@@ -3,6 +3,7 @@ package currency
 import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	"fmt"
 	"strings"
 )
 
@@ -28,6 +29,67 @@ func GetCurrencyByID(id uint) (model.Currency, error) {
 	db := common.DB()
 	err := db.Where("id = ? AND is_active = ?", id, true).First(&currency).Error
 	return currency, err
+}
+
+// GetAllCurrencyRates returns all active directional currency rates.
+func GetAllCurrencyRates() ([]model.CurrencyRate, error) {
+	var rates []model.CurrencyRate
+	db := common.DB()
+	err := db.Where("is_active = ?", true).Order("base_currency_code, quote_currency_code").Find(&rates).Error
+	return rates, err
+}
+
+// GetExchangeRate returns the rate for 1 base currency in quote currency.
+func GetExchangeRate(baseCode string, quoteCode string) (float64, error) {
+	baseCode = strings.ToUpper(strings.TrimSpace(baseCode))
+	quoteCode = strings.ToUpper(strings.TrimSpace(quoteCode))
+	if baseCode == "" || quoteCode == "" {
+		return 0, fmt.Errorf("currency pair is required")
+	}
+	if baseCode == quoteCode {
+		return 1, nil
+	}
+
+	db := common.DB()
+	var exact model.CurrencyRate
+	if err := db.Where("base_currency_code = ? AND quote_currency_code = ? AND is_active = ?", baseCode, quoteCode, true).First(&exact).Error; err == nil && exact.Rate > 0 {
+		return exact.Rate, nil
+	}
+
+	var inverse model.CurrencyRate
+	if err := db.Where("base_currency_code = ? AND quote_currency_code = ? AND is_active = ?", quoteCode, baseCode, true).First(&inverse).Error; err == nil && inverse.Rate > 0 {
+		return 1 / inverse.Rate, nil
+	}
+
+	baseUSD, baseErr := getRateToUSD(baseCode)
+	quoteUSD, quoteErr := getRateToUSD(quoteCode)
+	if baseErr == nil && quoteErr == nil && baseUSD > 0 && quoteUSD > 0 {
+		return baseUSD / quoteUSD, nil
+	}
+
+	return 0, fmt.Errorf("exchange rate is not configured for %s/%s", baseCode, quoteCode)
+}
+
+func getRateToUSD(code string) (float64, error) {
+	if code == "USD" {
+		return 1, nil
+	}
+	db := common.DB()
+	var rate model.CurrencyRate
+	if err := db.Where("base_currency_code = ? AND quote_currency_code = ? AND is_active = ?", code, "USD", true).First(&rate).Error; err == nil && rate.Rate > 0 {
+		return rate.Rate, nil
+	}
+	if err := db.Where("base_currency_code = ? AND quote_currency_code = ? AND is_active = ?", "USD", code, true).First(&rate).Error; err == nil && rate.Rate > 0 {
+		return 1 / rate.Rate, nil
+	}
+	currency, err := GetCurrencyByCode(code)
+	if err != nil {
+		return 0, err
+	}
+	if currency.ExchangeRateUSD <= 0 {
+		return 0, fmt.Errorf("exchange rate is not configured for %s", code)
+	}
+	return currency.ExchangeRateUSD, nil
 }
 
 // CreateCurrency creates a new currency
@@ -206,6 +268,44 @@ func EnsurePaymentDefaults() error {
 			Where("code = ? AND exchange_rate_usd > 0", code).
 			Update("payment_enabled", tpl.PaymentEnabled).Error; err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// EnsureDefaultCurrencyRates seeds missing directional pair rates from the built-in USD rates.
+func EnsureDefaultCurrencyRates() error {
+	db := common.DB()
+	defaults := predefinedCurrencyCatalog()
+	for baseCode, base := range defaults {
+		if base.ExchangeRateUSD <= 0 {
+			continue
+		}
+		for quoteCode, quote := range defaults {
+			if quote.ExchangeRateUSD <= 0 || baseCode == quoteCode {
+				continue
+			}
+			rate := base.ExchangeRateUSD / quote.ExchangeRateUSD
+			var count int64
+			if err := db.Model(&model.CurrencyRate{}).
+				Where("base_currency_code = ? AND quote_currency_code = ?", baseCode, quoteCode).
+				Count(&count).Error; err != nil {
+				return err
+			}
+			if count > 0 {
+				continue
+			}
+			item := model.CurrencyRate{
+				BaseCurrencyCode:  baseCode,
+				QuoteCurrencyCode: quoteCode,
+				Rate:              rate,
+				Source:            "system_default",
+				IsActive:          true,
+				Description:       fmt.Sprintf("Default rate: 1 %s = %g %s", baseCode, rate, quoteCode),
+			}
+			if err := db.Create(&item).Error; err != nil {
+				return err
+			}
 		}
 	}
 	return nil

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Currency, getCurrencies } from '@api/user/currency'
+import { Currency, CurrencyRate, getCurrencies, getCurrencyRates } from '@api/user/currency'
 import { useNavigate } from 'react-router-dom'
 import { paymentAPI } from '@api/subscription/payment/payment'
 import Layout from '@features/user/components/Layout'
@@ -46,16 +46,43 @@ const calculatePaymentAmount = (
   targetAmount: number,
   targetCurrency: Currency | null,
   paymentCurrency: Currency | null,
+  rates: CurrencyRate[],
 ) => {
   if (!targetCurrency || !paymentCurrency || !targetAmount || targetAmount <= 0) return null
-  const targetRate = Number(targetCurrency.exchange_rate_usd || 0)
-  const paymentRate = Number(paymentCurrency.exchange_rate_usd || 0)
-  if (targetRate <= 0 || paymentRate <= 0) return null
-  const amount = (targetAmount * targetRate) / paymentRate
+  const rate = resolveExchangeRate(targetCurrency, paymentCurrency, rates)
+  if (!rate || rate <= 0) return null
+  const amount = targetAmount * rate
   return {
     amount,
     smallestUnit: Math.max(1, Math.ceil(amount * Math.pow(10, paymentCurrency.decimal_places) - 1e-9)),
+    rate,
   }
+}
+
+const resolveExchangeRate = (
+  targetCurrency: Currency,
+  paymentCurrency: Currency,
+  rates: CurrencyRate[],
+): number | null => {
+  if (targetCurrency.code === paymentCurrency.code) return 1
+  const exact = rates.find((rate) =>
+    rate.base_currency_code === targetCurrency.code &&
+    rate.quote_currency_code === paymentCurrency.code &&
+    rate.is_active !== false &&
+    Number(rate.rate) > 0
+  )
+  if (exact) return Number(exact.rate)
+  const inverse = rates.find((rate) =>
+    rate.base_currency_code === paymentCurrency.code &&
+    rate.quote_currency_code === targetCurrency.code &&
+    rate.is_active !== false &&
+    Number(rate.rate) > 0
+  )
+  if (inverse) return 1 / Number(inverse.rate)
+  const targetRate = Number(targetCurrency.exchange_rate_usd || 0)
+  const paymentRate = Number(paymentCurrency.exchange_rate_usd || 0)
+  if (targetRate > 0 && paymentRate > 0) return targetRate / paymentRate
+  return null
 }
 
 export default function Recharge() {
@@ -66,24 +93,27 @@ export default function Recharge() {
   const [amount, setAmount] = useState('')
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null)
   const [paymentCurrencies, setPaymentCurrencies] = useState<Currency[]>([])
+  const [currencyRates, setCurrencyRates] = useState<CurrencyRate[]>([])
   const [paymentCurrency, setPaymentCurrency] = useState<Currency | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const targetAmount = Number(amount)
   const requiresPaymentCurrency = !!selectedCurrency && selectedCurrency.type !== 'fiat'
   const estimatedPayment = useMemo(
-    () => calculatePaymentAmount(targetAmount, selectedCurrency, paymentCurrency),
-    [targetAmount, selectedCurrency, paymentCurrency],
+    () => calculatePaymentAmount(targetAmount, selectedCurrency, paymentCurrency, currencyRates),
+    [currencyRates, targetAmount, selectedCurrency, paymentCurrency],
   )
 
   useEffect(() => {
-    getCurrencies()
-      .then((response) => {
-        const currencies = response.data.filter((currency) => currency.type === 'fiat' && currency.payment_enabled)
+    Promise.all([getCurrencies(), getCurrencyRates()])
+      .then(([currenciesResponse, ratesResponse]) => {
+        const currencies = currenciesResponse.data.filter((currency) => currency.type === 'fiat' && currency.payment_enabled)
         setPaymentCurrencies(currencies)
+        setCurrencyRates(ratesResponse.data)
       })
       .catch(() => {
         setPaymentCurrencies([])
+        setCurrencyRates([])
       })
   }, [])
 

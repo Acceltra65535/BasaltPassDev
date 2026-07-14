@@ -119,6 +119,9 @@ func RunMigrations() error {
 	if err := db.AutoMigrate(&model.Currency{}); err != nil {
 		return fmt.Errorf("[Error] Failed to create currencies table: %w", err)
 	}
+	if err := db.AutoMigrate(&model.CurrencyRate{}); err != nil {
+		return fmt.Errorf("[Error] Failed to create currency rates table: %w", err)
+	}
 
 	// 然后初始化默认货币
 	if err := currency.InitDefaultCurrencies(); err != nil {
@@ -134,6 +137,9 @@ func RunMigrations() error {
 	}
 	if err := currency.EnsurePaymentDefaults(); err != nil {
 		log.Printf("[Migration] Failed to ensure currency payment defaults: %v", err)
+	}
+	if err := currency.EnsureDefaultCurrencyRates(); err != nil {
+		log.Printf("[Migration] Failed to ensure default currency rates: %v", err)
 	}
 
 	// 用户表历史列必须在 User AutoMigrate 之前处理，否则 AutoMigrate 会先创建
@@ -234,6 +240,7 @@ func RunMigrations() error {
 		&model.PaymentIntent{},
 		&model.PaymentSession{},
 		&model.PaymentWebhookEvent{},
+		&model.CurrencyRate{},
 
 		// 订单系统模型
 		&model.Order{},

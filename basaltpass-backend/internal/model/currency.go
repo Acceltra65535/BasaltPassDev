@@ -26,3 +26,19 @@ type Currency struct {
 func (Currency) TableName() string {
 	return "market_currencies"
 }
+
+// CurrencyRate represents a directional exchange rate pair.
+// Rate means 1 BaseCurrencyCode = Rate QuoteCurrencyCode.
+type CurrencyRate struct {
+	gorm.Model
+	BaseCurrencyCode  string  `gorm:"size:16;not null;uniqueIndex:idx_currency_rate_pair" json:"base_currency_code"`
+	QuoteCurrencyCode string  `gorm:"size:16;not null;uniqueIndex:idx_currency_rate_pair" json:"quote_currency_code"`
+	Rate              float64 `gorm:"not null" json:"rate"`
+	Source            string  `gorm:"size:64;default:'manual'" json:"source"`
+	IsActive          bool    `gorm:"default:true" json:"is_active"`
+	Description       string  `gorm:"size:255" json:"description"`
+}
+
+func (CurrencyRate) TableName() string {
+	return "market_currency_rates"
+}

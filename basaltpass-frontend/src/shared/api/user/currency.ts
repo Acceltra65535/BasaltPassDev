@@ -16,5 +16,16 @@ export interface Currency {
   icon_url?: string
 }
 
+export interface CurrencyRate {
+  id: number
+  base_currency_code: string
+  quote_currency_code: string
+  rate: number
+  source: string
+  is_active: boolean
+  description?: string
+}
+
 export const getCurrencies = () => client.get<Currency[]>('/api/v1/currencies')
 export const getCurrency = (code: string) => client.get<Currency>(`/api/v1/currencies/${code}`)
+export const getCurrencyRates = () => client.get<CurrencyRate[]>('/api/v1/currencies/rates')

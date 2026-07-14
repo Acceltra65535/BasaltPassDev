@@ -121,25 +121,22 @@ func calculateWalletRechargeCharge(targetCurrencyCode string, targetAmountSmalle
 	if chargeCurrency.Type != "fiat" || !chargeCurrency.PaymentEnabled || len(chargeCurrency.Code) != 3 {
 		return 0, nil, fmt.Errorf("payment currency %s is not available for checkout", chargeCurrencyCode)
 	}
-	if targetCurrency.ExchangeRateUSD <= 0 {
-		return 0, nil, fmt.Errorf("exchange rate is not configured for %s", targetCurrencyCode)
-	}
-	if chargeCurrency.ExchangeRateUSD <= 0 {
-		return 0, nil, fmt.Errorf("exchange rate is not configured for %s", chargeCurrencyCode)
+	rate, err := currencyservice.GetExchangeRate(targetCurrencyCode, chargeCurrencyCode)
+	if err != nil {
+		return 0, nil, err
 	}
 
 	targetUnits := float64(targetAmountSmallest) / math.Pow10(targetCurrency.DecimalPlaces)
-	usdValue := targetUnits * targetCurrency.ExchangeRateUSD
-	chargeUnits := usdValue / chargeCurrency.ExchangeRateUSD
+	chargeUnits := targetUnits * rate
 	chargeAmountSmallest := int64(math.Ceil(chargeUnits*math.Pow10(chargeCurrency.DecimalPlaces) - 1e-9))
 	if chargeAmountSmallest < 1 {
 		chargeAmountSmallest = 1
 	}
 
 	return chargeAmountSmallest, map[string]interface{}{
-		"target_exchange_rate_usd": targetCurrency.ExchangeRateUSD,
-		"charge_exchange_rate_usd": chargeCurrency.ExchangeRateUSD,
-		"computed_charge_amount":   strconv.FormatInt(chargeAmountSmallest, 10),
+		"exchange_rate_pair":     targetCurrencyCode + "/" + chargeCurrencyCode,
+		"exchange_rate":          fmt.Sprintf("%g", rate),
+		"computed_charge_amount": strconv.FormatInt(chargeAmountSmallest, 10),
 	}, nil
 }
 
