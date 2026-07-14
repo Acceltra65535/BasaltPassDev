@@ -238,7 +238,7 @@ func Withdraw(userID uint, currencyID uint, amount int64) error {
 }
 
 func WithdrawWithTenant(userID uint, tenantID uint, currencyID uint, amount int64) error {
-	if !RechargeWithdrawEnabled() {
+	if !WithdrawEnabled() {
 		return ErrWalletRechargeWithdrawDisabled
 	}
 	if amount <= 0 {

@@ -74,7 +74,28 @@ func isWalletRechargeMetadata(meta map[string]interface{}) bool {
 		return false
 	}
 	s, ok := v.(string)
-	return ok && s == "wallet_recharge"
+	return ok && (s == "wallet_recharge" || s == "top_up")
+}
+
+func parsePaymentIntentMetadata(paymentIntent model.PaymentIntent) map[string]interface{} {
+	metadata := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(paymentIntent.Metadata), &metadata); err != nil {
+		return map[string]interface{}{}
+	}
+	return metadata
+}
+
+func walletRechargeTarget(session model.PaymentSession) (string, int64) {
+	metadata := parsePaymentIntentMetadata(session.PaymentIntent)
+	currency := strings.ToUpper(strings.TrimSpace(parseString(metadata["target_wallet_currency"])))
+	if currency == "" {
+		currency = session.Currency
+	}
+	amount := int64(parseUIntFromAny(metadata["target_wallet_amount"]))
+	if amount <= 0 {
+		amount = session.Amount
+	}
+	return currency, amount
 }
 
 // generateStripeID 生成模拟的Stripe ID
@@ -510,8 +531,9 @@ func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObjec
 			}
 		}
 
-		if !wasComplete {
-			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, session.Currency, session.Amount); err != nil {
+		if !wasComplete && isWalletRechargeMetadata(parsePaymentIntentMetadata(session.PaymentIntent)) {
+			targetCurrency, targetAmount := walletRechargeTarget(session)
+			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount); err != nil {
 				return fmt.Errorf("failed to update wallet: %w", err)
 			}
 		}
@@ -1011,9 +1033,10 @@ func SimulatePayment(sessionID string, success bool) (*MockStripeResponse, error
 
 	// 如果支付成功，更新用户钱包
 	if success {
-		if !wasComplete {
+		if !wasComplete && isWalletRechargeMetadata(parsePaymentIntentMetadata(session.PaymentIntent)) {
 			tenantID := parseTenantIDFromRawMetadata(session.PaymentIntent.Metadata)
-			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, session.Currency, session.Amount); err != nil {
+			targetCurrency, targetAmount := walletRechargeTarget(session)
+			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount); err != nil {
 				return nil, fmt.Errorf("failed to update wallet: %w", err)
 			}
 		}

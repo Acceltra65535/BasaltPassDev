@@ -33,6 +33,7 @@ import Withdraw from '../../../src/features/user/wallet/Withdraw'
 import History from '../../../src/features/user/wallet/History'
 import RedeemGiftCard from '../../../src/features/user/wallet/RedeemGiftCard'
 import Payment from '../../../src/features/user/payment/Payment'
+import Cashier from '../../../src/features/user/payment/Cashier'
 
 import SecuritySettings from '../../../src/features/user/security/SecuritySettings'
 import TwoFA from '../../../src/features/user/security/TwoFA'
@@ -196,6 +197,7 @@ export default function AppRouter() {
       <Route path="/wallet/history" element={<ProtectedRoute requiresTenant><History /></ProtectedRoute>} />
       <Route path="/wallet/gift-cards/redeem" element={<ProtectedRoute requiresTenant><RedeemGiftCard /></ProtectedRoute>} />
       <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
+      <Route path="/checkout" element={<ProtectedRoute><Cashier /></ProtectedRoute>} />
 
       {/* Security */}
       <Route path="/security" element={<ProtectedRoute><SecuritySettings /></ProtectedRoute>} />

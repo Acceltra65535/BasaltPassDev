@@ -47,8 +47,8 @@ const quickAmounts = [50, 100, 200, 500, 1000, 2000]
 
 export default function Withdraw() {
   const { t } = useI18n()
-  const { walletRechargeWithdrawEnabled } = useConfig()
-  const walletOpsDisabled = !walletRechargeWithdrawEnabled
+  const { walletWithdrawEnabled } = useConfig()
+  const walletOpsDisabled = !walletWithdrawEnabled
   const navigate = useNavigate()
   const [amount, setAmount] = useState('')
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null)

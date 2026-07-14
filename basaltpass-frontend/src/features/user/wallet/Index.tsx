@@ -19,7 +19,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 export default function WalletIndex() {
-  const { walletRechargeWithdrawEnabled } = useConfig()
+  const { walletRechargeWithdrawEnabled, walletWithdrawEnabled } = useConfig()
   const { t, locale } = useI18n()
   const [balance, setBalance] = useState<number | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null)
@@ -287,7 +287,7 @@ export default function WalletIndex() {
                 </div>
               )}
 
-              {walletRechargeWithdrawEnabled ? (
+              {walletWithdrawEnabled ? (
                 <Link
                   to={ROUTES.user.walletWithdraw}
                   className="relative flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-4 shadow-sm transition-colors hover:border-indigo-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"

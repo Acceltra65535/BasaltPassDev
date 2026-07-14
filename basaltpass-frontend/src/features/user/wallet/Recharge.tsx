@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { recharge } from '@api/user/wallet'
 import { userGiftCardApi } from '@api/user/giftCard'
 import { Currency } from '@api/user/currency'
 import { useNavigate } from 'react-router-dom'
+import { paymentAPI } from '@api/subscription/payment/payment'
 import Layout from '@features/user/components/Layout'
 import CurrencySelector from '@features/user/components/CurrencySelector'
 import { PInput, PButton, PPageHeader, PCard, PAlert } from '@ui'
@@ -104,15 +104,39 @@ export default function Recharge() {
     setError('')
     
     try {
-      // 
       const decimals = selectedCurrency.decimal_places
       const amountInSmallestUnit = Math.round(Number(amount) * Math.pow(10, decimals))
-      
-      await recharge(selectedCurrency.code, amountInSmallestUnit)
-      setSuccess(true)
-      setTimeout(() => {
-        navigate(ROUTES.user.wallet)
-      }, 2000)
+      const chargeCurrency = selectedCurrency.code.length === 3 ? selectedCurrency.code : 'USD'
+      const chargeAmount = selectedCurrency.code.length === 3
+        ? amountInSmallestUnit
+        : Math.round(Number(amount) * 100)
+
+      const intentResponse = await paymentAPI.createPaymentIntent({
+        amount: chargeAmount,
+        currency: chargeCurrency,
+        description: `Top up ${amount} ${selectedCurrency.code}`,
+        payment_method_types: selectedMethod === 'bank' ? ['card'] : ['card'],
+        confirmation_method: 'automatic',
+        capture_method: 'automatic',
+        metadata: {
+          source: 'wallet_recharge',
+          checkout_kind: 'top_up',
+          wallet_currency: selectedCurrency.code,
+          target_wallet_currency: selectedCurrency.code,
+          target_wallet_amount: String(amountInSmallestUnit),
+          charge_currency: chargeCurrency,
+          charge_amount: String(chargeAmount),
+        },
+      })
+
+      const sessionResponse = await paymentAPI.createPaymentSession({
+        payment_intent_id: intentResponse.payment_intent.ID,
+        success_url: `${window.location.origin}${ROUTES.user.wallet}?topup=success`,
+        cancel_url: `${window.location.origin}${ROUTES.user.walletRecharge}?topup=canceled`,
+        user_email: '',
+      })
+
+      navigate(`/checkout?kind=top_up&session=${encodeURIComponent(sessionResponse.session.StripeSessionID)}`)
     } catch (e: any) {
       setError(e.response?.data?.error || t('pages.walletRecharge.errors.rechargeFailed'))
     } finally {
