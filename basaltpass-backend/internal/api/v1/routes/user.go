@@ -43,6 +43,7 @@ func RegisterUserRoutes(v1 fiber.Router) {
 
 	// 用户应用授权管理
 	userGroup.Get("/apps", app_user.GetUserAppsHandler)
+	userGroup.Get("/apps/recharge-config", user.GetAppRechargeConfigHandler)
 	userGroup.Delete("/apps/:app_id", app_user.RevokeUserAppHandler)
 
 	// 用户搜索路由 (需要JWT认证)

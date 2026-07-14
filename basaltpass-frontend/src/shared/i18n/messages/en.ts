@@ -711,6 +711,27 @@ const en = {
         },
       },
     },
+    appRecharge: {
+      header: {
+        title: '{{app}} Top-up',
+        appFallback: 'App',
+        description: 'Top up a wallet currency used by this app',
+      },
+      form: {
+        title: 'App wallet top-up',
+        currencyLabel: 'App currency',
+      },
+      guide: {
+        title: 'App-specific checkout',
+        body: 'This page only shows wallet currencies linked to {{app}}.',
+        currencyCount: '{{count}} currencies are available for this app.',
+      },
+      empty: 'This app has no wallet currency configured yet.',
+      errors: {
+        loadFailed: 'Failed to load app recharge configuration',
+        noCurrency: 'Please select an app currency',
+      },
+    },
     walletWithdraw: {
       header: {
         title: 'Withdraw Funds',

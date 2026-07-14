@@ -42,3 +42,21 @@ type CurrencyRate struct {
 func (CurrencyRate) TableName() string {
 	return "market_currency_rates"
 }
+
+// AppWalletCurrency links an application to wallet currencies it uses.
+type AppWalletCurrency struct {
+	gorm.Model
+	TenantID       uint   `gorm:"not null;index;uniqueIndex:idx_app_wallet_currency" json:"tenant_id"`
+	AppID          uint   `gorm:"not null;index;uniqueIndex:idx_app_wallet_currency" json:"app_id"`
+	CurrencyID     uint   `gorm:"not null;index;uniqueIndex:idx_app_wallet_currency" json:"currency_id"`
+	WalletCategory string `gorm:"size:32;not null;default:'top_up';uniqueIndex:idx_app_wallet_currency" json:"wallet_category"`
+	SortOrder      int    `gorm:"default:0" json:"sort_order"`
+	IsDefault      bool   `gorm:"default:false" json:"is_default"`
+
+	App      App      `gorm:"foreignKey:AppID" json:"app,omitempty"`
+	Currency Currency `gorm:"foreignKey:CurrencyID" json:"currency,omitempty"`
+}
+
+func (AppWalletCurrency) TableName() string {
+	return "app_wallet_currencies"
+}

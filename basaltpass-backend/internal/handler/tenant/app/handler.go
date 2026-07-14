@@ -1,6 +1,7 @@
 package app
 
 import (
+	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
 	app2 "basaltpass-backend/internal/service/app"
 	"strconv"
@@ -335,4 +336,124 @@ func TenantToggleAppStatusHandler(c *fiber.Ctx) error {
 		"data":    app,
 		"message": "应用状态更新成功",
 	})
+}
+
+// TenantListAppWalletCurrenciesHandler lists wallet currencies linked to an app.
+// GET /api/v1/tenant/apps/:id/wallet-currencies?category=top_up
+func TenantListAppWalletCurrenciesHandler(c *fiber.Ctx) error {
+	tenantID := getTenantIDFromContext(c)
+	if tenantID == 0 {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "无效的租户上下文"})
+	}
+
+	appID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "无效的应用ID"})
+	}
+
+	category := strings.TrimSpace(c.Query("category", "top_up"))
+	if category == "" {
+		category = "top_up"
+	}
+
+	var app model.App
+	if err := common.DB().Where("id = ? AND tenant_id = ?", uint(appID), tenantID).First(&app).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "应用不存在"})
+	}
+
+	var links []model.AppWalletCurrency
+	if err := common.DB().
+		Preload("Currency").
+		Where("tenant_id = ? AND app_id = ? AND wallet_category = ?", tenantID, uint(appID), category).
+		Order("sort_order ASC, id ASC").
+		Find(&links).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"data": fiber.Map{"items": links}})
+}
+
+// TenantReplaceAppWalletCurrenciesHandler replaces the app wallet currency links for one category.
+// PUT /api/v1/tenant/apps/:id/wallet-currencies
+func TenantReplaceAppWalletCurrenciesHandler(c *fiber.Ctx) error {
+	if err := requireTenantAdminRole(c); err != nil {
+		return err
+	}
+
+	tenantID := getTenantIDFromContext(c)
+	if tenantID == 0 {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "无效的租户上下文"})
+	}
+
+	appID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "无效的应用ID"})
+	}
+
+	var req struct {
+		WalletCategory string   `json:"wallet_category"`
+		CurrencyCodes  []string `json:"currency_codes"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "请求参数错误"})
+	}
+
+	category := strings.TrimSpace(req.WalletCategory)
+	if category == "" {
+		category = "top_up"
+	}
+
+	var app model.App
+	if err := common.DB().Where("id = ? AND tenant_id = ?", uint(appID), tenantID).First(&app).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "应用不存在"})
+	}
+
+	seen := map[string]bool{}
+	var currencies []model.Currency
+	for _, raw := range req.CurrencyCodes {
+		code := strings.ToUpper(strings.TrimSpace(raw))
+		if code == "" || seen[code] {
+			continue
+		}
+		seen[code] = true
+		var curr model.Currency
+		if err := common.DB().Where("code = ? AND is_active = ?", code, true).First(&curr).Error; err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "无效的货币代码: " + code})
+		}
+		currencies = append(currencies, curr)
+	}
+
+	tx := common.DB().Begin()
+	if err := tx.Where("tenant_id = ? AND app_id = ? AND wallet_category = ?", tenantID, uint(appID), category).Delete(&model.AppWalletCurrency{}).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	for idx, curr := range currencies {
+		link := model.AppWalletCurrency{
+			TenantID:       tenantID,
+			AppID:          uint(appID),
+			CurrencyID:     curr.ID,
+			WalletCategory: category,
+			SortOrder:      idx,
+			IsDefault:      idx == 0,
+		}
+		if err := tx.Create(&link).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	var links []model.AppWalletCurrency
+	if err := common.DB().
+		Preload("Currency").
+		Where("tenant_id = ? AND app_id = ? AND wallet_category = ?", tenantID, uint(appID), category).
+		Order("sort_order ASC, id ASC").
+		Find(&links).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"data": fiber.Map{"items": links}, "message": "应用钱包币种已更新"})
 }

@@ -711,6 +711,27 @@ const en = {
         },
       },
     },
+    appRecharge: {
+      header: {
+        title: '{{app}} 充值',
+        appFallback: '应用',
+        description: '为这个应用使用的钱包币种充值',
+      },
+      form: {
+        title: '应用钱包充值',
+        currencyLabel: '应用币种',
+      },
+      guide: {
+        title: '应用专属收银台',
+        body: '此页面只显示 {{app}} 关联的钱包币种。',
+        currencyCount: '此应用当前可充值 {{count}} 个币种。',
+      },
+      empty: '这个应用还没有配置钱包币种。',
+      errors: {
+        loadFailed: '加载应用充值配置失败',
+        noCurrency: '请选择应用币种',
+      },
+    },
     walletWithdraw: {
       header: {
         title: 'Withdraw Funds',

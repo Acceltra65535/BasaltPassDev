@@ -203,6 +203,7 @@ func RunMigrations() error {
 		&model.TenantUser{},       // 租户管理员
 		&model.TenantInvitation{}, // 租户邀请
 		&model.App{},
+		&model.AppWalletCurrency{},
 		&model.AppUser{},     // 业务应用用户映射
 		&model.TenantQuota{}, // 租户配额
 		&model.TenantAuthSetting{},
