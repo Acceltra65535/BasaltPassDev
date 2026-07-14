@@ -17,6 +17,7 @@ export const USER_ROUTES = {
   orders: '/orders',
   myApps: '/my-apps',
   appRecharge: '/apps/recharge',
+  appRechargeSuccess: '/apps/recharge/success',
   security: '/security',
   securityTwoFA: '/security/2fa',
   securityPasskey: '/security/passkey',

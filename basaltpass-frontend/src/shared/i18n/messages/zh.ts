@@ -726,6 +726,24 @@ const en = {
         body: '此页面只显示 {{app}} 关联的钱包币种。',
         currencyCount: '此应用当前可充值 {{count}} 个币种。',
       },
+      success: {
+        title: '付款成功',
+        description: '{{app}} 的充值已经到账。',
+        redirecting: '{{seconds}} 秒后返回 {{host}}。',
+        noReturnUrl: '没有配置应用返回地址，你可以返回钱包查看余额。',
+        pendingTitle: '正在确认付款',
+        pendingDescription: '我们正在向支付渠道确认这笔充值，请稍后刷新。',
+        actions: {
+          retry: '重新确认',
+          returnNow: '立即返回应用',
+          wallet: '查看钱包',
+        },
+        errors: {
+          missingSession: '缺少支付会话。',
+          notComplete: '支付渠道还没有确认这笔付款。',
+          reconcileFailed: '确认充值失败，请稍后重试。',
+        },
+      },
       empty: '这个应用还没有配置钱包币种。',
       errors: {
         loadFailed: '加载应用充值配置失败',

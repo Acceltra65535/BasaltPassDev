@@ -92,6 +92,7 @@ export default function AppRecharge() {
   const [error, setError] = useState('')
 
   const walletOpsDisabled = !walletRechargeWithdrawEnabled
+  const returnUrl = searchParams.get('return_url') || ''
   const targetAmount = Number(amount)
   const estimatedPayment = useMemo(
     () => calculatePaymentAmount(targetAmount, selectedCurrency, paymentCurrency, currencyRates),
@@ -190,9 +191,12 @@ export default function AppRecharge() {
       })
 
       const currentPath = `${window.location.pathname}${window.location.search}`
+      const successUrl = `${window.location.origin}${ROUTES.user.appRechargeSuccess}?session_id={CHECKOUT_SESSION_ID}${
+        returnUrl ? `&return_url=${encodeURIComponent(returnUrl)}` : ''
+      }`
       const sessionResponse = await paymentAPI.createPaymentSession({
         payment_intent_id: intentResponse.payment_intent.ID,
-        success_url: `${window.location.origin}${ROUTES.user.wallet}?topup=success&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: successUrl,
         cancel_url: `${window.location.origin}${currentPath}`,
         user_email: '',
       })

@@ -726,6 +726,24 @@ const en = {
         body: 'This page only shows wallet currencies linked to {{app}}.',
         currencyCount: '{{count}} currencies are available for this app.',
       },
+      success: {
+        title: 'Payment successful',
+        description: '{{app}} top-up has been credited.',
+        redirecting: 'Returning to {{host}} in {{seconds}} seconds.',
+        noReturnUrl: 'No app return URL was configured. You can view the updated balance in your wallet.',
+        pendingTitle: 'Confirming payment',
+        pendingDescription: 'We are confirming this top-up with the payment provider. Please refresh shortly.',
+        actions: {
+          retry: 'Confirm again',
+          returnNow: 'Return to app now',
+          wallet: 'View wallet',
+        },
+        errors: {
+          missingSession: 'Payment session is missing.',
+          notComplete: 'The payment provider has not confirmed this payment yet.',
+          reconcileFailed: 'Failed to confirm this top-up. Please retry shortly.',
+        },
+      },
       empty: 'This app has no wallet currency configured yet.',
       errors: {
         loadFailed: 'Failed to load app recharge configuration',
