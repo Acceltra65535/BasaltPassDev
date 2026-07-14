@@ -55,7 +55,7 @@ const fallbackCurrencyForTx = (tx: Tx): Currency => {
       name: 'Credit',
       name_cn: '信用点',
       symbol: 'C',
-      decimal_places: 6,
+      decimal_places: 0,
       type: 'points',
       is_active: true,
       sort_order: 0,

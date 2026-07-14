@@ -18,6 +18,18 @@ import {
 } from '@heroicons/react/24/outline'
 
 const USD_CODE = 'USD'
+const CREDIT_FALLBACK = {
+  id: 0,
+  code: 'CREDIT',
+  name: 'Credit',
+  name_cn: '信用点',
+  symbol: 'C',
+  decimal_places: 0,
+  type: 'points',
+  is_active: true,
+  sort_order: 0,
+  description: '',
+} as const
 
 const getDirection = (type: string, amount: number): 'in' | 'out' => {
   const normalized = (type || '').toLowerCase()
@@ -64,6 +76,12 @@ const formatCurrency = (amountMinor: number, currency?: Currency | null) => {
 
 const formatUSD = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(amount)
+
+const getTransactionCurrency = (tx: WalletTransaction, selectedCurrency?: Currency | null) => {
+  if (tx.Wallet?.Currency) return tx.Wallet.Currency
+  if (tx.Reference?.startsWith('apicred:')) return CREDIT_FALLBACK
+  return selectedCurrency || null
+}
 
 export default function WalletIndex() {
   const { walletRechargeWithdrawEnabled, walletWithdrawEnabled } = useConfig()
@@ -341,7 +359,7 @@ export default function WalletIndex() {
                       : statusLower === 'pending'
                         ? 'warning' as const
                         : 'default' as const
-                    const txCurrency = tx.Wallet?.Currency || selectedCurrency
+                    const txCurrency = getTransactionCurrency(tx, selectedCurrency)
                     return (
                       <li key={tx.ID} className="py-4">
                         <div className="flex items-center space-x-4">
