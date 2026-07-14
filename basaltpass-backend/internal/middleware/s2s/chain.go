@@ -22,8 +22,10 @@ func ClientAuthMiddleware(requiredScopes ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		clientID := strings.TrimSpace(c.Get("client_id"))
 		clientSecret := strings.TrimSpace(c.Get("client_secret"))
+		authSource := "header"
 
 		if clientID == "" || clientSecret == "" {
+			authSource = "form"
 			if clientID == "" {
 				clientID = strings.TrimSpace(c.FormValue("client_id"))
 			}
@@ -34,6 +36,7 @@ func ClientAuthMiddleware(requiredScopes ...string) fiber.Handler {
 
 		if clientID == "" || clientSecret == "" {
 			if config.Get().S2S.AllowQueryCredentials {
+				authSource = "query"
 				if clientID == "" {
 					clientID = strings.TrimSpace(c.Query("client_id"))
 				}
@@ -68,6 +71,7 @@ func ClientAuthMiddleware(requiredScopes ...string) fiber.Handler {
 
 		c.Locals("s2s_client_id", client.ClientID)
 		c.Locals("s2s_app_id", client.AppID)
+		c.Locals("s2s_auth_source", authSource)
 		if client.App.ID != 0 {
 			c.Locals("s2s_tenant_id", client.App.TenantID)
 		}

@@ -256,6 +256,15 @@ func RegisterTenantRoutes(v1 fiber.Router) {
 	tenantAppGroup.Put("/:app_id/roles/:role_id", app_rbac2.UpdateAppRole)
 	tenantAppGroup.Delete("/:app_id/roles/:role_id", app_rbac2.DeleteAppRole)
 
+	// App-submitted RBAC manifests. These routes are tenant-admin protected;
+	// apps can submit drafts only through the S2S endpoint above.
+	tenantAppGroup.Get("/:app_id/rbac/manifests", tenant2.ListAppRBACManifestsHandler)
+	tenantAppGroup.Get("/:app_id/rbac/manifests/:manifest_id", tenant2.GetAppRBACManifestHandler)
+	tenantAppGroup.Post("/:app_id/rbac/manifests/:manifest_id/approve", tenant2.ApproveAppRBACManifestHandler)
+	tenantAppGroup.Post("/:app_id/rbac/manifests/:manifest_id/reject", tenant2.RejectAppRBACManifestHandler)
+	tenantAppGroup.Get("/:app_id/rbac/revisions", tenant2.ListAppRBACRevisionsHandler)
+	tenantAppGroup.Post("/:app_id/rbac/revisions/:revision_id/rollback", tenant2.RollbackAppRBACRevisionHandler)
+
 	// 应用用户管理路由（包含权限）
 	tenantAppGroup.Get("/:app_id/users", app_rbac2.GetAppUsers)
 	tenantAppGroup.Get("/:app_id/users/by-status", app_user.GetAppUsersByStatusHandler)

@@ -26,6 +26,7 @@ import TenantNotifications from '../../../src/features/tenant/notification/Notif
 import AppUserManagement from '../../../src/features/tenant/app/AppUserManagement'
 import AppRoleManagement from '../../../src/features/tenant/app/AppRoleManagement'
 import AppPermissionManagement from '../../../src/features/tenant/app/AppPermissionManagement'
+import RBACManifests from '../../../src/features/tenant/app/RBACManifests'
 
 import TenantSubscriptionDashboard from '../../../src/features/tenant/subscription/Dashboard'
 import TenantProducts from '../../../src/features/tenant/subscription/Products'
@@ -98,6 +99,7 @@ export default function AppRouter() {
       <Route path="/tenant/apps/:id/users" element={<TenantRoute><AppUserManagement /></TenantRoute>} />
       <Route path="/tenant/apps/:id/roles" element={<TenantRoute><AppRoleManagement /></TenantRoute>} />
       <Route path="/tenant/apps/:id/permissions" element={<TenantRoute><AppPermissionManagement /></TenantRoute>} />
+      <Route path="/tenant/apps/:id/rbac-manifests" element={<TenantRoute><RBACManifests /></TenantRoute>} />
       <Route path="/tenant/oauth/clients" element={<TenantRoute><TenantOAuthClients /></TenantRoute>} />
       <Route path="/tenant/cross-app-trusts" element={<TenantRoute><CrossAppTrustManagement /></TenantRoute>} />
       <Route path="/tenant/automation-tokens" element={<TenantRoute><TenantAutomationTokens /></TenantRoute>} />

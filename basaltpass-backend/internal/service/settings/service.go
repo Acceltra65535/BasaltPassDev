@@ -139,6 +139,7 @@ func defaultItems() map[string]SettingItem {
 			"s2s.user.read",
 			"s2s.user.write",
 			"s2s.rbac.read",
+			"s2s.rbac.manifest.submit",
 			"s2s.team.read",
 			"s2s.team.write",
 			"s2s.wallet.read",

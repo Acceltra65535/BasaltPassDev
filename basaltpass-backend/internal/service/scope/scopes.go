@@ -22,6 +22,7 @@ func DefaultAllowedScopes() []string {
 		S2SUserRead,
 		S2SUserWrite,
 		S2SRBACRead,
+		S2SRBACManifestSubmit,
 		S2STeamRead,
 		S2STeamWrite,
 		S2SWalletRead,
@@ -69,6 +70,8 @@ func Describe(s string) Meta {
 		return Meta{Scope: s, Category: "s2s", Title: "S2S User Write", Description: "修改用户基础资料（PATCH /api/v1/s2s/users/:id，仅限昵称等测试写入）"}
 	case S2SRBACRead:
 		return Meta{Scope: s, Category: "s2s", Title: "S2S RBAC Read", Description: "读取用户角色/权限（/roles、/permissions）"}
+	case S2SRBACManifestSubmit:
+		return Meta{Scope: s, Category: "s2s", Title: "RBAC Manifest Submit", Description: "仅允许当前应用提交待管理员审批的 RBAC 配置草案"}
 	case S2STeamRead:
 		return Meta{Scope: s, Category: "s2s", Title: "S2S Team Read", Description: "读取团队信息与用户所属团队（/teams）"}
 	case S2STeamWrite:
@@ -112,6 +115,7 @@ const (
 	S2SUserRead           = "s2s.user.read"
 	S2SUserWrite          = "s2s.user.write"
 	S2SRBACRead           = "s2s.rbac.read"
+	S2SRBACManifestSubmit = "s2s.rbac.manifest.submit"
 	S2STeamRead           = "s2s.team.read"
 	S2STeamWrite          = "s2s.team.write"
 	S2SWalletRead         = "s2s.wallet.read"

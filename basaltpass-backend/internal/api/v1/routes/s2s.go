@@ -28,6 +28,11 @@ func RegisterS2SRoutes(v1 fiber.Router) {
 	group.Get("/users/:id/role-codes", middleware.ClientScopeMiddleware(sc.S2SRBACRead), s2sHandler.GetUserRoleCodesHandler)
 	group.Get("/users/:id/permissions", middleware.ClientScopeMiddleware(sc.S2SRBACRead), s2sHandler.GetUserPermissionsHandler)
 
+	// RBAC manifest control plane: the authenticated app may submit and poll
+	// only its own drafts. Publishing remains tenant-admin only.
+	group.Post("/rbac/manifests", middleware.ClientScopeMiddleware(sc.S2SRBACManifestSubmit), s2sHandler.SubmitRBACManifestHandler)
+	group.Get("/rbac/manifests/:id", middleware.ClientScopeMiddleware(sc.S2SRBACManifestSubmit), s2sHandler.GetOwnRBACManifestHandler)
+
 	// 团队
 	group.Get("/teams", middleware.ClientScopeMiddleware(sc.S2STeamRead), s2sHandler.ListTeamsHandler)
 	group.Post("/teams", middleware.ClientScopeMiddleware(sc.S2STeamWrite), s2sHandler.CreateTeamHandler)

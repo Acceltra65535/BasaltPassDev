@@ -3602,6 +3602,11 @@ const en = {
           description: 'Define and categorize permissions',
           badge: 'Permission Setup',
         },
+        manifestManagement: {
+          title: 'RBAC 自动导入',
+          description: '审核应用自动提交的 RBAC 配置',
+          badge: '审批与回滚',
+        },
       },
     },
     quickStart: {
@@ -3641,6 +3646,55 @@ const en = {
     logs: {
       loadFailed: 'Failed to load app details:',
       copyFailed: 'Copy failed:',
+    },
+  },
+  tenantRBACManifests: {
+    title: 'RBAC 自动导入',
+    description: '审核并发布 {{app}} 自动提交的纯 RBAC 配置',
+    back: '返回应用',
+    refresh: '刷新',
+    integration: {
+      title: '应用提交接口',
+      description: '已认证应用只能通过专用 scope 提交草案；OAuth 配置和用户授权字段会被拒绝。',
+    },
+    manifests: {
+      title: '配置提交记录',
+      emptyTitle: '尚未收到配置',
+      emptyDescription: '应用提交 RBAC manifest 后，会在这里等待管理员审核。',
+      revision: '应用版本 {{revision}}',
+      blocked: '存在阻断',
+      blockedTitle: '当前配置暂时无法发布',
+      blockedDescription: '它尝试删除已分配给用户的角色或权限。请先手动调整用户授权，或让应用提交兼容配置。',
+      noChanges: '该配置不会改变当前生效的 RBAC。',
+      permissions: '个权限',
+      roles: '个角色',
+    },
+    status: { pending: '待审核', approved: '已发布', rejected: '已拒绝', superseded: '已被新版本替代' },
+    diff: {
+      permissionsAdded: '新增权限', permissionsUpdated: '更新权限', permissionsRemoved: '删除权限',
+      rolesAdded: '新增角色', rolesUpdated: '更新角色', rolesRemoved: '删除角色',
+      rolePermissionsAdded: '新增角色授权', rolePermissionsRemoved: '移除角色授权',
+      assignedRolesAffected: '受影响的已分配角色', removalBlocks: '用户授权阻断项',
+    },
+    revisions: {
+      title: '已发布版本历史', empty: '尚无已发布版本', active: '当前生效',
+      baseline: '初始基线', manifest: '配置发布', rollback: '回滚版本',
+      safetyTitle: '回滚安全保护',
+      safetyDescription: '回滚会创建新的不可变版本；如果需要删除已分配给用户的角色或直接权限，回滚将被拒绝。',
+    },
+    actions: { approve: '批准并发布', reject: '拒绝', rollback: '回滚到此版本' },
+    confirm: {
+      approve: '确认批准应用版本 {{revision}} 并原子发布此 RBAC 配置吗？',
+      reject: '确认拒绝应用版本 {{revision}} 吗？',
+      rollback: '确认根据版本 #{{revision}} 创建一个新的生效版本吗？',
+    },
+    success: {
+      approved: '应用版本 {{revision}} 已成功发布。', rejected: '应用版本 {{revision}} 已拒绝。',
+      rolledBack: '已回滚到版本 #{{revision}} 的配置快照。',
+    },
+    errors: {
+      load: '加载 RBAC 配置失败', approve: '批准配置失败', reject: '拒绝配置失败',
+      rollback: '回滚版本失败', blocked: '该配置会删除已分配给用户的角色或权限，因此不能发布。',
     },
   },
   adminDashboard: {

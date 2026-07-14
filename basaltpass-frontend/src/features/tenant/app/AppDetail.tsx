@@ -14,7 +14,8 @@ import {
   ShieldCheckIcon,
   LockClosedIcon,
   UserGroupIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  DocumentCheckIcon
 } from '@heroicons/react/24/outline'
 import TenantLayout from '@features/tenant/components/TenantLayout'
 import { tenantAppApi, TenantApp } from '@api/tenant/tenantApp'
@@ -251,7 +252,7 @@ export default function AppDetail() {
             </p>
           </div>
           <div className="px-6 py-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               {/*  */}
               <Link
                 to={`/tenant/apps/${app.id}/users`}
@@ -334,6 +335,23 @@ export default function AppDetail() {
                     {t('tenantAppDetail.accessControl.cards.permissionManagement.badge')}
                   </span>
                 </div>
+              </Link>
+
+              <Link
+                to={`/tenant/apps/${app.id}/rbac-manifests`}
+                className="group relative rounded-xl border-2 border-gray-200 bg-white p-6 transition-all duration-200 hover:border-violet-300 hover:shadow-md"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <DocumentCheckIcon className="h-8 w-8 text-violet-600 group-hover:text-violet-700" />
+                    <div className="ml-4">
+                      <h4 className="text-lg font-medium text-gray-900 group-hover:text-violet-900">{t('tenantAppDetail.accessControl.cards.manifestManagement.title')}</h4>
+                      <p className="text-sm text-gray-500">{t('tenantAppDetail.accessControl.cards.manifestManagement.description')}</p>
+                    </div>
+                  </div>
+                  <ArrowRightIcon className="h-5 w-5 text-gray-400 transition-colors group-hover:text-violet-600" />
+                </div>
+                <div className="mt-3"><span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">{t('tenantAppDetail.accessControl.cards.manifestManagement.badge')}</span></div>
               </Link>
             </div>
 

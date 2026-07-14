@@ -3602,6 +3602,11 @@ const en = {
           description: 'Define and categorize permissions',
           badge: 'Permission Setup',
         },
+        manifestManagement: {
+          title: 'Automatic RBAC Import',
+          description: 'Review app-submitted RBAC manifests',
+          badge: 'Review & Rollback',
+        },
       },
     },
     quickStart: {
@@ -3641,6 +3646,55 @@ const en = {
     logs: {
       loadFailed: 'Failed to load app details:',
       copyFailed: 'Copy failed:',
+    },
+  },
+  tenantRBACManifests: {
+    title: 'Automatic RBAC Import',
+    description: 'Review and publish RBAC-only manifests submitted by {{app}}',
+    back: 'Back to app',
+    refresh: 'Refresh',
+    integration: {
+      title: 'App submission endpoint',
+      description: 'The authenticated app can only submit a draft with the dedicated scope. OAuth settings and user assignments are rejected.',
+    },
+    manifests: {
+      title: 'Submitted manifests',
+      emptyTitle: 'No manifest submitted',
+      emptyDescription: 'After the app submits its RBAC manifest, it will appear here for review.',
+      revision: 'App revision {{revision}}',
+      blocked: 'Blocked',
+      blockedTitle: 'This manifest cannot be published yet',
+      blockedDescription: 'It removes a role or permission currently assigned to users. Remove the assignment manually or submit a compatible manifest.',
+      noChanges: 'This manifest does not change the effective RBAC configuration.',
+      permissions: 'permissions',
+      roles: 'roles',
+    },
+    status: { pending: 'Pending review', approved: 'Published', rejected: 'Rejected', superseded: 'Superseded' },
+    diff: {
+      permissionsAdded: 'Permissions added', permissionsUpdated: 'Permissions updated', permissionsRemoved: 'Permissions removed',
+      rolesAdded: 'Roles added', rolesUpdated: 'Roles updated', rolesRemoved: 'Roles removed',
+      rolePermissionsAdded: 'Role grants added', rolePermissionsRemoved: 'Role grants removed',
+      assignedRolesAffected: 'Assigned roles affected', removalBlocks: 'User-assignment blockers',
+    },
+    revisions: {
+      title: 'Published revision history', empty: 'No published revision yet', active: 'Active',
+      baseline: 'Baseline', manifest: 'Manifest', rollback: 'Rollback',
+      safetyTitle: 'Rollback safety',
+      safetyDescription: 'Rollback creates a new immutable revision. It is refused if it would delete a role or direct permission currently assigned to users.',
+    },
+    actions: { approve: 'Approve and publish', reject: 'Reject', rollback: 'Rollback to this revision' },
+    confirm: {
+      approve: 'Approve app revision {{revision}} and atomically publish this RBAC configuration?',
+      reject: 'Reject app revision {{revision}}?',
+      rollback: 'Create a new active revision from revision #{{revision}}?',
+    },
+    success: {
+      approved: 'App revision {{revision}} was published.', rejected: 'App revision {{revision}} was rejected.',
+      rolledBack: 'Rolled back to the snapshot from revision #{{revision}}.',
+    },
+    errors: {
+      load: 'Failed to load RBAC manifests', approve: 'Failed to approve the manifest', reject: 'Failed to reject the manifest',
+      rollback: 'Failed to roll back the revision', blocked: 'This manifest would remove RBAC entities assigned to users and cannot be published.',
     },
   },
   adminDashboard: {

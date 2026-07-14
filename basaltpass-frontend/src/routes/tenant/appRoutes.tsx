@@ -7,6 +7,7 @@ import TenantOAuthClients from '@pages/tenant/app/OAuthClients'
 import AppUserManagement from '@pages/tenant/app/AppUserManagement'
 import AppRoleManagement from '@pages/tenant/app/AppRoleManagement'
 import AppPermissionManagement from '@pages/tenant/app/AppPermissionManagement'
+import RBACManifests from '@pages/tenant/app/RBACManifests'
 import CreateApp from '@pages/admin/app/CreateApp'
 import CrossAppTrustManagement from '@pages/tenant/security/CrossAppTrustManagement'
 import { withTenant } from '@/routes/helpers'
@@ -21,6 +22,7 @@ export function TenantAppRoutes() {
       <Route path="/tenant/apps/:id/users" element={withTenant(<AppUserManagement />)} />
       <Route path="/tenant/apps/:id/roles" element={withTenant(<AppRoleManagement />)} />
       <Route path="/tenant/apps/:id/permissions" element={withTenant(<AppPermissionManagement />)} />
+      <Route path="/tenant/apps/:id/rbac-manifests" element={withTenant(<RBACManifests />)} />
       <Route path="/tenant/apps/:id" element={withTenant(<AppDetail />)} />
       <Route path="/tenant/oauth/clients" element={withTenant(<TenantOAuthClients />)} />
       <Route path="/tenant/cross-app-trusts" element={withTenant(<CrossAppTrustManagement />)} />
