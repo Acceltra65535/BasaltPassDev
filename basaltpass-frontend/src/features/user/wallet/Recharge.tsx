@@ -39,6 +39,16 @@ const formatAmount = (amount: number, currency: Currency): string => {
   return amount.toFixed(Math.min(currency.decimal_places, 8))
 }
 
+const getAmountInputConstraints = (currency: Currency | null) => {
+  if (!currency) return { min: '0.01', step: '0.01' }
+  const decimals = Math.max(0, currency.decimal_places || 0)
+  if (decimals === 0) return { min: '1', step: '1' }
+  return {
+    min: (1 / Math.pow(10, decimals)).toFixed(decimals),
+    step: (1 / Math.pow(10, decimals)).toFixed(decimals),
+  }
+}
+
 const fromSmallestUnit = (value: number, currency: Currency): number =>
   value / Math.pow(10, currency.decimal_places)
 
@@ -103,6 +113,7 @@ export default function Recharge() {
     () => calculatePaymentAmount(targetAmount, selectedCurrency, paymentCurrency, currencyRates),
     [currencyRates, targetAmount, selectedCurrency, paymentCurrency],
   )
+  const amountInputConstraints = getAmountInputConstraints(selectedCurrency)
 
   useEffect(() => {
     Promise.all([getCurrencies(), getCurrencyRates()])
@@ -298,8 +309,8 @@ export default function Recharge() {
                     value={amount}
                     onChange={(e) => handleAmountChange(e.target.value)}
                     placeholder={t('pages.walletRecharge.form.amountPlaceholder')}
-                    min="0.01"
-                    step={selectedCurrency ? `0.${'0'.repeat(Math.max(0, selectedCurrency.decimal_places - 1))}1` : "0.01"}
+                    min={amountInputConstraints.min}
+                    step={amountInputConstraints.step}
                   />
                 </div>
 
