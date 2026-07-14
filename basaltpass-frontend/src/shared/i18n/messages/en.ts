@@ -682,28 +682,14 @@ const en = {
         amountLabel: 'Recharge Amount {{currency}}',
         amountPlaceholder: '0.00',
         quickAmountLabel: 'Quick amount',
-        methodLabel: 'Payment method',
         submitWithAmount: 'Recharge {{symbol}}{{amount}} {{code}}',
-      },
-      paymentMethods: {
-        alipay: {
-          name: 'Alipay',
-          description: 'QR payment',
-        },
-        wechat: {
-          name: 'WeChat Pay',
-          description: 'QR payment',
-        },
-        bank: {
-          name: 'Bank Card',
-          description: 'Online payment',
-        },
+        continueToCheckout: 'Continue to checkout',
       },
       guide: {
         title: 'Recharge Notes',
         items: {
           realtime: 'Recharge amount is credited to wallet balance in real time',
-          methods: 'Supports Alipay, WeChat Pay, bank card and more',
+          methods: 'Choose a payment method in checkout',
           limit: 'Single recharge limit: ¥50 - ¥50,000',
           fee: 'Recharge is free of charge',
         },

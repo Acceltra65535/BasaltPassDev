@@ -12,37 +12,9 @@ import { useI18n } from '@shared/i18n'
 import { 
   ArrowUpIcon,
   CreditCardIcon,
-  QrCodeIcon,
   BanknotesIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline'
-
-const paymentMethods = [
-  {
-    id: 'alipay',
-    name: 'Alipay',
-    icon: QrCodeIcon,
-    description: 'Scan to pay',
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-100'
-  },
-  {
-    id: 'wechat',
-    name: 'WeChat Pay',
-    icon: QrCodeIcon,
-    description: 'Scan to pay',
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-100'
-  },
-  {
-    id: 'bank',
-    name: 'Bank Card',
-    icon: CreditCardIcon,
-    description: 'Online payment',
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-100'
-  }
-]
 
 const quickAmounts = [50, 100, 200, 500, 1000, 2000]
 
@@ -75,7 +47,6 @@ export default function Recharge() {
   const navigate = useNavigate()
   const [amount, setAmount] = useState('')
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null)
-  const [selectedMethod, setSelectedMethod] = useState('alipay')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -115,7 +86,7 @@ export default function Recharge() {
         amount: chargeAmount,
         currency: chargeCurrency,
         description: `Top up ${amount} ${selectedCurrency.code}`,
-        payment_method_types: selectedMethod === 'bank' ? ['card'] : ['card'],
+        payment_method_types: ['card'],
         confirmation_method: 'automatic',
         capture_method: 'automatic',
         metadata: {
@@ -289,52 +260,13 @@ export default function Recharge() {
                 )}
 
                 {/*  */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    {t('pages.walletRecharge.form.methodLabel')}
-                  </label>
-                  <div className="space-y-3">
-                    {paymentMethods.map((method) => (
-                      <div
-                        key={method.id}
-                        className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
-                          selectedMethod === method.id
-                            ? 'border-indigo-500 bg-indigo-50'
-                            : 'border-gray-300 bg-white hover:bg-gray-50'
-                        }`}
-                        onClick={() => setSelectedMethod(method.id)}
-                      >
-                        <div className="flex items-center">
-                          <div className={`h-10 w-10 ${method.bgColor} rounded-lg flex items-center justify-center mr-3`}>
-                            <method.icon className={`h-6 w-6 ${method.color}`} />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{t(`pages.walletRecharge.paymentMethods.${method.id}.name`)}</p>
-                            <p className="text-sm text-gray-500">{t(`pages.walletRecharge.paymentMethods.${method.id}.description`)}</p>
-                          </div>
-                          {selectedMethod === method.id && (
-                            <div className="h-5 w-5 bg-indigo-600 rounded-full flex items-center justify-center">
-                              <CheckCircleIcon className="h-4 w-4 text-white" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/*  */}
                 <PButton
                   type="submit"
                   disabled={walletOpsDisabled || !amount || parseFloat(amount) <= 0 || !selectedCurrency}
                   loading={isLoading}
                   fullWidth
                 >
-                  {t('pages.walletRecharge.form.submitWithAmount', {
-                    symbol: selectedCurrency?.symbol || '',
-                    amount: amount || '0.00',
-                    code: selectedCurrency?.code || '',
-                  })}
+                  {t('pages.walletRecharge.form.continueToCheckout')}
                 </PButton>
               </form>
             </div>
