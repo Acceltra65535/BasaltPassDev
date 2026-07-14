@@ -586,7 +586,7 @@ func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObjec
 
 		if !wasComplete && isWalletRechargeMetadata(parsePaymentIntentMetadata(session.PaymentIntent)) {
 			targetCurrency, targetAmount := walletRechargeTarget(session)
-			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount); err != nil {
+			if _, err := wallet.AdjustByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount, "recharge", "stripe_checkout:"+session.StripeSessionID); err != nil {
 				return fmt.Errorf("failed to update wallet: %w", err)
 			}
 		}
@@ -1115,7 +1115,7 @@ func SimulatePayment(sessionID string, success bool) (*MockStripeResponse, error
 		if !wasComplete && isWalletRechargeMetadata(parsePaymentIntentMetadata(session.PaymentIntent)) {
 			tenantID := parseTenantIDFromRawMetadata(session.PaymentIntent.Metadata)
 			targetCurrency, targetAmount := walletRechargeTarget(session)
-			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount); err != nil {
+			if _, err := wallet.AdjustByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount, "recharge", "stripe_checkout:"+session.StripeSessionID); err != nil {
 				return nil, fmt.Errorf("failed to update wallet: %w", err)
 			}
 		}
@@ -1645,7 +1645,7 @@ func ReconcileWalletRechargeFromStripe(userID uint, tenantID uint, sessionID str
 		}
 
 		targetCurrency, targetAmount := walletRechargeTarget(locked)
-		if err := wallet.RechargeByCodeWithTenant(locked.UserID, recordTenantID, targetCurrency, targetAmount); err != nil {
+		if _, err := wallet.AdjustByCodeWithTenant(locked.UserID, recordTenantID, targetCurrency, targetAmount, "recharge", "stripe_checkout:"+locked.StripeSessionID); err != nil {
 			return fmt.Errorf("failed to update wallet: %w", err)
 		}
 
