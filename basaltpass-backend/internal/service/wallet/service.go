@@ -178,6 +178,24 @@ func GetBalanceByCodeWithTenant(userID uint, tenantID uint, currencyCode string)
 	return GetBalanceWithTenant(userID, curr.ID, tenantID)
 }
 
+// ListUserWalletsWithTenant returns existing wallets for a user in tenant context.
+func ListUserWalletsWithTenant(userID uint, tenantID uint) ([]model.Wallet, error) {
+	db := common.DB()
+	effectiveTenantID, err := resolveEffectiveTenantID(db, userID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	var wallets []model.Wallet
+	if err := db.Preload("Currency").
+		Where("user_id = ? AND tenant_id = ?", userID, effectiveTenantID).
+		Order("currency_id ASC").
+		Find(&wallets).Error; err != nil {
+		return nil, err
+	}
+	return wallets, nil
+}
+
 // Recharge adds amount to balance and creates transaction (mock auto success)
 func Recharge(userID uint, currencyID uint, amount int64) error {
 	return RechargeWithTenant(userID, 0, currencyID, amount)

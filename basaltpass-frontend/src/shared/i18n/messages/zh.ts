@@ -532,12 +532,21 @@ const en = {
       description: 'Manage your funds and transactions',
       stats: {
         currentBalance: 'Current balance',
+        totalUsd: '总资产',
         monthlyIncome: 'Monthly income',
         monthlyExpense: 'Monthly expense',
       },
       overview: {
+        totalUsd: '按美元计价的总资产',
+        accountCount: '{{count}} 个钱包账户',
         currentBalanceWithCode: 'Current balance ({{code}})',
         lastUpdated: 'Last updated: {{time}}',
+      },
+      accounts: {
+        title: '账户',
+        empty: '暂无钱包账户',
+        noRate: '未配置美元汇率',
+        unknown: '未知账户',
       },
       quickActions: {
         title: '快捷操作',
@@ -555,6 +564,7 @@ const en = {
       },
       recentTransactions: {
         title: 'Recent Transactions',
+        titleWithCode: '最近交易（{{code}}）',
         viewAll: 'View all',
         empty: 'No recent transactions',
         status: {

@@ -25,6 +25,20 @@ func GetWalletBalanceHandler(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"balance": w.Balance, "currency_id": w.CurrencyID, "tenant_id": w.TenantID})
 }
 
+// GetWalletAccountsHandler GET /wallet/accounts
+func GetWalletAccountsHandler(c *fiber.Ctx) error {
+	uid := c.Locals("userID").(uint)
+	activeTenantID, _ := c.Locals("tenantID").(uint)
+	wallets, err := wallet.ListUserWalletsWithTenant(uid, activeTenantID)
+	if err != nil {
+		if errors.Is(err, wallet.ErrNoTenantIdentity) {
+			return c.JSON([]interface{}{})
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(wallets)
+}
+
 // RechargeWalletHandler POST /wallet/recharge {currency, amount}
 func RechargeWalletHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusGone).JSON(fiber.Map{"error": "wallet top-up must use checkout"})

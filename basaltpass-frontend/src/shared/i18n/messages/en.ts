@@ -532,12 +532,21 @@ const en = {
       description: 'Manage your funds and transactions',
       stats: {
         currentBalance: 'Current balance',
+        totalUsd: 'Total assets',
         monthlyIncome: 'Monthly income',
         monthlyExpense: 'Monthly expense',
       },
       overview: {
+        totalUsd: 'Total assets in USD',
+        accountCount: '{{count}} wallet accounts',
         currentBalanceWithCode: 'Current balance ({{code}})',
         lastUpdated: 'Last updated: {{time}}',
+      },
+      accounts: {
+        title: 'Accounts',
+        empty: 'No wallet accounts yet',
+        noRate: 'No USD rate configured',
+        unknown: 'Unknown account',
       },
       quickActions: {
         title: 'Quick Actions',
@@ -555,6 +564,7 @@ const en = {
       },
       recentTransactions: {
         title: 'Recent Transactions',
+        titleWithCode: 'Recent Transactions ({{code}})',
         viewAll: 'View all',
         empty: 'No recent transactions',
         status: {

@@ -106,6 +106,7 @@ func RegisterUserRoutes(v1 fiber.Router) {
 	// 钱包用户系统路由（需要认证）
 	walletGroup := v1.Group("/wallet", middleware.JWTMiddleware())
 	walletGroup.Get("/balance", user.GetWalletBalanceHandler)
+	walletGroup.Get("/accounts", user.GetWalletAccountsHandler)
 	walletGroup.Post("/recharge", user.RechargeWalletHandler)
 	walletGroup.Post("/withdraw", user.WithdrawWalletHandler)
 	walletGroup.Get("/history", user.WalletHistoryHandler)
