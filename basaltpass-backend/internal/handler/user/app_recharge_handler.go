@@ -29,11 +29,30 @@ func serializeAppRechargeCurrency(link model.AppWalletCurrency) fiber.Map {
 	}
 }
 
+func resolveAppRechargeTenantID(c *fiber.Ctx) uint {
+	raw := strings.TrimSpace(c.Query("tenant"))
+	if raw == "" {
+		tenantID, _ := c.Locals("tenantID").(uint)
+		return tenantID
+	}
+	if id, err := strconv.ParseUint(raw, 10, 32); err == nil && id > 0 {
+		return uint(id)
+	}
+	var tenant model.Tenant
+	if err := common.DB().
+		Select("id").
+		Where("code = ? AND status = ?", raw, model.TenantStatusActive).
+		First(&tenant).Error; err != nil {
+		return 0
+	}
+	return tenant.ID
+}
+
 // GetAppRechargeConfigHandler returns wallet currencies linked to an app.
 // GET /api/v1/user/apps/recharge-config?app_id=1
 // GET /api/v1/user/apps/recharge-config?client_id=oauth-client-id
 func GetAppRechargeConfigHandler(c *fiber.Ctx) error {
-	activeTenantID, _ := c.Locals("tenantID").(uint)
+	activeTenantID := resolveAppRechargeTenantID(c)
 	category := strings.TrimSpace(c.Query("category", "top_up"))
 	if category == "" {
 		category = "top_up"

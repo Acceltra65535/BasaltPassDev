@@ -95,8 +95,9 @@ export default function AppRecharge() {
       try {
         const clientId = searchParams.get('client_id') || undefined
         const appId = params.id || searchParams.get('app_id') || undefined
+        const tenant = searchParams.get('tenant') || undefined
         const [rechargeResponse, currenciesResponse, ratesResponse] = await Promise.all([
-          getAppRechargeConfig({ app_id: appId, client_id: clientId, category: 'top_up' }),
+          getAppRechargeConfig({ app_id: appId, client_id: clientId, category: 'top_up', tenant }),
           getCurrencies(),
           getCurrencyRates(),
         ])

@@ -22,5 +22,5 @@ export interface AppRechargeConfig {
   currencies: AppRechargeCurrency[]
 }
 
-export const getAppRechargeConfig = (params: { app_id?: string | number; client_id?: string; category?: string }) =>
+export const getAppRechargeConfig = (params: { app_id?: string | number; client_id?: string; category?: string; tenant?: string }) =>
   client.get<AppRechargeConfig>('/api/v1/user/apps/recharge-config', { params })
