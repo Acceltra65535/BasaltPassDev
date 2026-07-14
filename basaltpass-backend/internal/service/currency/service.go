@@ -192,13 +192,13 @@ func InitDefaultCurrencies() error {
 			Name:            "Credit",
 			NameCN:          "信用点",
 			Symbol:          "C",
-			DecimalPlaces:   6,
+			DecimalPlaces:   0,
 			Type:            "points",
-			ExchangeRateUSD: 1,
+			ExchangeRateUSD: 0.000001,
 			PaymentEnabled:  false,
 			IsActive:        true,
 			SortOrder:       19,
-			Description:     "User credit wallet unit; stored in microcredits",
+			Description:     "User credit point wallet unit; 1 USD = 1,000,000 CREDIT",
 		},
 		{
 			Code:            "POINTS",
@@ -239,7 +239,7 @@ func predefinedCurrencyCatalog() map[string]model.Currency {
 		"CAD":    {Code: "CAD", Name: "Canadian Dollar", NameCN: "加元", Symbol: "$", DecimalPlaces: 2, Type: "fiat", ExchangeRateUSD: 0.73, PaymentEnabled: true, IsActive: true, SortOrder: 10, Description: "Canadian Dollar"},
 		"BTC":    {Code: "BTC", Name: "Bitcoin", NameCN: "比特币", Symbol: "₿", DecimalPlaces: 8, Type: "crypto", ExchangeRateUSD: 1, IsActive: true, SortOrder: 50, Description: "Bitcoin cryptocurrency"},
 		"ETH":    {Code: "ETH", Name: "Ethereum", NameCN: "以太坊", Symbol: "Ξ", DecimalPlaces: 18, Type: "crypto", ExchangeRateUSD: 1, IsActive: true, SortOrder: 51, Description: "Ethereum cryptocurrency"},
-		"CREDIT": {Code: "CREDIT", Name: "Credit", NameCN: "信用点", Symbol: "C", DecimalPlaces: 6, Type: "points", ExchangeRateUSD: 1, IsActive: true, SortOrder: 89, Description: "User credit wallet unit; stored in microcredits"},
+		"CREDIT": {Code: "CREDIT", Name: "Credit", NameCN: "信用点", Symbol: "C", DecimalPlaces: 0, Type: "points", ExchangeRateUSD: 0.000001, IsActive: true, SortOrder: 89, Description: "User credit point wallet unit; 1 USD = 1,000,000 CREDIT"},
 		"POINTS": {Code: "POINTS", Name: "System Points", NameCN: "系统积分", Symbol: "P", DecimalPlaces: 0, Type: "points", ExchangeRateUSD: 0.01, IsActive: true, SortOrder: 90, Description: "System reward points"},
 	}
 }
@@ -249,6 +249,20 @@ func EnsurePaymentDefaults() error {
 	db := common.DB()
 	defaults := predefinedCurrencyCatalog()
 	for code, tpl := range defaults {
+		if code == "CREDIT" {
+			if err := db.Model(&model.Currency{}).
+				Where("code = ?", code).
+				Updates(map[string]interface{}{
+					"decimal_places":    tpl.DecimalPlaces,
+					"type":              tpl.Type,
+					"exchange_rate_usd": tpl.ExchangeRateUSD,
+					"description":       tpl.Description,
+					"payment_enabled":   tpl.PaymentEnabled,
+				}).Error; err != nil {
+				return err
+			}
+			continue
+		}
 		updates := map[string]interface{}{
 			"payment_enabled": tpl.PaymentEnabled,
 		}
