@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAccounts, history as getHistory, type WalletAccount, type WalletTransaction } from '@api/user/wallet'
 import { getCurrencyRates, type Currency, type CurrencyRate } from '@api/user/currency'
-import { Link } from 'react-router-dom'
+import { paymentAPI } from '@api/subscription/payment/payment'
+import { Link, useSearchParams } from 'react-router-dom'
 import Layout from '@features/user/components/Layout'
 import { ROUTES } from '@constants'
 import { useConfig } from '@contexts/ConfigContext'
@@ -86,6 +87,7 @@ const getTransactionCurrency = (tx: WalletTransaction, selectedCurrency?: Curren
 export default function WalletIndex() {
   const { walletRechargeWithdrawEnabled, walletWithdrawEnabled } = useConfig()
   const { t, locale } = useI18n()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [accounts, setAccounts] = useState<WalletAccount[]>([])
   const [rates, setRates] = useState<CurrencyRate[]>([])
   const [selectedCode, setSelectedCode] = useState('')
@@ -128,25 +130,45 @@ export default function WalletIndex() {
   }, [selectedAccount, txs])
 
   useEffect(() => {
+    let cancelled = false
     const load = async () => {
       setIsLoading(true)
       try {
+        const topupSessionId = searchParams.get('session_id')
+        if (searchParams.get('topup') === 'success' && topupSessionId) {
+          try {
+            await paymentAPI.reconcileWalletTopUpSession(topupSessionId)
+          } catch (error) {
+            console.error('Failed to reconcile wallet top-up:', error)
+          } finally {
+            const nextParams = new URLSearchParams(searchParams)
+            nextParams.delete('topup')
+            nextParams.delete('session_id')
+            setSearchParams(nextParams, { replace: true })
+          }
+        }
+
         const [accountsRes, ratesRes] = await Promise.all([getAccounts(), getCurrencyRates()])
+        if (cancelled) return
         const list = accountsRes.data || []
         setAccounts(list)
         setRates(ratesRes.data || [])
         const firstNonZero = list.find((account) => account.Balance !== 0) || list[0]
         setSelectedCode(firstNonZero?.Currency?.code || '')
       } catch (error) {
+        if (cancelled) return
         console.error('Failed to load wallet accounts:', error)
         setAccounts([])
         setRates([])
       } finally {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       }
     }
     load()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     if (!selectedAccount?.Currency?.code) {

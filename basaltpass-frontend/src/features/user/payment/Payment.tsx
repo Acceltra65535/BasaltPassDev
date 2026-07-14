@@ -90,7 +90,7 @@ const Payment: React.FC = () => {
     try {
       const sessionRequest = {
         payment_intent_id: paymentIntent.ID,
-        success_url: `${window.location.origin}/wallet?payment=success`,
+        success_url: `${window.location.origin}/wallet?topup=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${window.location.origin}/payment?payment=canceled`,
         user_email: ''
       };

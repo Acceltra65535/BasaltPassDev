@@ -119,6 +119,7 @@ func RegisterUserRoutes(v1 fiber.Router) {
 	paymentGroup.Get("/intents", payment.ListPaymentIntentsHandler)
 	paymentGroup.Get("/intents/:id", payment.GetPaymentIntentHandler)
 	paymentGroup.Post("/sessions", payment.CreatePaymentSessionHandler)
+	paymentGroup.Post("/sessions/:session_id/reconcile-wallet-top-up", payment.ReconcileWalletTopUpSessionHandler)
 	paymentGroup.Get("/sessions/:session_id", payment.GetPaymentSessionHandler)
 
 	// 订单系统路由

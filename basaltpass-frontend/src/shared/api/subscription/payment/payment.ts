@@ -88,6 +88,10 @@ export interface SimulatePaymentResponse {
   stripe_mock_response: MockStripeResponse;
 }
 
+export interface ReconcileWalletTopUpResponse {
+  session: PaymentSession;
+}
+
 export interface ListPaymentIntentsResponse {
   payment_intents: PaymentIntent[];
   count: number;
@@ -115,6 +119,11 @@ class PaymentAPI {
   // getpaymentsession
   async getPaymentSession(sessionId: string): Promise<PaymentSession> {
     const response = await client.get(`/api/v1/payment/sessions/${sessionId}`);
+    return response.data;
+  }
+
+  async reconcileWalletTopUpSession(sessionId: string): Promise<ReconcileWalletTopUpResponse> {
+    const response = await client.post(`/api/v1/payment/sessions/${sessionId}/reconcile-wallet-top-up`);
     return response.data;
   }
 

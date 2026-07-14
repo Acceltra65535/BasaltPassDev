@@ -192,7 +192,7 @@ export default function AppRecharge() {
       const currentPath = `${window.location.pathname}${window.location.search}`
       const sessionResponse = await paymentAPI.createPaymentSession({
         payment_intent_id: intentResponse.payment_intent.ID,
-        success_url: `${window.location.origin}${ROUTES.user.wallet}?topup=success`,
+        success_url: `${window.location.origin}${ROUTES.user.wallet}?topup=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${window.location.origin}${currentPath}`,
         user_email: '',
       })
