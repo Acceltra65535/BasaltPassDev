@@ -39,7 +39,8 @@ func TestCreateWalletForAppOwner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if walletModel.OwnerType != model.WalletOwnerApp || walletModel.OwnerID != app.ID || walletModel.Balance != 500 {
+	expectedBalance := convertToSmallestUnit(500, currency.DecimalPlaces)
+	if walletModel.OwnerType != model.WalletOwnerApp || walletModel.OwnerID != app.ID || walletModel.Balance != expectedBalance {
 		t.Fatalf("unexpected wallet: %+v", walletModel)
 	}
 	if _, err := NewAdminWalletService().CreateWalletForOwner(model.WalletOwnerApp, app.ID, "CREDIT", 0); err == nil {
