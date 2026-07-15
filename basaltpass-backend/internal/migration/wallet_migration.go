@@ -236,3 +236,97 @@ func MigrateWalletTenantField() {
 
 	log.Printf("[Migration] Wallet tenant_id backfill completed: %d rows updated", migrated)
 }
+
+// MigrateWalletOwnerFields promotes the historical user_id/team_id columns to
+// the unified owner_type/owner_id identity before AutoMigrate adds uniqueness.
+func MigrateWalletOwnerFields() error {
+	db := common.DB()
+	if !db.Migrator().HasTable("market_wallets") {
+		return nil
+	}
+
+	if !db.Migrator().HasColumn("market_wallets", "owner_type") {
+		if err := db.Migrator().AddColumn(&model.Wallet{}, "OwnerType"); err != nil {
+			return err
+		}
+	}
+	if !db.Migrator().HasColumn("market_wallets", "owner_id") {
+		if err := db.Migrator().AddColumn(&model.Wallet{}, "OwnerID"); err != nil {
+			return err
+		}
+	}
+
+	if err := db.Exec(`UPDATE market_wallets SET owner_type = 'user', owner_id = user_id
+		WHERE (owner_type IS NULL OR owner_type = '' OR owner_id = 0) AND user_id IS NOT NULL AND user_id > 0`).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(`UPDATE market_wallets SET owner_type = 'team', owner_id = team_id
+		WHERE (owner_type IS NULL OR owner_type = '' OR owner_id = 0) AND team_id IS NOT NULL AND team_id > 0`).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(`UPDATE market_wallets SET owner_type = 'tenant', owner_id = tenant_id
+		WHERE (owner_type IS NULL OR owner_type = '' OR owner_id = 0)
+		AND user_id IS NULL AND team_id IS NULL AND tenant_id > 0`).Error; err != nil {
+		return err
+	}
+
+	var invalid int64
+	if err := db.Unscoped().Model(&model.Wallet{}).
+		Where("owner_type NOT IN ? OR owner_id = 0", []string{"user", "app", "tenant", "team"}).
+		Count(&invalid).Error; err != nil {
+		return err
+	}
+	if invalid > 0 {
+		return errors.New("wallet owner migration left rows without a valid owner")
+	}
+
+	type duplicateGroup struct {
+		TenantID   uint
+		OwnerType  model.WalletOwnerType
+		OwnerID    uint
+		CurrencyID uint
+		Count      int64
+	}
+	var groups []duplicateGroup
+	if err := db.Unscoped().Model(&model.Wallet{}).
+		Select("tenant_id, owner_type, owner_id, currency_id, COUNT(*) AS count").
+		Where("deleted_at IS NULL").
+		Group("tenant_id, owner_type, owner_id, currency_id").
+		Having("COUNT(*) > 1").Scan(&groups).Error; err != nil {
+		return err
+	}
+
+	for _, group := range groups {
+		err := db.Transaction(func(tx *gorm.DB) error {
+			var rows []model.Wallet
+			if err := tx.Unscoped().
+				Where("tenant_id = ? AND owner_type = ? AND owner_id = ? AND currency_id = ? AND deleted_at IS NULL", group.TenantID, group.OwnerType, group.OwnerID, group.CurrencyID).
+				Order("id ASC").Find(&rows).Error; err != nil {
+				return err
+			}
+			if len(rows) < 2 {
+				return nil
+			}
+
+			canonical := rows[0]
+			balance := canonical.Balance
+			freeze := canonical.Freeze
+			for _, duplicate := range rows[1:] {
+				balance += duplicate.Balance
+				freeze += duplicate.Freeze
+				if err := tx.Model(&model.WalletTx{}).Where("wallet_id = ?", duplicate.ID).Update("wallet_id", canonical.ID).Error; err != nil {
+					return err
+				}
+				if err := tx.Unscoped().Delete(&duplicate).Error; err != nil {
+					return err
+				}
+			}
+			return tx.Model(&canonical).Updates(map[string]interface{}{"balance": balance, "freeze": freeze}).Error
+		})
+		if err != nil {
+			return err
+		}
+		log.Printf("[Migration] Merged %d duplicate wallets for tenant=%d owner=%s:%d currency=%d", group.Count, group.TenantID, group.OwnerType, group.OwnerID, group.CurrencyID)
+	}
+	return nil
+}

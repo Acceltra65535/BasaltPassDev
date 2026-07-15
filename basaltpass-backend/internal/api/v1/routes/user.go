@@ -88,6 +88,8 @@ func RegisterUserRoutes(v1 fiber.Router) {
 	teamGroup.Put("/:id", userTeam.UpdateTeamHandler)
 	teamGroup.Delete("/:id", userTeam.DeleteTeamHandler)
 	teamGroup.Get("/:id/members", userTeam.GetTeamMembersHandler)
+	teamGroup.Get("/:id/wallets", userTeam.GetTeamWalletsHandler)
+	teamGroup.Get("/:id/wallets/history", userTeam.GetTeamWalletHistoryHandler)
 	teamGroup.Post("/:id/members", userTeam.AddMemberHandler)
 	teamGroup.Put("/:id/members/:member_id", userTeam.UpdateMemberRoleHandler)
 	teamGroup.Delete("/:id/members/:member_id", userTeam.RemoveMemberHandler)

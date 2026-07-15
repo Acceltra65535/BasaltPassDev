@@ -1331,6 +1331,7 @@ const en = {
         noDescription: 'No description',
       },
       actions: {
+        wallet: 'Team wallet',
         manageMembers: 'Manage members',
         inviteMembers: 'Invite members',
         manageInvitations: 'Manage invitations',
@@ -1351,6 +1352,23 @@ const en = {
         cancel: 'Cancel',
         confirmDelete: 'Confirm delete',
         confirmLeave: 'Confirm leave',
+      },
+    },
+    teamWallet: {
+      title: '{{team}} wallet',
+      description: 'View balances and transaction details owned by this team.',
+      backToTeam: 'Back to team',
+      readOnly: 'Read only',
+      empty: 'This team does not have any wallet accounts yet.',
+      errors: {
+        title: 'Wallet unavailable',
+        invalidTeam: 'Invalid team ID',
+        loadFailed: 'Failed to load team wallets',
+        historyFailed: 'Failed to load wallet transactions',
+      },
+      transactions: {
+        title: 'Transactions',
+        empty: 'No transactions for this account.',
       },
     },
     teamIndex: {

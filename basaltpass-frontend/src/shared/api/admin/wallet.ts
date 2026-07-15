@@ -15,6 +15,8 @@ export interface Currency {
 
 export interface Wallet {
   id: number;
+  owner_type: 'user' | 'app' | 'tenant' | 'team';
+  owner_id: number;
   user_id?: number;
   team_id?: number;
   currency_id: number;
@@ -58,6 +60,8 @@ export interface WalletStats {
 }
 
 export interface CreateWalletRequest {
+  owner_type?: 'user' | 'app' | 'tenant' | 'team';
+  owner_id?: number;
   user_id?: number;
   team_id?: number;
   currency_code: string;

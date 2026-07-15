@@ -5,7 +5,7 @@ import Layout from '@features/user/components/Layout';
 import { PCard, PButton, PSkeleton, PAlert, PBadge, PPageHeader } from '@ui';
 import { teamApi, TeamResponse } from '@api/user/team';
 import { invitationApi, Invitation } from '@api/user/invitation';
-import { XMarkIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ClockIcon, WalletIcon } from '@heroicons/react/24/outline';
 import { ROUTES } from '@constants';
 import { useI18n } from '@shared/i18n';
 
@@ -198,6 +198,12 @@ const TeamDetail: React.FC = () => {
           </div>
           <div className="px-6 py-4">
             <div className="flex flex-wrap gap-3">
+              <Link to={`/teams/${team.id}/wallet`}>
+                <PButton variant="secondary" leftIcon={<WalletIcon className="h-4 w-4" />}>
+                  {t('pages.teamDetail.actions.wallet')}
+                </PButton>
+              </Link>
+
               <Link to={`/teams/${team.id}/members`}>
                 <PButton variant="primary">{t('pages.teamDetail.actions.manageMembers')}</PButton>
               </Link>

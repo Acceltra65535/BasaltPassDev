@@ -148,6 +148,10 @@ func RunMigrations() error {
 
 	// 迁移钱包货币字段（在完整AutoMigrate之前处理）
 	MigrateWalletCurrencyField()
+	MigrateWalletTenantField()
+	if err := MigrateWalletOwnerFields(); err != nil {
+		return fmt.Errorf("[Error] Failed to migrate wallet owners: %w", err)
+	}
 
 	// 执行完整的自动迁移
 	err := db.AutoMigrate(
@@ -310,6 +314,12 @@ func RunMigrations() error {
 		log.Printf("[Migration] Failed to backfill credit wallets for all users: %v", err)
 	} else {
 		log.Printf("[Migration] Credit wallets backfilled for users (created=%d)", createdWallets)
+	}
+	createdTeamWallets, err := wallet.EnsureCreditWalletsForAllTeams()
+	if err != nil {
+		log.Printf("[Migration] Failed to backfill credit wallets for teams: %v", err)
+	} else {
+		log.Printf("[Migration] Credit wallets backfilled for teams (created=%d)", createdTeamWallets)
 	}
 	return nil
 } // handleSpecialMigrations 处理特殊的迁移情况

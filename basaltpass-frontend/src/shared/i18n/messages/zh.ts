@@ -1331,6 +1331,7 @@ const en = {
         noDescription: 'No description',
       },
       actions: {
+        wallet: '团队钱包',
         manageMembers: 'Manage members',
         inviteMembers: 'Invite members',
         manageInvitations: 'Manage invitations',
@@ -1351,6 +1352,23 @@ const en = {
         cancel: 'Cancel',
         confirmDelete: 'Confirm delete',
         confirmLeave: 'Confirm leave',
+      },
+    },
+    teamWallet: {
+      title: '{{team}}的钱包',
+      description: '查看归属于该团队的资产余额和交易明细。',
+      backToTeam: '返回团队',
+      readOnly: '只读',
+      empty: '该团队还没有钱包账户。',
+      errors: {
+        title: '钱包不可用',
+        invalidTeam: '团队 ID 无效',
+        loadFailed: '无法加载团队钱包',
+        historyFailed: '无法加载钱包交易记录',
+      },
+      transactions: {
+        title: '交易记录',
+        empty: '该账户暂无交易记录。',
       },
     },
     teamIndex: {

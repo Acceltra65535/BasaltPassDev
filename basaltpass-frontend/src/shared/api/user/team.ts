@@ -56,6 +56,38 @@ export interface UserTeamResponse {
   joined_at: string;
 }
 
+export interface TeamWalletCurrency {
+  code: string;
+  name: string;
+  name_cn?: string;
+  symbol?: string;
+  decimal_places: number;
+  type: string;
+}
+
+export interface TeamWalletAccount {
+  id: number;
+  tenant_id: number;
+  owner_type: 'team';
+  owner_id: number;
+  currency_id: number;
+  balance: number;
+  freeze: number;
+  currency?: TeamWalletCurrency | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamWalletTransaction {
+  id: number;
+  wallet_id: number;
+  type: string;
+  amount: number;
+  status: string;
+  reference?: string;
+  created_at: string;
+}
+
 // teamAPI
 export const teamApi = {
   // createteam
@@ -82,6 +114,14 @@ export const teamApi = {
   getTeamMembers: (id: number) =>
     client.get<{ data: TeamMemberResponse[] }>(`/api/v1/teams/${id}/members`),
 
+  getTeamWallets: (id: number) =>
+    client.get<{ data: TeamWalletAccount[] }>(`/api/v1/teams/${id}/wallets`),
+
+  getTeamWalletHistory: (id: number, currency: string, limit = 100) =>
+    client.get<{ data: TeamWalletTransaction[] }>(`/api/v1/teams/${id}/wallets/history`, {
+      params: { currency, limit },
+    }),
+
   // translatedteamtranslated
   addMember: (id: number, data: AddMemberRequest) =>
     client.post<{ message: string }>(`/api/v1/teams/${id}/members`, data),
@@ -97,4 +137,4 @@ export const teamApi = {
   // translatedteam
   leaveTeam: (id: number) =>
     client.post<{ message: string }>(`/api/v1/teams/${id}/leave`),
-}; 
+};
