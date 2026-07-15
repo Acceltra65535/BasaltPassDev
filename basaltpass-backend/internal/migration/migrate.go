@@ -148,6 +148,9 @@ func RunMigrations() error {
 
 	// 迁移钱包货币字段（在完整AutoMigrate之前处理）
 	MigrateWalletCurrencyField()
+	if err := MigrateTeamTenantFields(); err != nil {
+		return fmt.Errorf("[Error] Failed to migrate legacy team tenants: %w", err)
+	}
 	MigrateWalletTenantField()
 	if err := MigrateWalletOwnerFields(); err != nil {
 		return fmt.Errorf("[Error] Failed to migrate wallet owners: %w", err)

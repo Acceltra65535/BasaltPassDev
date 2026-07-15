@@ -50,3 +50,62 @@ func TestMigrateWalletOwnerFieldsMergesDuplicates(t *testing.T) {
 		t.Fatalf("transaction still points at duplicate wallet: %d", tx.WalletID)
 	}
 }
+
+func TestMigrateTeamTenantFieldsUsesOwnerMembershipAndDefaultTenant(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	common.SetDBForTest(db)
+	if err := db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantUser{}, &model.Team{}, &model.TeamMember{}); err != nil {
+		t.Fatal(err)
+	}
+	defaultTenant := model.Tenant{Name: "Default", Code: "default", Status: model.TenantStatusActive}
+	memberTenant := model.Tenant{Name: "Member", Code: "member", Status: model.TenantStatusActive}
+	if err := db.Create(&defaultTenant).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&memberTenant).Error; err != nil {
+		t.Fatal(err)
+	}
+	globalOwner := model.User{Email: "global@example.com", PasswordHash: "x"}
+	memberOwner := model.User{Email: "member@example.com", PasswordHash: "x"}
+	if err := db.Create(&globalOwner).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&memberOwner).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.TenantUser{UserID: memberOwner.ID, TenantID: memberTenant.ID}).Error; err != nil {
+		t.Fatal(err)
+	}
+	legacyDefault := model.Team{Name: "Legacy default", IsActive: true}
+	legacyMember := model.Team{Name: "Legacy member", IsActive: true}
+	if err := db.Create(&legacyDefault).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&legacyMember).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, owner := range []model.TeamMember{
+		{TeamID: legacyDefault.ID, UserID: globalOwner.ID, Role: model.TeamRoleOwner, Status: "active"},
+		{TeamID: legacyMember.ID, UserID: memberOwner.ID, Role: model.TeamRoleOwner, Status: "active"},
+	} {
+		if err := db.Create(&owner).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := MigrateTeamTenantFields(); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(&legacyDefault, legacyDefault.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(&legacyMember, legacyMember.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if legacyDefault.TenantID != defaultTenant.ID || legacyMember.TenantID != memberTenant.ID {
+		t.Fatalf("unexpected migrated tenants: default=%d member=%d", legacyDefault.TenantID, legacyMember.TenantID)
+	}
+}

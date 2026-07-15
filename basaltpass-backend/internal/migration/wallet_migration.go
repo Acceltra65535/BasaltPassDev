@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
 	"errors"
+	"fmt"
 	"log"
 
 	"gorm.io/gorm"
@@ -235,6 +236,62 @@ func MigrateWalletTenantField() {
 	}
 
 	log.Printf("[Migration] Wallet tenant_id backfill completed: %d rows updated", migrated)
+}
+
+// MigrateTeamTenantFields assigns pre-tenancy teams to a real tenant. Owner
+// membership is authoritative when available; the active default tenant is the
+// compatibility home for teams created by legacy global users.
+func MigrateTeamTenantFields() error {
+	db := common.DB()
+	if !db.Migrator().HasTable(model.Team{}.TableName()) {
+		return nil
+	}
+
+	var teams []model.Team
+	if err := db.Where("tenant_id = ? AND is_active = ?", 0, true).Find(&teams).Error; err != nil {
+		return err
+	}
+	for _, team := range teams {
+		tenantID := uint(0)
+		var owner model.TeamMember
+		if err := db.Where("team_id = ? AND role = ? AND status = ?", team.ID, model.TeamRoleOwner, "active").
+			Order("created_at ASC").First(&owner).Error; err == nil {
+			var membership model.TenantUser
+			if err := db.Where("user_id = ?", owner.UserID).Order("created_at ASC").First(&membership).Error; err == nil {
+				tenantID = membership.TenantID
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			if tenantID == 0 {
+				var user model.User
+				if err := db.Select("enforced_tenant_id").First(&user, owner.UserID).Error; err == nil {
+					tenantID = user.EnforcedTenantID
+				} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+					return err
+				}
+			}
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		if tenantID == 0 {
+			var defaultTenant model.Tenant
+			err := db.Where("code = ? AND status = ?", "default", model.TenantStatusActive).First(&defaultTenant).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				err = db.Where("status = ?", model.TenantStatusActive).Order("id ASC").First(&defaultTenant).Error
+			}
+			if err != nil {
+				return fmt.Errorf("resolve tenant for legacy team %d: %w", team.ID, err)
+			}
+			tenantID = defaultTenant.ID
+		}
+
+		if err := db.Model(&model.Team{}).Where("id = ? AND tenant_id = ?", team.ID, 0).Update("tenant_id", tenantID).Error; err != nil {
+			return err
+		}
+		log.Printf("[Migration] Assigned legacy team %d to tenant %d", team.ID, tenantID)
+	}
+	return nil
 }
 
 // MigrateWalletOwnerFields promotes the historical user_id/team_id columns to
