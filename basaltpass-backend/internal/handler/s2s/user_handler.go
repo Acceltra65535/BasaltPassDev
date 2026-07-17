@@ -443,12 +443,12 @@ func GetUserWalletHandler(c *fiber.Ctx) error {
 	}
 
 	// 查询余额
-	w, err := wallet.GetBalanceByCode(userID, currency)
+	w, err := wallet.GetBalanceByCodeWithTenant(userID, tenantID, currency)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusBadRequest, nil, fiber.Map{"code": "wallet_error", "message": err.Error()})
 	}
 	// 查询交易记录
-	txs, err := wallet.HistoryByCode(userID, currency, limit)
+	txs, err := wallet.HistoryByCodeWithTenant(userID, tenantID, currency, limit)
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "wallet_error", "message": err.Error()})
 	}
@@ -515,7 +515,7 @@ func AdjustUserWalletHandler(c *fiber.Ctx) error {
 		txType = "s2s_wallet_decrease"
 	}
 
-	w, err := wallet.AdjustByCode(userID, req.Currency, delta, txType, req.Reference)
+	w, err := wallet.AdjustByCodeWithTenant(userID, tenantID, req.Currency, delta, txType, req.Reference)
 	if err != nil {
 		status := fiber.StatusBadRequest
 		if err.Error() == "insufficient funds" {

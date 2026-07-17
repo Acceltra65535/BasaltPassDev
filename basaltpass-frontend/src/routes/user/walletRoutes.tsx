@@ -5,6 +5,7 @@ import Withdraw from '@pages/user/wallet/Withdraw'
 import History from '@pages/user/wallet/History'
 import RedeemGiftCard from '@pages/user/wallet/RedeemGiftCard'
 import Payment from '@pages/user/payment/Payment'
+import Cashier from '@pages/user/payment/Cashier'
 import { withProtected } from '@/routes/helpers'
 
 export function UserWalletRoutes() {
@@ -16,6 +17,7 @@ export function UserWalletRoutes() {
       <Route path="/wallet/history" element={withProtected(<History />)} />
       <Route path="/wallet/gift-cards/redeem" element={withProtected(<RedeemGiftCard />)} />
       <Route path="/payment" element={withProtected(<Payment />)} />
+      <Route path="/checkout" element={withProtected(<Cashier />)} />
     </>
   )
 }

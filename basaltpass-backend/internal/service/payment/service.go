@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,9 +19,11 @@ import (
 
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	currencyservice "basaltpass-backend/internal/service/currency"
 	"basaltpass-backend/internal/utils"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CreatePaymentIntentRequest 创建支付意图请求
@@ -74,7 +77,68 @@ func isWalletRechargeMetadata(meta map[string]interface{}) bool {
 		return false
 	}
 	s, ok := v.(string)
-	return ok && s == "wallet_recharge"
+	return ok && (s == "wallet_recharge" || s == "top_up")
+}
+
+func parsePaymentIntentMetadata(paymentIntent model.PaymentIntent) map[string]interface{} {
+	metadata := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(paymentIntent.Metadata), &metadata); err != nil {
+		return map[string]interface{}{}
+	}
+	return metadata
+}
+
+func walletRechargeTarget(session model.PaymentSession) (string, int64) {
+	metadata := parsePaymentIntentMetadata(session.PaymentIntent)
+	currency := strings.ToUpper(strings.TrimSpace(parseString(metadata["target_wallet_currency"])))
+	if currency == "" {
+		currency = session.Currency
+	}
+	amount := int64(parseUIntFromAny(metadata["target_wallet_amount"]))
+	if amount <= 0 {
+		amount = session.Amount
+	}
+	return currency, amount
+}
+
+func calculateWalletRechargeCharge(targetCurrencyCode string, targetAmountSmallest int64, chargeCurrencyCode string) (int64, map[string]interface{}, error) {
+	targetCurrencyCode = strings.ToUpper(strings.TrimSpace(targetCurrencyCode))
+	chargeCurrencyCode = strings.ToUpper(strings.TrimSpace(chargeCurrencyCode))
+	if targetCurrencyCode == "" || chargeCurrencyCode == "" {
+		return 0, nil, errors.New("target and payment currencies are required")
+	}
+	if targetAmountSmallest <= 0 {
+		return 0, nil, errors.New("target wallet amount must be greater than zero")
+	}
+
+	targetCurrency, err := currencyservice.GetCurrencyByCode(targetCurrencyCode)
+	if err != nil {
+		return 0, nil, fmt.Errorf("invalid target wallet currency: %s", targetCurrencyCode)
+	}
+	chargeCurrency, err := currencyservice.GetCurrencyByCode(chargeCurrencyCode)
+	if err != nil {
+		return 0, nil, fmt.Errorf("invalid payment currency: %s", chargeCurrencyCode)
+	}
+	if chargeCurrency.Type != "fiat" || !chargeCurrency.PaymentEnabled || len(chargeCurrency.Code) != 3 {
+		return 0, nil, fmt.Errorf("payment currency %s is not available for checkout", chargeCurrencyCode)
+	}
+	rate, err := currencyservice.GetExchangeRate(targetCurrencyCode, chargeCurrencyCode)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	targetUnits := float64(targetAmountSmallest) / math.Pow10(targetCurrency.DecimalPlaces)
+	chargeUnits := targetUnits * rate
+	chargeAmountSmallest := int64(math.Ceil(chargeUnits*math.Pow10(chargeCurrency.DecimalPlaces) - 1e-9))
+	if chargeAmountSmallest < 1 {
+		chargeAmountSmallest = 1
+	}
+
+	return chargeAmountSmallest, map[string]interface{}{
+		"exchange_rate_pair":     targetCurrencyCode + "/" + chargeCurrencyCode,
+		"exchange_rate":          fmt.Sprintf("%g", rate),
+		"computed_charge_amount": strconv.FormatInt(chargeAmountSmallest, 10),
+	}, nil
 }
 
 // generateStripeID 生成模拟的Stripe ID
@@ -183,13 +247,23 @@ func mapStripeCheckoutSessionStatus(status string) model.PaymentSessionStatus {
 }
 
 func stripeRequest(secretKey string, endpoint string, form url.Values) (map[string]interface{}, error) {
-	request, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	method := http.MethodPost
+	var body io.Reader
+	if form == nil {
+		method = http.MethodGet
+	} else {
+		body = strings.NewReader(form.Encode())
+	}
+
+	request, err := http.NewRequest(method, endpoint, body)
 	if err != nil {
 		return nil, err
 	}
 
 	request.Header.Set("Authorization", "Bearer "+secretKey)
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if form != nil {
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 
 	client := &http.Client{Timeout: 20 * time.Second}
 	response, err := client.Do(request)
@@ -510,8 +584,9 @@ func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObjec
 			}
 		}
 
-		if !wasComplete {
-			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, session.Currency, session.Amount); err != nil {
+		if !wasComplete && isWalletRechargeMetadata(parsePaymentIntentMetadata(session.PaymentIntent)) {
+			targetCurrency, targetAmount := walletRechargeTarget(session)
+			if _, err := wallet.AdjustByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount, "recharge", "stripe_checkout:"+session.StripeSessionID); err != nil {
 				return fmt.Errorf("failed to update wallet: %w", err)
 			}
 		}
@@ -780,6 +855,32 @@ func CreatePaymentIntentForTenant(userID uint, tenantID uint, req CreatePaymentI
 		req.Metadata["tenant_id"] = strconv.FormatUint(uint64(effectiveTenantID), 10)
 	}
 	req.Metadata["user_id"] = strconv.FormatUint(uint64(userID), 10)
+	if isWalletRechargeMetadata(req.Metadata) {
+		targetCurrency := strings.ToUpper(strings.TrimSpace(parseString(req.Metadata["target_wallet_currency"])))
+		if targetCurrency == "" {
+			targetCurrency = strings.ToUpper(strings.TrimSpace(parseString(req.Metadata["wallet_currency"])))
+		}
+		targetAmount := int64(parseUIntFromAny(req.Metadata["target_wallet_amount"]))
+		if targetCurrency == "" || targetAmount <= 0 {
+			return nil, nil, errors.New("wallet recharge requires target_wallet_currency and target_wallet_amount metadata")
+		}
+		req.Currency = strings.ToUpper(strings.TrimSpace(req.Currency))
+		if req.Currency == "" {
+			req.Currency = "USD"
+		}
+		computedAmount, computedMetadata, err := calculateWalletRechargeCharge(targetCurrency, targetAmount, req.Currency)
+		if err != nil {
+			return nil, nil, err
+		}
+		req.Amount = computedAmount
+		req.Metadata["target_wallet_currency"] = targetCurrency
+		req.Metadata["target_wallet_amount"] = strconv.FormatInt(targetAmount, 10)
+		req.Metadata["charge_currency"] = req.Currency
+		req.Metadata["charge_amount"] = strconv.FormatInt(computedAmount, 10)
+		for key, value := range computedMetadata {
+			req.Metadata[key] = value
+		}
+	}
 
 	// 序列化元数据
 	metadataJSON, _ := json.Marshal(req.Metadata)
@@ -1011,9 +1112,10 @@ func SimulatePayment(sessionID string, success bool) (*MockStripeResponse, error
 
 	// 如果支付成功，更新用户钱包
 	if success {
-		if !wasComplete {
+		if !wasComplete && isWalletRechargeMetadata(parsePaymentIntentMetadata(session.PaymentIntent)) {
 			tenantID := parseTenantIDFromRawMetadata(session.PaymentIntent.Metadata)
-			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, session.Currency, session.Amount); err != nil {
+			targetCurrency, targetAmount := walletRechargeTarget(session)
+			if _, err := wallet.AdjustByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount, "recharge", "stripe_checkout:"+session.StripeSessionID); err != nil {
 				return nil, fmt.Errorf("failed to update wallet: %w", err)
 			}
 		}
@@ -1451,6 +1553,109 @@ func ReconcileUserOrderPaymentsFromStripe(userID uint) error {
 	}
 
 	return nil
+}
+
+// ReconcileWalletRechargeFromStripe verifies a returned Stripe Checkout Session
+// and completes the wallet top-up when Stripe reports that payment succeeded.
+func ReconcileWalletRechargeFromStripe(userID uint, tenantID uint, sessionID string) (*model.PaymentSession, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return nil, errors.New("payment session id is required")
+	}
+
+	db := common.DB()
+	var session model.PaymentSession
+	if err := db.Preload("PaymentIntent").
+		Where("stripe_session_id = ? AND user_id = ?", sessionID, userID).
+		First(&session).Error; err != nil {
+		return nil, err
+	}
+
+	recordTenantID := parseTenantIDFromRawMetadata(session.PaymentIntent.Metadata)
+	if tenantID > 0 && recordTenantID != tenantID {
+		return nil, gorm.ErrRecordNotFound
+	}
+	if recordTenantID == 0 {
+		return nil, errors.New("payment session tenant metadata is missing")
+	}
+	if !isWalletRechargeMetadata(parsePaymentIntentMetadata(session.PaymentIntent)) {
+		return nil, errors.New("payment session is not a wallet top-up")
+	}
+	if session.Status == model.PaymentSessionStatusComplete {
+		return &session, nil
+	}
+
+	stripeConfig, err := resolveTenantStripeConfigByTenantID(db, recordTenantID)
+	if err != nil {
+		return nil, err
+	}
+	endpoint := "https://api.stripe.com/v1/checkout/sessions/" + url.PathEscape(session.StripeSessionID)
+	sessionBody, err := stripeRequest(stripeConfig.SecretKey, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	status := strings.ToLower(strings.TrimSpace(parseString(sessionBody["status"])))
+	paymentStatus := strings.ToLower(strings.TrimSpace(parseString(sessionBody["payment_status"])))
+	if paymentStatus != "paid" && status != "complete" {
+		if status == "expired" {
+			now := time.Now()
+			_ = db.Model(&model.PaymentSession{}).Where("id = ? AND status <> ?", session.ID, model.PaymentSessionStatusComplete).Updates(map[string]interface{}{
+				"status":     model.PaymentSessionStatusExpired,
+				"updated_at": now,
+			}).Error
+			session.Status = model.PaymentSessionStatusExpired
+		}
+		return &session, nil
+	}
+
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		var locked model.PaymentSession
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("PaymentIntent").
+			Where("stripe_session_id = ? AND user_id = ?", sessionID, userID).
+			First(&locked).Error; err != nil {
+			return err
+		}
+
+		if tenantID > 0 && parseTenantIDFromRawMetadata(locked.PaymentIntent.Metadata) != tenantID {
+			return gorm.ErrRecordNotFound
+		}
+		if !isWalletRechargeMetadata(parsePaymentIntentMetadata(locked.PaymentIntent)) {
+			return errors.New("payment session is not a wallet top-up")
+		}
+		if locked.Status == model.PaymentSessionStatusComplete {
+			session = locked
+			return nil
+		}
+
+		now := time.Now()
+		locked.Status = model.PaymentSessionStatusComplete
+		locked.CompletedAt = &now
+		if err := tx.Save(&locked).Error; err != nil {
+			return err
+		}
+
+		if locked.PaymentIntent.Status != model.PaymentIntentStatusSucceeded {
+			locked.PaymentIntent.Status = model.PaymentIntentStatusSucceeded
+			locked.PaymentIntent.ProcessedAt = &now
+			if err := tx.Save(&locked.PaymentIntent).Error; err != nil {
+				return err
+			}
+		}
+
+		targetCurrency, targetAmount := walletRechargeTarget(locked)
+		if _, err := wallet.AdjustByCodeWithTenant(locked.UserID, recordTenantID, targetCurrency, targetAmount, "recharge", "stripe_checkout:"+locked.StripeSessionID); err != nil {
+			return fmt.Errorf("failed to update wallet: %w", err)
+		}
+
+		session = locked
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return &session, nil
 }
 
 func findLatestPaymentSessionForOrder(db *gorm.DB, userID uint, orderID uint) (*model.PaymentSession, error) {

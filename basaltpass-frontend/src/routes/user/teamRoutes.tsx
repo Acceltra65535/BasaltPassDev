@@ -6,6 +6,7 @@ import TeamMembers from '@pages/user/team/Members'
 import EditTeam from '@pages/user/team/Edit'
 import InviteTeam from '@pages/user/team/Invite'
 import InvitationInbox from '@pages/user/invitations/Inbox'
+import TeamWallet from '@pages/user/team/Wallet'
 import { withProtected } from '@/routes/helpers'
 
 export function UserTeamRoutes() {
@@ -15,6 +16,7 @@ export function UserTeamRoutes() {
       <Route path="/teams/create" element={withProtected(<CreateTeam />)} />
       <Route path="/teams/:id" element={withProtected(<TeamDetail />)} />
       <Route path="/teams/:id/members" element={withProtected(<TeamMembers />)} />
+      <Route path="/teams/:id/wallet" element={withProtected(<TeamWallet />)} />
       <Route path="/teams/:id/edit" element={withProtected(<EditTeam />)} />
       <Route path="/teams/invite/:id" element={withProtected(<InviteTeam />)} />
       <Route path="/invitations/inbox" element={withProtected(<InvitationInbox />)} />

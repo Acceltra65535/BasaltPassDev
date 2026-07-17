@@ -532,12 +532,21 @@ const en = {
       description: 'Manage your funds and transactions',
       stats: {
         currentBalance: 'Current balance',
+        totalUsd: 'Total assets',
         monthlyIncome: 'Monthly income',
         monthlyExpense: 'Monthly expense',
       },
       overview: {
+        totalUsd: 'Total assets in USD',
+        accountCount: '{{count}} wallet accounts',
         currentBalanceWithCode: 'Current balance ({{code}})',
         lastUpdated: 'Last updated: {{time}}',
+      },
+      accounts: {
+        title: 'Accounts',
+        empty: 'No wallet accounts yet',
+        noRate: 'No USD rate configured',
+        unknown: 'Unknown account',
       },
       quickActions: {
         title: 'Quick Actions',
@@ -555,6 +564,7 @@ const en = {
       },
       recentTransactions: {
         title: 'Recent Transactions',
+        titleWithCode: 'Recent Transactions ({{code}})',
         viewAll: 'View all',
         empty: 'No recent transactions',
         status: {
@@ -659,51 +669,35 @@ const en = {
       },
       giftCard: {
         title: 'Gift Card Redeem',
-        codeLabel: 'Card Code',
-        codePlaceholder: 'e.g. GC-XXXXX-XXXXX',
-        submit: 'Redeem Now',
       },
       errors: {
         title: 'Recharge failed',
         disabled: 'Wallet recharge is not available yet',
         invalidAmount: 'Please enter a valid recharge amount',
         selectCurrency: 'Please select recharge currency',
+        selectPaymentCurrency: 'Please select payment currency',
+        exchangeRateMissing: 'Exchange rate is not configured for this recharge',
         rechargeFailed: 'Recharge failed, please retry',
-        giftCodeRequired: 'Please enter Gift Card code',
-        giftRedeemFailed: 'Gift Card redemption failed',
-      },
-      success: {
-        title: 'Recharge successful!',
-        redirecting: 'Redirecting to wallet page...',
       },
       form: {
         title: 'Recharge Information',
         currencyLabel: 'Select currency',
+        paymentCurrencyLabel: 'Payment currency',
+        paymentCurrencyPlaceholder: 'Select payment currency',
         amountLabel: 'Recharge Amount {{currency}}',
         amountPlaceholder: '0.00',
         quickAmountLabel: 'Quick amount',
-        methodLabel: 'Payment method',
+        paymentEstimateTitle: 'Payment amount',
+        paymentEstimate: '{{target}} will cost {{payment}}',
+        exchangeRateHint: 'Calculated from the configured internal exchange rate.',
         submitWithAmount: 'Recharge {{symbol}}{{amount}} {{code}}',
-      },
-      paymentMethods: {
-        alipay: {
-          name: 'Alipay',
-          description: 'QR payment',
-        },
-        wechat: {
-          name: 'WeChat Pay',
-          description: 'QR payment',
-        },
-        bank: {
-          name: 'Bank Card',
-          description: 'Online payment',
-        },
+        continueToCheckout: 'Continue to checkout',
       },
       guide: {
         title: 'Recharge Notes',
         items: {
           realtime: 'Recharge amount is credited to wallet balance in real time',
-          methods: 'Supports Alipay, WeChat Pay, bank card and more',
+          methods: 'Choose a payment method in checkout',
           limit: 'Single recharge limit: ¥50 - ¥50,000',
           fee: 'Recharge is free of charge',
         },
@@ -715,6 +709,45 @@ const en = {
           password: 'Do not share payment credentials',
           support: 'Contact support promptly if issues occur',
         },
+      },
+    },
+    appRecharge: {
+      header: {
+        title: '{{app}} Top-up',
+        appFallback: 'App',
+        description: 'Top up a wallet currency used by this app',
+      },
+      form: {
+        title: 'App wallet top-up',
+        currencyLabel: 'App currency',
+      },
+      guide: {
+        title: 'App-specific checkout',
+        body: 'This page only shows wallet currencies linked to {{app}}.',
+        currencyCount: '{{count}} currencies are available for this app.',
+      },
+      success: {
+        title: 'Payment successful',
+        description: '{{app}} top-up has been credited.',
+        redirecting: 'Returning to {{host}} in {{seconds}} seconds.',
+        noReturnUrl: 'No app return URL was configured. You can view the updated balance in your wallet.',
+        pendingTitle: 'Confirming payment',
+        pendingDescription: 'We are confirming this top-up with the payment provider. Please refresh shortly.',
+        actions: {
+          retry: 'Confirm again',
+          returnNow: 'Return to app now',
+          wallet: 'View wallet',
+        },
+        errors: {
+          missingSession: 'Payment session is missing.',
+          notComplete: 'The payment provider has not confirmed this payment yet.',
+          reconcileFailed: 'Failed to confirm this top-up. Please retry shortly.',
+        },
+      },
+      empty: 'This app has no wallet currency configured yet.',
+      errors: {
+        loadFailed: 'Failed to load app recharge configuration',
+        noCurrency: 'Please select an app currency',
       },
     },
     walletWithdraw: {
@@ -1298,6 +1331,7 @@ const en = {
         noDescription: 'No description',
       },
       actions: {
+        wallet: 'Team wallet',
         manageMembers: 'Manage members',
         inviteMembers: 'Invite members',
         manageInvitations: 'Manage invitations',
@@ -1318,6 +1352,23 @@ const en = {
         cancel: 'Cancel',
         confirmDelete: 'Confirm delete',
         confirmLeave: 'Confirm leave',
+      },
+    },
+    teamWallet: {
+      title: '{{team}} wallet',
+      description: 'View balances and transaction details owned by this team.',
+      backToTeam: 'Back to team',
+      readOnly: 'Read only',
+      empty: 'This team does not have any wallet accounts yet.',
+      errors: {
+        title: 'Wallet unavailable',
+        invalidTeam: 'Invalid team ID',
+        loadFailed: 'Failed to load team wallets',
+        historyFailed: 'Failed to load wallet transactions',
+      },
+      transactions: {
+        title: 'Transactions',
+        empty: 'No transactions for this account.',
       },
     },
     teamIndex: {

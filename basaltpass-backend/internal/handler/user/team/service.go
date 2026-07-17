@@ -7,6 +7,7 @@ import (
 
 	userdto "basaltpass-backend/internal/dto/user"
 	"basaltpass-backend/internal/model"
+	walletservice "basaltpass-backend/internal/service/wallet"
 
 	"gorm.io/gorm"
 )
@@ -41,6 +42,10 @@ func (s *Service) CreateTeam(userID uint, req *userdto.CreateTeamRequest) (*mode
 	if err := tx.Create(member).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("创建团队成员失败: %w", err)
+	}
+	if err := walletservice.EnsureOwnerCreditWalletTx(tx, model.WalletOwnerTeam, team.ID, team.TenantID); err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("创建团队钱包失败: %w", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -258,6 +263,36 @@ func (s *Service) GetTeamMembers(teamID uint, userID uint) ([]userdto.TeamMember
 		res = append(res, r)
 	}
 	return res, nil
+}
+
+func (s *Service) GetTeamWallets(teamID uint, userID uint) ([]model.Wallet, error) {
+	member, err := s.getTeamMember(teamID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if member.Status != "active" {
+		return nil, errors.New("团队成员状态不可用")
+	}
+	var team model.Team
+	if err := s.db.Select("id", "tenant_id").First(&team, teamID).Error; err != nil {
+		return nil, fmt.Errorf("获取团队失败: %w", err)
+	}
+	return walletservice.ListOwnerWallets(model.WalletOwnerTeam, team.ID, team.TenantID)
+}
+
+func (s *Service) GetTeamWalletHistory(teamID uint, userID uint, currencyCode string, limit int) ([]model.WalletTx, error) {
+	member, err := s.getTeamMember(teamID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if member.Status != "active" {
+		return nil, errors.New("团队成员状态不可用")
+	}
+	var team model.Team
+	if err := s.db.Select("id", "tenant_id").First(&team, teamID).Error; err != nil {
+		return nil, fmt.Errorf("获取团队失败: %w", err)
+	}
+	return walletservice.OwnerHistoryByCode(model.WalletOwnerTeam, team.ID, team.TenantID, currencyCode, limit)
 }
 
 // LeaveTeam 离开团队

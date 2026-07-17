@@ -10,7 +10,8 @@ if (-not $Email)    { $Email    = 'admin@basalt.local' }
 if (-not $Password) { $Password = 'Admin@12345' }
 if (-not $Nickname) { $Nickname = 'AdminUser' }
 
-$BaseUrl = 'http://localhost:8080'
+$BaseUrl = $env:BASALTPASS_API_BASE_URL
+if (-not $BaseUrl) { $BaseUrl = 'http://localhost:8101' }
 
 function Invoke-Json {
   param(

@@ -47,7 +47,8 @@ BasaltPass/
 ├─ basaltpass-backend/              # Go API, auth services, domain/business modules
 ├─ basaltpass-frontend/             # React + TypeScript monorepo (user/tenant/admin)
 ├─ basaltpass-docs/                 # Docusaurus documentation site
-├─ scripts/                         # Dev helper scripts (dev.sh / dev.ps1)
+├─ scripts/                         # Stable full-stack dev entrypoints (dev.sh / dev.ps1)
+├─ tools/                           # Local dev/test scaffolding and one-off helpers
 ├─ docker-compose.yml               # Local compose orchestration
 ├─ .basalt.example/                 # Optional local Basalt app metadata template
 ├─ backend.Dockerfile

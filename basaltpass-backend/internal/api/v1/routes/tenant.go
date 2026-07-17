@@ -241,6 +241,8 @@ func RegisterTenantRoutes(v1 fiber.Router) {
 	tenantAppGroup.Delete("/:id", app.TenantDeleteAppHandler)
 	tenantAppGroup.Get("/:id/stats", app.TenantGetAppStatsHandler)
 	tenantAppGroup.Patch("/:id/status", app.TenantToggleAppStatusHandler)
+	tenantAppGroup.Get("/:id/wallet-currencies", app.TenantListAppWalletCurrenciesHandler)
+	tenantAppGroup.Put("/:id/wallet-currencies", app.TenantReplaceAppWalletCurrenciesHandler)
 
 	// 应用权限管理路由
 	tenantAppGroup.Get("/:app_id/permissions", app_rbac2.GetAppPermissions)

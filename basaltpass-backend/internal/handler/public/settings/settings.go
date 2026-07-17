@@ -10,6 +10,7 @@ import (
 type PublicConfig struct {
 	MarketEnabled                 bool   `json:"market_enabled"`
 	WalletRechargeWithdrawEnabled bool   `json:"wallet_recharge_withdraw_enabled"`
+	WalletWithdrawEnabled         bool   `json:"wallet_withdraw_enabled"`
 	SiteName                      string `json:"site_name"`
 
 	// 2FA 方式开关：前端可据此决定是否渲染对应的验证 UI
@@ -26,6 +27,7 @@ func GetPublicConfigHandler(c *fiber.Ctx) error {
 
 	config.MarketEnabled = settingssvc.GetBool("features.market_enabled", true)
 	config.WalletRechargeWithdrawEnabled = settingssvc.GetBool("features.wallet_recharge_withdraw_enabled", false)
+	config.WalletWithdrawEnabled = settingssvc.GetBool("features.wallet_withdraw_enabled", false)
 	config.SiteName = settingssvc.GetString("general.site_name", "BasaltPass")
 	config.TwoFA.TOTPEnabled = settingssvc.GetBool("auth.2fa.totp_enabled", true)
 	config.TwoFA.PasskeyEnabled = settingssvc.GetBool("auth.2fa.passkey_enabled", true)

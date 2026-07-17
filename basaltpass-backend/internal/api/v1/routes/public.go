@@ -52,6 +52,7 @@ func RegisterPublicRoutes(v1 fiber.Router) {
 	// 货币系统路由（公开API，不需要认证）
 	currencyGroup := v1.Group("/currencies")
 	currencyGroup.Get("/", currency.GetCurrenciesHandler)
+	currencyGroup.Get("/rates", currency.GetCurrencyRatesHandler)
 	currencyGroup.Get("/:code", currency.GetCurrencyHandler)
 
 	// 公共安全路由（无需登录，带速率限制）

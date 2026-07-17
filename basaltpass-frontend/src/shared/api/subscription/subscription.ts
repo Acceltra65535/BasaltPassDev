@@ -108,6 +108,8 @@ export interface QuickCheckoutRequest {
   price_id: number;
   quantity?: number;
   coupon_code?: string;
+  success_url?: string;
+  cancel_url?: string;
 }
 
 export interface CheckoutResponse {

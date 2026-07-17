@@ -11,11 +11,14 @@ BasaltPass is a monorepo containing both backend and frontend code.
 -   `basaltpass-backend/`: Go (Fiber + GORM) application.
 -   `basaltpass-frontend/`: React (Vite) application.
 -   `basaltpass-docs/`: This documentation site.
--   `scripts/`: Utility scripts for development and deployment.
+-   `scripts/`: Stable full-stack development entrypoints.
+-   `tools/`: Local development, test data, and one-off helper scripts.
 
 ## Backend Structure
 
 -   `cmd/basaltpass/`: Entry point.
+-   `cmd/basaltpass-import/`: Basalt bundle import CLI.
+-   `tools/`: Backend-local development tools that import internal packages.
 -   `internal/api/v1/`: Route definitions.
 -   `internal/handler/`: HTTP Request handlers.
 -   `internal/middleware/`: Auth, Tenant Context, Rate Limiting.

@@ -5,6 +5,7 @@ export interface PublicConfig {
   market_enabled: boolean
   /** usertranslatedvalue/translated；notbackortranslated true translated */
   wallet_recharge_withdraw_enabled?: boolean
+  wallet_withdraw_enabled?: boolean
   site_name: string
 }
 

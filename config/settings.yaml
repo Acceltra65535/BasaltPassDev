@@ -186,9 +186,13 @@ settings:
         category: features
         description: 仅限邀请注册
     features.wallet_recharge_withdraw_enabled:
+        value: true
+        category: features
+        description: 是否开放用户钱包充值；充值必须通过统一收银台完成
+    features.wallet_withdraw_enabled:
         value: false
         category: features
-        description: 是否开放用户钱包充值与提现（关闭时相关 API 拒绝，前端灰显入口）
+        description: 是否开放用户钱包提现
     general.date_format:
         value: YYYY-MM-DD
         category: general

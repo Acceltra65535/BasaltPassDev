@@ -826,3 +826,44 @@ func signClientAssertion(t *testing.T, clientID string, method jwt.SigningMethod
 	}
 	return signed
 }
+
+func TestIntrospectionExposesAppBillingPrincipal(t *testing.T) {
+	db := setupOIDCE2EDB(t)
+	tenant := model.Tenant{Name: "Service Tenant", Code: "service-tenant", Status: model.TenantStatusActive}
+	if err := db.Create(&tenant).Error; err != nil {
+		t.Fatal(err)
+	}
+	user := model.User{Email: "service-subject@example.com", PasswordHash: "x"}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	app := model.App{TenantID: tenant.ID, Name: "Target", Status: model.AppStatusActive}
+	if err := db.Create(&app).Error; err != nil {
+		t.Fatal(err)
+	}
+	client := model.OAuthClient{AppID: app.ID, ClientID: "target-client", ClientSecret: "secret", IsActive: true}
+	if err := db.Create(&client).Error; err != nil {
+		t.Fatal(err)
+	}
+	token := model.OAuthAccessToken{
+		Token: "bp_xat_service", ClientID: client.ClientID, UserID: user.ID,
+		TenantID: tenant.ID, AppID: app.ID, SubjectType: model.OAuthSubjectApp,
+		Scopes: "llm", ExpiresAt: time.Now().Add(time.Hour), IsExchanged: true,
+		ActorClientID: "source-client", ActorAppID: 77,
+	}
+	if err := db.Create(&token).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := NewOAuthServerService().IntrospectToken(token.Token, client.ClientID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.SubjectType != model.OAuthSubjectApp || result.AppID == "" {
+		t.Fatalf("missing app principal fields: %+v", result)
+	}
+	actor, ok := result.Act.(map[string]interface{})
+	if !ok || actor["app_id"] != uint(77) {
+		t.Fatalf("missing source app actor: %#v", result.Act)
+	}
+}

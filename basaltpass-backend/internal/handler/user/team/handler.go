@@ -29,12 +29,16 @@ func InitHandler(db *gorm.DB) {
 }
 
 // 用户侧导出函数，供路由使用
-func CreateTeamHandler(c *fiber.Ctx) error       { return userTeamHandler.CreateTeam(c) }
-func GetUserTeamsHandler(c *fiber.Ctx) error     { return userTeamHandler.GetUserTeams(c) }
-func GetTeamHandler(c *fiber.Ctx) error          { return userTeamHandler.GetTeam(c) }
-func UpdateTeamHandler(c *fiber.Ctx) error       { return userTeamHandler.UpdateTeam(c) }
-func DeleteTeamHandler(c *fiber.Ctx) error       { return userTeamHandler.DeleteTeam(c) }
-func GetTeamMembersHandler(c *fiber.Ctx) error   { return userTeamHandler.GetTeamMembers(c) }
+func CreateTeamHandler(c *fiber.Ctx) error     { return userTeamHandler.CreateTeam(c) }
+func GetUserTeamsHandler(c *fiber.Ctx) error   { return userTeamHandler.GetUserTeams(c) }
+func GetTeamHandler(c *fiber.Ctx) error        { return userTeamHandler.GetTeam(c) }
+func UpdateTeamHandler(c *fiber.Ctx) error     { return userTeamHandler.UpdateTeam(c) }
+func DeleteTeamHandler(c *fiber.Ctx) error     { return userTeamHandler.DeleteTeam(c) }
+func GetTeamMembersHandler(c *fiber.Ctx) error { return userTeamHandler.GetTeamMembers(c) }
+func GetTeamWalletsHandler(c *fiber.Ctx) error { return userTeamHandler.GetTeamWallets(c) }
+func GetTeamWalletHistoryHandler(c *fiber.Ctx) error {
+	return userTeamHandler.GetTeamWalletHistory(c)
+}
 func AddMemberHandler(c *fiber.Ctx) error        { return userTeamHandler.AddMember(c) }
 func UpdateMemberRoleHandler(c *fiber.Ctx) error { return userTeamHandler.UpdateMemberRole(c) }
 func RemoveMemberHandler(c *fiber.Ctx) error     { return userTeamHandler.RemoveMember(c) }
@@ -178,6 +182,58 @@ func (h *Handler) GetTeamMembers(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(fiber.Map{"data": members})
+}
+
+func (h *Handler) GetTeamWallets(c *fiber.Ctx) error {
+	teamID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "团队ID无效"})
+	}
+	userID := c.Locals("userID").(uint)
+	wallets, err := h.service.GetTeamWallets(uint(teamID), userID)
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	}
+	data := make([]fiber.Map, 0, len(wallets))
+	for _, wallet := range wallets {
+		data = append(data, fiber.Map{
+			"id": wallet.ID, "tenant_id": wallet.TenantID,
+			"owner_type": wallet.OwnerType, "owner_id": wallet.OwnerID,
+			"currency_id": wallet.CurrencyID, "balance": wallet.Balance,
+			"freeze": wallet.Freeze, "currency": wallet.Currency,
+			"created_at": wallet.CreatedAt, "updated_at": wallet.UpdatedAt,
+		})
+	}
+	return c.JSON(fiber.Map{"data": data})
+}
+
+func (h *Handler) GetTeamWalletHistory(c *fiber.Ctx) error {
+	teamID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "团队ID无效"})
+	}
+	currencyCode := c.Query("currency")
+	if currencyCode == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "currency is required"})
+	}
+	limit, _ := strconv.Atoi(c.Query("limit", "50"))
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	userID := c.Locals("userID").(uint)
+	txs, err := h.service.GetTeamWalletHistory(uint(teamID), userID, currencyCode, limit)
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	}
+	data := make([]fiber.Map, 0, len(txs))
+	for _, tx := range txs {
+		data = append(data, fiber.Map{
+			"id": tx.ID, "wallet_id": tx.WalletID, "type": tx.Type,
+			"amount": tx.Amount, "status": tx.Status, "reference": tx.Reference,
+			"created_at": tx.CreatedAt,
+		})
+	}
+	return c.JSON(fiber.Map{"data": data})
 }
 
 // LeaveTeam 离开团队

@@ -119,6 +119,9 @@ func RunMigrations() error {
 	if err := db.AutoMigrate(&model.Currency{}); err != nil {
 		return fmt.Errorf("[Error] Failed to create currencies table: %w", err)
 	}
+	if err := db.AutoMigrate(&model.CurrencyRate{}); err != nil {
+		return fmt.Errorf("[Error] Failed to create currency rates table: %w", err)
+	}
 
 	// 然后初始化默认货币
 	if err := currency.InitDefaultCurrencies(); err != nil {
@@ -132,6 +135,12 @@ func RunMigrations() error {
 	} else {
 		log.Printf("[Migration] Ensured CREDIT currency (created=%d, skipped=%d)", created, skipped)
 	}
+	if err := currency.EnsurePaymentDefaults(); err != nil {
+		log.Printf("[Migration] Failed to ensure currency payment defaults: %v", err)
+	}
+	if err := currency.EnsureDefaultCurrencyRates(); err != nil {
+		log.Printf("[Migration] Failed to ensure default currency rates: %v", err)
+	}
 
 	// 用户表历史列必须在 User AutoMigrate 之前处理，否则 AutoMigrate 会先创建
 	// enforced_tenant_id，导致旧 tenant_id 无法被直接重命名。
@@ -139,6 +148,13 @@ func RunMigrations() error {
 
 	// 迁移钱包货币字段（在完整AutoMigrate之前处理）
 	MigrateWalletCurrencyField()
+	if err := MigrateTeamTenantFields(); err != nil {
+		return fmt.Errorf("[Error] Failed to migrate legacy team tenants: %w", err)
+	}
+	MigrateWalletTenantField()
+	if err := MigrateWalletOwnerFields(); err != nil {
+		return fmt.Errorf("[Error] Failed to migrate wallet owners: %w", err)
+	}
 
 	// 执行完整的自动迁移
 	err := db.AutoMigrate(
@@ -194,6 +210,7 @@ func RunMigrations() error {
 		&model.TenantUser{},       // 租户管理员
 		&model.TenantInvitation{}, // 租户邀请
 		&model.App{},
+		&model.AppWalletCurrency{},
 		&model.AppUser{},     // 业务应用用户映射
 		&model.TenantQuota{}, // 租户配额
 		&model.TenantAuthSetting{},
@@ -231,6 +248,7 @@ func RunMigrations() error {
 		&model.PaymentIntent{},
 		&model.PaymentSession{},
 		&model.PaymentWebhookEvent{},
+		&model.CurrencyRate{},
 
 		// 订单系统模型
 		&model.Order{},
@@ -302,6 +320,12 @@ func RunMigrations() error {
 		log.Printf("[Migration] Failed to backfill credit wallets for all users: %v", err)
 	} else {
 		log.Printf("[Migration] Credit wallets backfilled for users (created=%d)", createdWallets)
+	}
+	createdTeamWallets, err := wallet.EnsureCreditWalletsForAllTeams()
+	if err != nil {
+		log.Printf("[Migration] Failed to backfill credit wallets for teams: %v", err)
+	} else {
+		log.Printf("[Migration] Credit wallets backfilled for teams (created=%d)", createdTeamWallets)
 	}
 	return nil
 } // handleSpecialMigrations 处理特殊的迁移情况
