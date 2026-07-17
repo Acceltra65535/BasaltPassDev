@@ -265,6 +265,15 @@ func RegisterTenantRoutes(v1 fiber.Router) {
 	tenantAppGroup.Get("/:app_id/rbac/revisions", tenant2.ListAppRBACRevisionsHandler)
 	tenantAppGroup.Post("/:app_id/rbac/revisions/:revision_id/rollback", tenant2.RollbackAppRBACRevisionHandler)
 
+	// Tenant-owned dynamic mappings. These policies are evaluated at read time
+	// and never create inherited app_user_roles/app_user_permissions rows.
+	tenantAppGroup.Get("/:app_id/rbac/mappings", tenant2.ListAppGrantMappingsHandler)
+	tenantAppGroup.Get("/:app_id/rbac/mappings/options", tenant2.GetAppGrantMappingOptionsHandler)
+	tenantAppGroup.Post("/:app_id/rbac/mappings/preview", tenant2.PreviewAppGrantMappingHandler)
+	tenantAppGroup.Post("/:app_id/rbac/mappings", tenant2.CreateAppGrantMappingHandler)
+	tenantAppGroup.Put("/:app_id/rbac/mappings/:mapping_id", tenant2.UpdateAppGrantMappingHandler)
+	tenantAppGroup.Delete("/:app_id/rbac/mappings/:mapping_id", tenant2.DeleteAppGrantMappingHandler)
+
 	// 应用用户管理路由（包含权限）
 	tenantAppGroup.Get("/:app_id/users", app_rbac2.GetAppUsers)
 	tenantAppGroup.Get("/:app_id/users/by-status", app_user.GetAppUsersByStatusHandler)
@@ -274,6 +283,7 @@ func RegisterTenantRoutes(v1 fiber.Router) {
 	// 应用用户权限管理路由
 	tenantAppGroup.Get("/:app_id/users/:user_id/permissions", app_rbac2.GetUserPermissions)
 	tenantAppGroup.Get("/:app_id/users/:user_id/roles", app_rbac2.GetUserRoles)
+	tenantAppGroup.Get("/:app_id/users/:user_id/effective-grants", tenant2.GetEffectiveAppUserGrantsHandler)
 	tenantAppGroup.Post("/:app_id/users/:user_id/check-access", app_rbac2.CheckUserAccess)
 	tenantAppGroup.Post("/:app_id/users/:user_id/permissions", app_rbac2.GrantUserPermissions)
 	tenantAppGroup.Delete("/:app_id/users/:user_id/permissions/:permission_id", app_rbac2.RevokeUserPermission)

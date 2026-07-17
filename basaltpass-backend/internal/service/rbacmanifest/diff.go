@@ -129,6 +129,14 @@ func calculateDiff(tx *gorm.DB, tenantID, appID uint, current, target Snapshot) 
 			return diff, err
 		}
 		diff.AssignedRolesAffected = assigned
+		var mapped []string
+		if err := tx.Table("tenant_app_grant_mappings").Distinct("app_roles.code").
+			Joins("JOIN app_roles ON app_roles.id = tenant_app_grant_mappings.target_id").
+			Where("tenant_app_grant_mappings.tenant_id = ? AND tenant_app_grant_mappings.app_id = ? AND tenant_app_grant_mappings.target_type = ? AND app_roles.code IN ?", tenantID, appID, model.TenantAppGrantTargetAppRole, codes).
+			Pluck("app_roles.code", &mapped).Error; err != nil {
+			return diff, err
+		}
+		diff.AssignedRolesAffected = append(diff.AssignedRolesAffected, mapped...)
 	}
 
 	for _, code := range diff.RolesRemoved {
@@ -142,6 +150,15 @@ func calculateDiff(tx *gorm.DB, tenantID, appID uint, current, target Snapshot) 
 		if count > 0 {
 			diff.RemovalAssignmentBlocks = append(diff.RemovalAssignmentBlocks, "role "+code+" is assigned to users")
 		}
+		if err := tx.Table("tenant_app_grant_mappings").
+			Joins("JOIN app_roles ON app_roles.id = tenant_app_grant_mappings.target_id").
+			Where("tenant_app_grant_mappings.tenant_id = ? AND tenant_app_grant_mappings.app_id = ? AND tenant_app_grant_mappings.target_type = ? AND app_roles.code = ?", tenantID, appID, model.TenantAppGrantTargetAppRole, code).
+			Count(&count).Error; err != nil {
+			return diff, err
+		}
+		if count > 0 {
+			diff.RemovalAssignmentBlocks = append(diff.RemovalAssignmentBlocks, "role "+code+" is referenced by tenant-to-app mappings")
+		}
 	}
 	for _, code := range diff.PermissionsRemoved {
 		var count int64
@@ -153,6 +170,15 @@ func calculateDiff(tx *gorm.DB, tenantID, appID uint, current, target Snapshot) 
 		}
 		if count > 0 {
 			diff.RemovalAssignmentBlocks = append(diff.RemovalAssignmentBlocks, "permission "+code+" is directly granted to users")
+		}
+		if err := tx.Table("tenant_app_grant_mappings").
+			Joins("JOIN app_permissions ON app_permissions.id = tenant_app_grant_mappings.target_id").
+			Where("tenant_app_grant_mappings.tenant_id = ? AND tenant_app_grant_mappings.app_id = ? AND tenant_app_grant_mappings.target_type = ? AND app_permissions.code = ?", tenantID, appID, model.TenantAppGrantTargetAppPermission, code).
+			Count(&count).Error; err != nil {
+			return diff, err
+		}
+		if count > 0 {
+			diff.RemovalAssignmentBlocks = append(diff.RemovalAssignmentBlocks, "permission "+code+" is referenced by tenant-to-app mappings")
 		}
 	}
 

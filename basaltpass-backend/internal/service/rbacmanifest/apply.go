@@ -134,7 +134,7 @@ func ensureNoAssignmentRemovalBlocks(diff Diff) error {
 	}
 	blocks := append([]string{}, diff.RemovalAssignmentBlocks...)
 	sort.Strings(blocks)
-	return conflictError("cannot remove RBAC entities with user assignments: %v", blocks)
+	return conflictError("cannot remove referenced RBAC entities: %v", blocks)
 }
 
 func snapshotFromJSON(raw string) (Snapshot, error) {

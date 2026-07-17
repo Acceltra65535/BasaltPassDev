@@ -30,14 +30,16 @@ def no_redirect_open(opener, request):
         raise
 
 
-def json_request(url, *, method="GET", data=None, token=None, expected=200):
+def json_request(url, *, method="GET", data=None, token=None, expected=200, headers=None):
     body = None if data is None else json.dumps(data).encode()
-    headers = {"Accept": "application/json"}
+    request_headers = {"Accept": "application/json"}
     if data is not None:
-        headers["Content-Type"] = "application/json"
+        request_headers["Content-Type"] = "application/json"
     if token:
-        headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(url, data=body, headers=headers, method=method)
+        request_headers["Authorization"] = f"Bearer {token}"
+    if headers:
+        request_headers.update(headers)
+    request = urllib.request.Request(url, data=body, headers=request_headers, method=method)
     try:
         response = urllib.request.urlopen(request, timeout=20)
         status = response.status

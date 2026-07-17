@@ -30,7 +30,7 @@ func setupManifestTestDB(t *testing.T) (*gorm.DB, manifestFixture) {
 	}
 	if err := db.AutoMigrate(
 		&model.User{}, &model.Tenant{}, &model.App{}, &model.OAuthClient{},
-		&model.AppPermission{}, &model.AppRole{}, &model.AppUserPermission{}, &model.AppUserRole{},
+		&model.AppPermission{}, &model.AppRole{}, &model.AppUserPermission{}, &model.AppUserRole{}, &model.TenantAppGrantMapping{},
 		&model.AppRBACManifest{}, &model.AppRBACRevision{}, &model.AuditLog{},
 	); err != nil {
 		t.Fatalf("migrate: %v", err)
@@ -212,6 +212,45 @@ func TestApproveRefusesToDeleteAssignedRoleWithoutPartialChanges(t *testing.T) {
 	db.Model(&model.AppUserRole{}).Where("id = ?", assignment.ID).Count(&assignmentCount)
 	if roleCount != 1 || writePermissionCount != 0 || assignmentCount != 1 {
 		t.Fatalf("approval was not atomic: role=%d write=%d assignment=%d", roleCount, writePermissionCount, assignmentCount)
+	}
+}
+
+func TestApproveRefusesToDeleteMappedTargets(t *testing.T) {
+	db, fixture := setupManifestTestDB(t)
+	permission := model.AppPermission{Code: "demo.read", Name: "Read", Category: "demo", AppID: fixture.app.ID, TenantID: fixture.tenant.ID}
+	role := model.AppRole{Code: "demo.viewer", Name: "Viewer", AppID: fixture.app.ID, TenantID: fixture.tenant.ID}
+	if err := db.Create(&permission).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&role).Error; err != nil {
+		t.Fatal(err)
+	}
+	mappings := []model.TenantAppGrantMapping{
+		{TenantID: fixture.tenant.ID, AppID: fixture.app.ID, SourceType: model.TenantAppGrantSourceMembershipRole, SourceCode: "member", TargetType: model.TenantAppGrantTargetAppRole, TargetID: role.ID, Enabled: true, CreatedBy: fixture.reviewer.ID, UpdatedBy: fixture.reviewer.ID},
+		{TenantID: fixture.tenant.ID, AppID: fixture.app.ID, SourceType: model.TenantAppGrantSourceMembershipRole, SourceCode: "admin", TargetType: model.TenantAppGrantTargetAppPermission, TargetID: permission.ID, Enabled: true, CreatedBy: fixture.reviewer.ID, UpdatedBy: fixture.reviewer.ID},
+	}
+	if err := db.Create(&mappings).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	svc := New(db)
+	submitted, err := svc.Submit(fixture.tenant.ID, fixture.app.ID, fixture.client.ClientID, testManifest(1, nil, nil))
+	if err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+	blocks := strings.Join(submitted.Manifest.Diff.RemovalAssignmentBlocks, "\n")
+	if !strings.Contains(blocks, "role demo.viewer is referenced") || !strings.Contains(blocks, "permission demo.read is referenced") {
+		t.Fatalf("mapping blockers missing from diff: %v", submitted.Manifest.Diff.RemovalAssignmentBlocks)
+	}
+	if _, err := svc.Approve(fixture.tenant.ID, fixture.app.ID, submitted.Manifest.ID, fixture.reviewer.ID); !errors.Is(err, ErrConflict) {
+		t.Fatalf("expected mapped target deletion to be blocked, got %v", err)
+	}
+	var roleCount, permissionCount, mappingCount int64
+	db.Model(&model.AppRole{}).Where("id = ?", role.ID).Count(&roleCount)
+	db.Model(&model.AppPermission{}).Where("id = ?", permission.ID).Count(&permissionCount)
+	db.Model(&model.TenantAppGrantMapping{}).Count(&mappingCount)
+	if roleCount != 1 || permissionCount != 1 || mappingCount != 2 {
+		t.Fatalf("blocked approval changed data: role=%d permission=%d mappings=%d", roleCount, permissionCount, mappingCount)
 	}
 }
 

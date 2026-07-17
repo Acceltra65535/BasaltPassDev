@@ -242,6 +242,7 @@ func RunMigrations() error {
 		&model.AppUserRole{},
 		&model.AppRBACManifest{},
 		&model.AppRBACRevision{},
+		&model.TenantAppGrantMapping{},
 
 		// 租户RBAC权限系统模型
 		&model.TenantRbacPermission{},

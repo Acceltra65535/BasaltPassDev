@@ -3,6 +3,7 @@ package s2s
 import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/appgrant"
 	"basaltpass-backend/internal/service/wallet"
 	"basaltpass-backend/internal/utils"
 	"sort"
@@ -148,23 +149,15 @@ func GetUserRolesHandler(c *fiber.Ctx) error {
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
 
-	var roles []model.AppRole
-	err = common.DB().Table("app_user_roles").
-		Select("app_roles.*").
-		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
-		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", time.Now()).
-		Order("app_roles.id ASC").
-		Find(&roles).Error
+	grants, err := appgrant.NewService(common.DB()).Resolve(userID, tenantID, appID, time.Now().UTC())
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
-	// 只返回必要字段
-	list := make([]fiber.Map, 0, len(roles))
-	for _, r := range roles {
-		list = append(list, fiber.Map{"id": r.ID, "code": r.Code, "name": r.Name, "description": r.Description})
+	list := make([]fiber.Map, 0, len(grants.Roles))
+	for _, role := range grants.Roles {
+		list = append(list, fiber.Map{"id": role.ID, "code": role.Code, "name": role.Name, "description": role.Description, "sources": role.Sources})
 	}
-	return unifiedResponse(c, fiber.StatusOK, fiber.Map{"roles": list}, nil)
+	return unifiedResponse(c, fiber.StatusOK, fiber.Map{"roles": list, "eligible": grants.Eligible, "denial_reason": grants.DenialReason}, nil)
 }
 
 // GET /api/v1/s2s/users/:id/permissions?tenant_id=xxx
@@ -199,54 +192,20 @@ func GetUserPermissionsHandler(c *fiber.Ctx) error {
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
 
-	permissionSet := map[string]struct{}{}
-
-	var directPermissionCodes []string
-	err = common.DB().Table("app_user_permissions").
-		Select("app_permissions.code").
-		Joins("JOIN app_permissions ON app_permissions.id = app_user_permissions.permission_id").
-		Where("app_user_permissions.user_id = ? AND app_user_permissions.app_id = ?", userID, appID).
-		Where("app_user_permissions.expires_at IS NULL OR app_user_permissions.expires_at > ?", time.Now()).
-		Pluck("app_permissions.code", &directPermissionCodes).Error
+	grants, err := appgrant.NewService(common.DB()).Resolve(userID, tenantID, appID, time.Now().UTC())
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
-	for _, code := range directPermissionCodes {
-		permissionSet[code] = struct{}{}
-	}
-
-	var rolePermissionCodes []string
-	err = common.DB().Table("app_user_roles").
-		Select("DISTINCT app_permissions.code").
-		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
-		Joins("JOIN app_role_permissions ON app_role_permissions.app_role_id = app_roles.id").
-		Joins("JOIN app_permissions ON app_permissions.id = app_role_permissions.app_permission_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
-		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", time.Now()).
-		Pluck("app_permissions.code", &rolePermissionCodes).Error
-	if err != nil {
-		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
-	}
-	for _, code := range rolePermissionCodes {
-		permissionSet[code] = struct{}{}
-	}
-
-	permissionCodes := make([]string, 0, len(permissionSet))
-	for code := range permissionSet {
-		permissionCodes = append(permissionCodes, code)
+	permissionCodes := make([]string, 0, len(grants.Permissions))
+	for _, permission := range grants.Permissions {
+		permissionCodes = append(permissionCodes, permission.Code)
 	}
 	sort.Strings(permissionCodes)
 
 	// Backward compatibility: keep returning role codes too (previously mislabeled as permissions).
-	var roleCodes []string
-	err = common.DB().Table("app_user_roles").
-		Select("DISTINCT app_roles.code").
-		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
-		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", time.Now()).
-		Pluck("app_roles.code", &roleCodes).Error
-	if err != nil {
-		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
+	roleCodes := make([]string, 0, len(grants.Roles))
+	for _, role := range grants.Roles {
+		roleCodes = append(roleCodes, role.Code)
 	}
 	sort.Strings(roleCodes)
 
@@ -254,6 +213,8 @@ func GetUserPermissionsHandler(c *fiber.Ctx) error {
 		"permission_codes": permissionCodes,
 		"role_codes":       roleCodes,
 		"roles":            roleCodes,
+		"eligible":         grants.Eligible,
+		"denial_reason":    grants.DenialReason,
 	}, nil)
 }
 
@@ -289,18 +250,16 @@ func GetUserRoleCodesHandler(c *fiber.Ctx) error {
 		return unifiedResponse(c, status, nil, fiber.Map{"code": "invalid_parameter", "message": err.Error()})
 	}
 
-	var roleCodes []string
-	err = common.DB().Table("app_user_roles").
-		Select("DISTINCT app_roles.code").
-		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
-		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", time.Now()).
-		Pluck("app_roles.code", &roleCodes).Error
+	grants, err := appgrant.NewService(common.DB()).Resolve(userID, tenantID, appID, time.Now().UTC())
 	if err != nil {
 		return unifiedResponse(c, fiber.StatusInternalServerError, nil, fiber.Map{"code": "server_error", "message": err.Error()})
 	}
+	roleCodes := make([]string, 0, len(grants.Roles))
+	for _, role := range grants.Roles {
+		roleCodes = append(roleCodes, role.Code)
+	}
 	sort.Strings(roleCodes)
-	return unifiedResponse(c, fiber.StatusOK, fiber.Map{"role_codes": roleCodes}, nil)
+	return unifiedResponse(c, fiber.StatusOK, fiber.Map{"role_codes": roleCodes, "eligible": grants.Eligible, "denial_reason": grants.DenialReason}, nil)
 }
 
 // GET /api/v1/s2s/users/lookup?email=... | phone=... | q=...

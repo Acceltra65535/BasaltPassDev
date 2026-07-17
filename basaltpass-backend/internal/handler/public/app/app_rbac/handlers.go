@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Permission 类型别名，方便使用
@@ -174,7 +175,6 @@ func UpdateAppPermission(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "权限不存在"})
 	}
-
 	// 更新权限
 	permission.Name = req.Name
 	permission.Description = req.Description
@@ -202,20 +202,42 @@ func DeleteAppPermission(c *fiber.Ctx) error {
 	}
 
 	tenantID := c.Locals("tenantID").(uint)
+	tx := common.DB().Begin()
+	if tx.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "删除权限失败"})
+	}
+	defer tx.Rollback()
+	var app model.App
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").
+		Where("id = ? AND tenant_id = ?", appID, tenantID).First(&app).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "应用不存在"})
+	}
 
 	// 验证权限存在且属于当前租户和应用
 	var permission Permission
-	err = common.DB().Where("id = ? AND app_id = ? AND tenant_id = ?", permissionID, appID, tenantID).First(&permission).Error
+	err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND app_id = ? AND tenant_id = ?", permissionID, appID, tenantID).First(&permission).Error
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "权限不存在"})
 	}
+	var mappingCount int64
+	if err := tx.Model(&model.TenantAppGrantMapping{}).
+		Where("tenant_id = ? AND app_id = ? AND target_type = ? AND target_id = ?", tenantID, appID, model.TenantAppGrantTargetAppPermission, permissionID).
+		Count(&mappingCount).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "检查权限映射失败"})
+	}
+	if mappingCount > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "权限正在被 tenant→app 映射引用，无法删除"})
+	}
 
 	// 删除权限（会级联删除相关的角色权限和用户权限）
-	err = common.DB().Delete(&permission).Error
+	err = tx.Delete(&permission).Error
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "删除权限失败"})
 	}
 
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "删除权限失败"})
+	}
 	return c.Status(fiber.StatusNoContent).Send(nil)
 }
 
@@ -341,7 +363,6 @@ func UpdateAppRole(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "角色不存在"})
 	}
-
 	// 验证权限ID
 	var permissions []Permission
 	if len(req.PermissionIDs) > 0 {
@@ -389,20 +410,42 @@ func DeleteAppRole(c *fiber.Ctx) error {
 	}
 
 	tenantID := c.Locals("tenantID").(uint)
+	tx := common.DB().Begin()
+	if tx.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "删除角色失败"})
+	}
+	defer tx.Rollback()
+	var app model.App
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").
+		Where("id = ? AND tenant_id = ?", appID, tenantID).First(&app).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "应用不存在"})
+	}
 
 	// 验证角色存在且属于当前租户和应用
 	var role Role
-	err = common.DB().Where("id = ? AND app_id = ? AND tenant_id = ?", roleID, appID, tenantID).First(&role).Error
+	err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND app_id = ? AND tenant_id = ?", roleID, appID, tenantID).First(&role).Error
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "角色不存在"})
 	}
+	var mappingCount int64
+	if err := tx.Model(&model.TenantAppGrantMapping{}).
+		Where("tenant_id = ? AND app_id = ? AND target_type = ? AND target_id = ?", tenantID, appID, model.TenantAppGrantTargetAppRole, roleID).
+		Count(&mappingCount).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "检查角色映射失败"})
+	}
+	if mappingCount > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "角色正在被 tenant→app 映射引用，无法删除"})
+	}
 
 	// 删除角色（会级联删除相关的权限关联和用户角色）
-	err = common.DB().Delete(&role).Error
+	err = tx.Delete(&role).Error
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "删除角色失败"})
 	}
 
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "删除角色失败"})
+	}
 	return c.Status(fiber.StatusNoContent).Send(nil)
 }
 

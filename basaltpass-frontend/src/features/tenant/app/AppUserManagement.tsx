@@ -20,6 +20,7 @@ import TenantLayout from '@features/tenant/components/TenantLayout'
 import { tenantAppApi } from '@api/tenant/tenantApp'
 import { appUserApi, type AppUser, type AppUsersResponse } from '@api/tenant/appUser'
 import { userPermissionsApi, type Permission, type Role, type UserPermission, type UserRole } from '@api/tenant/appPermissions'
+import { appGrantMappingApi, type EffectiveGrants, type GrantSource } from '@api/tenant/appGrantMapping'
 import useDebounce from '@hooks/useDebounce'
 import useManagedPaginationBar from '@hooks/useManagedPaginationBar'
 import { PSkeleton, PBadge, PPageHeader, PButton, PManagementFilterCard, PManagedTableSection, PSelect, PManagementPageContainer, PTextarea } from '@ui'
@@ -54,6 +55,7 @@ export default function AppUserManagement() {
   const [roles, setRoles] = useState<Role[]>([])
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([])
   const [userRoles, setUserRoles] = useState<UserRole[]>([])
+  const [effectiveGrants, setEffectiveGrants] = useState<EffectiveGrants | null>(null)
   const [selectedPermissions, setSelectedPermissions] = useState<number[]>([])
   const [selectedRoles, setSelectedRoles] = useState<number[]>([])
   const [permissionExpiry, setPermissionExpiry] = useState('')
@@ -123,12 +125,14 @@ export default function AppUserManagement() {
     
     try {
       setLoadingPermissions(true)
-      const [permissionsRes, rolesRes] = await Promise.all([
+      const [permissionsRes, rolesRes, effective] = await Promise.all([
         userPermissionsApi.getUserPermissions(appId, userId),
-        userPermissionsApi.getUserRoles(appId, userId)
+        userPermissionsApi.getUserRoles(appId, userId),
+        appGrantMappingApi.effectiveGrants(appId, userId)
       ])
       setUserPermissions(permissionsRes.permissions || [])
       setUserRoles(rolesRes.roles || [])
+      setEffectiveGrants(effective)
     } catch (err: any) {
       console.error(t('tenantAppUserManagement.logs.fetchUserPermissionsFailed'), err)
     } finally {
@@ -143,6 +147,10 @@ export default function AppUserManagement() {
     await fetchPermissionsAndRoles()
     await fetchUserPermissions(user.user_id.toString())
   }
+
+  const grantSourceLabel = (source: GrantSource) => source.type === 'explicit'
+    ? t('tenantAppUserManagement.permissionModal.sourceExplicit')
+    : t('tenantAppUserManagement.permissionModal.sourceMapping', { source: source.source_code || source.source_type || '', mapping: source.mapping_id || 0 })
 
   // 
   const handleGrantPermissions = async () => {
@@ -638,6 +646,17 @@ export default function AppUserManagement() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="lg:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div><h4 className="font-medium text-indigo-950">{t('tenantAppUserManagement.permissionModal.effectiveTitle')}</h4><p className="text-xs text-indigo-700">{t('tenantAppUserManagement.permissionModal.effectiveDescription')}</p></div>
+                      <PButton variant="secondary" size="sm" onClick={() => navigate(`/tenant/apps/${appId}/rbac-mappings`)}>{t('tenantAppUserManagement.permissionModal.manageMappings')}</PButton>
+                    </div>
+                    {effectiveGrants && !effectiveGrants.eligible ? <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{t('tenantAppUserManagement.permissionModal.ineligible', { reason: effectiveGrants.denial_reason || 'unknown' })}</div> :
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div><div className="mb-2 text-xs font-semibold uppercase text-indigo-700">{t('tenantAppUserManagement.permissionModal.effectiveRoles', { count: effectiveGrants?.roles.length || 0 })}</div><div className="space-y-2">{effectiveGrants?.roles.map(role => <div key={role.id} className="rounded-lg border bg-white p-3"><div className="font-medium">{role.name} <code className="text-xs text-gray-500">{role.code}</code></div><div className="mt-2 flex flex-wrap gap-1">{role.sources.map((source, index) => <PBadge key={`${source.type}-${source.assignment_id || source.mapping_id}-${index}`} variant={source.type === 'explicit' ? 'default' : 'info'}>{grantSourceLabel(source)}</PBadge>)}</div></div>)}{!effectiveGrants?.roles.length && <span className="text-sm text-gray-500">{t('tenantAppUserManagement.permissionModal.noRoles')}</span>}</div></div>
+                        <div><div className="mb-2 text-xs font-semibold uppercase text-indigo-700">{t('tenantAppUserManagement.permissionModal.effectivePermissions', { count: effectiveGrants?.permissions.length || 0 })}</div><div className="max-h-48 space-y-2 overflow-y-auto">{effectiveGrants?.permissions.map(permission => <div key={permission.id} className="rounded-lg border bg-white p-3"><div className="font-medium">{permission.name} <code className="text-xs text-gray-500">{permission.code}</code></div><div className="mt-2 flex flex-wrap gap-1">{permission.sources.map((source, index) => <PBadge key={`${source.type}-${source.assignment_id || source.mapping_id}-${source.via_role_code}-${index}`} variant={source.type === 'explicit' ? 'default' : 'info'}>{grantSourceLabel(source)}{source.via_role_code ? ` · ${source.via_role_code}` : ''}</PBadge>)}</div></div>)}{!effectiveGrants?.permissions.length && <span className="text-sm text-gray-500">{t('tenantAppUserManagement.permissionModal.noPermissions')}</span>}</div></div>
+                      </div>}
+                  </div>
                   {/* ： */}
                   <div className="space-y-6">
                     {/*  */}

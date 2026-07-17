@@ -15,7 +15,8 @@ import {
   LockClosedIcon,
   UserGroupIcon,
   ArrowRightIcon,
-  DocumentCheckIcon
+  DocumentCheckIcon,
+  ArrowsRightLeftIcon
 } from '@heroicons/react/24/outline'
 import TenantLayout from '@features/tenant/components/TenantLayout'
 import { tenantAppApi, TenantApp } from '@api/tenant/tenantApp'
@@ -352,6 +353,23 @@ export default function AppDetail() {
                   <ArrowRightIcon className="h-5 w-5 text-gray-400 transition-colors group-hover:text-violet-600" />
                 </div>
                 <div className="mt-3"><span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">{t('tenantAppDetail.accessControl.cards.manifestManagement.badge')}</span></div>
+              </Link>
+
+              <Link
+                to={`/tenant/apps/${app.id}/rbac-mappings`}
+                className="group relative rounded-xl border-2 border-gray-200 bg-white p-6 transition-all duration-200 hover:border-cyan-300 hover:shadow-md"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <ArrowsRightLeftIcon className="h-8 w-8 text-cyan-600 group-hover:text-cyan-700" />
+                    <div className="ml-4">
+                      <h4 className="text-lg font-medium text-gray-900 group-hover:text-cyan-900">{t('tenantAppDetail.accessControl.cards.grantMapping.title')}</h4>
+                      <p className="text-sm text-gray-500">{t('tenantAppDetail.accessControl.cards.grantMapping.description')}</p>
+                    </div>
+                  </div>
+                  <ArrowRightIcon className="h-5 w-5 text-gray-400 transition-colors group-hover:text-cyan-600" />
+                </div>
+                <div className="mt-3"><span className="rounded-full bg-cyan-100 px-2 py-1 text-xs font-medium text-cyan-800">{t('tenantAppDetail.accessControl.cards.grantMapping.badge')}</span></div>
               </Link>
             </div>
 

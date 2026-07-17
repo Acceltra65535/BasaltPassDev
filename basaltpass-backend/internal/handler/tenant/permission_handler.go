@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // PermissionRequest 创建/更新权限请求
@@ -206,7 +207,6 @@ func UpdateTenantPermission(c *fiber.Ctx) error {
 			"error": "获取权限失败",
 		})
 	}
-
 	// 如果修改了代码，检查新代码是否已存在
 	if req.Code != permission.Code {
 		var existingPerm model.TenantRbacPermission
@@ -277,6 +277,15 @@ func DeleteTenantPermission(c *fiber.Ctx) error {
 			"error": "获取权限失败",
 		})
 	}
+	var mappingCount int64
+	if err := common.DB().Model(&model.TenantAppGrantMapping{}).
+		Where("tenant_id = ? AND source_type = ? AND source_id = ?", tenantID, model.TenantAppGrantSourceTenantPermission, permissionID).
+		Count(&mappingCount).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "检查权限映射失败"})
+	}
+	if mappingCount > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "该权限正在被 tenant→app 映射引用，无法删除"})
+	}
 
 	// 开始事务
 	tx := common.DB().Begin()
@@ -285,6 +294,23 @@ func DeleteTenantPermission(c *fiber.Ctx) error {
 			tx.Rollback()
 		}
 	}()
+	// Serialize source deletion with mapping validation and repeat the reference
+	// check in the same transaction to avoid a check/delete race.
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ? AND tenant_id = ?", permissionID, tenantID).First(&permission).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "权限不存在"})
+	}
+	if err := tx.Model(&model.TenantAppGrantMapping{}).
+		Where("tenant_id = ? AND source_type = ? AND source_id = ?", tenantID, model.TenantAppGrantSourceTenantPermission, permissionID).
+		Count(&mappingCount).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "检查权限映射失败"})
+	}
+	if mappingCount > 0 {
+		tx.Rollback()
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "该权限正在被 tenant→app 映射引用，无法删除"})
+	}
 
 	// 删除角色-权限关联
 	if err := tx.Where("permission_id = ?", permissionID).

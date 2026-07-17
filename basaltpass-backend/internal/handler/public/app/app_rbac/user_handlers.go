@@ -6,6 +6,7 @@ import (
 
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
+	"basaltpass-backend/internal/service/appgrant"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -104,10 +105,18 @@ func GetUserPermissions(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "获取用户角色失败"})
 	}
+	effective, err := appgrant.NewService(common.DB()).Resolve(uint(userID), tenantID, uint(appID), time.Now().UTC())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "获取有效授权失败"})
+	}
 
 	return c.JSON(fiber.Map{
-		"permissions": userPermissions,
-		"roles":       userRoles,
+		"permissions":           userPermissions,
+		"roles":                 userRoles,
+		"effective_permissions": effective.Permissions,
+		"effective_roles":       effective.Roles,
+		"eligible":              effective.Eligible,
+		"denial_reason":         effective.DenialReason,
 	})
 }
 
@@ -143,8 +152,12 @@ func GetUserRoles(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "获取用户角色失败"})
 	}
+	effective, err := appgrant.NewService(common.DB()).Resolve(uint(userID), tenantID, uint(appID), time.Now().UTC())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "获取有效授权失败"})
+	}
 
-	return c.JSON(fiber.Map{"roles": userRoles})
+	return c.JSON(fiber.Map{"roles": userRoles, "effective_roles": effective.Roles, "eligible": effective.Eligible, "denial_reason": effective.DenialReason})
 }
 
 // GrantUserPermissions 授予用户权限
@@ -408,51 +421,17 @@ func CheckUserAccess(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "permission_code(s) 或 role_code(s) 至少提供一项"})
 	}
 
-	now := time.Now()
 	ownedPermissions := make(map[string]bool)
 	ownedRoles := make(map[string]bool)
-
-	var directPermissionCodes []string
-	if err := common.DB().
-		Table("app_user_permissions").
-		Select("app_permissions.code").
-		Joins("JOIN app_permissions ON app_permissions.id = app_user_permissions.permission_id").
-		Where("app_user_permissions.user_id = ? AND app_user_permissions.app_id = ?", userID, appID).
-		Where("app_user_permissions.expires_at IS NULL OR app_user_permissions.expires_at > ?", now).
-		Pluck("app_permissions.code", &directPermissionCodes).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "查询用户直接权限失败"})
+	effective, err := appgrant.NewService(common.DB()).Resolve(uint(userID), tenantID, uint(appID), time.Now().UTC())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "查询用户有效授权失败"})
 	}
-	for _, code := range directPermissionCodes {
-		ownedPermissions[code] = true
+	for _, permission := range effective.Permissions {
+		ownedPermissions[permission.Code] = true
 	}
-
-	var roleCodes []string
-	if err := common.DB().
-		Table("app_user_roles").
-		Select("app_roles.code").
-		Joins("JOIN app_roles ON app_roles.id = app_user_roles.role_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
-		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", now).
-		Pluck("app_roles.code", &roleCodes).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "查询用户角色失败"})
-	}
-	for _, code := range roleCodes {
-		ownedRoles[code] = true
-	}
-
-	var rolePermissionCodes []string
-	if err := common.DB().
-		Table("app_user_roles").
-		Select("distinct app_permissions.code").
-		Joins("JOIN app_role_permissions ON app_role_permissions.app_role_id = app_user_roles.role_id").
-		Joins("JOIN app_permissions ON app_permissions.id = app_role_permissions.app_permission_id").
-		Where("app_user_roles.user_id = ? AND app_user_roles.app_id = ?", userID, appID).
-		Where("app_user_roles.expires_at IS NULL OR app_user_roles.expires_at > ?", now).
-		Pluck("app_permissions.code", &rolePermissionCodes).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "查询用户角色权限失败"})
-	}
-	for _, code := range rolePermissionCodes {
-		ownedPermissions[code] = true
+	for _, role := range effective.Roles {
+		ownedRoles[role.Code] = true
 	}
 
 	permissionResult := make(map[string]bool, len(normalizedPermissionInput))
@@ -484,6 +463,8 @@ func CheckUserAccess(c *fiber.Ctx) error {
 			"roles":                         roleResult,
 			"has_all_permissions":           hasAllPermissions,
 			"has_all_roles":                 hasAllRoles,
+			"eligible":                      effective.Eligible,
+			"denial_reason":                 effective.DenialReason,
 			"permission_input_dup_filtered": permissionInputDuplicates,
 			"role_input_dup_filtered":       roleInputDuplicates,
 		},
