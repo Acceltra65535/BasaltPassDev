@@ -62,6 +62,7 @@ Available S2S scopes:
 - `s2s.user.read`
 - `s2s.user.write`
 - `s2s.rbac.read`
+- `s2s.rbac.manifest.submit`
 - `s2s.team.read`
 - `s2s.team.write`
 - `s2s.wallet.read`
@@ -413,6 +414,10 @@ Each item in `results` may contain:
 - `message_id`
 - `sent_at`
 - `error`
+
+## Effective App grants
+
+The user role and permission endpoints return the union of explicit App assignments and active Tenant → App mappings. Inherited grants are evaluated dynamically and are never written to `app_user_roles` or `app_user_permissions`. Responses include `eligible` and `denial_reason`; role objects also include grant provenance. See [Tenant → App grant mappings](../integration/tenant-app-grant-mappings.md).
 
 ## Common Errors
 

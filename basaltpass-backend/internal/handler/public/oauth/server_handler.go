@@ -569,13 +569,14 @@ func handleClientCredentialsGrant(c *fiber.Ctx) error {
 	}
 
 	if err := common.DB().Create(&model.OAuthAccessToken{
-		Token:     tokenStr,
-		ClientID:  client.ClientID,
-		UserID:    userID,
-		TenantID:  tenantID,
-		AppID:     client.AppID,
-		Scopes:    grantedScopes,
-		ExpiresAt: time.Now().Add(1 * time.Hour),
+		Token:       tokenStr,
+		ClientID:    client.ClientID,
+		UserID:      userID,
+		TenantID:    tenantID,
+		AppID:       client.AppID,
+		SubjectType: model.OAuthSubjectApp,
+		Scopes:      grantedScopes,
+		ExpiresAt:   time.Now().Add(1 * time.Hour),
 	}).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":             "server_error",

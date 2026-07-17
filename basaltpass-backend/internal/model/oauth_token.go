@@ -9,17 +9,18 @@ import (
 
 // OAuthAccessToken OAuth2访问令牌
 type OAuthAccessToken struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	Token      string    `gorm:"size:128;uniqueIndex;not null" json:"token"`
-	ClientID   string    `gorm:"size:64;not null;index" json:"client_id"`
-	UserID     uint      `gorm:"not null;index" json:"user_id"`
-	TenantID   uint      `gorm:"not null;index" json:"tenant_id"`
-	AppID      uint      `gorm:"not null;index" json:"app_id"`
-	Scopes     string    `gorm:"type:text" json:"scopes"`
-	Claims     string    `gorm:"type:text" json:"claims,omitempty"`
-	ExpiresAt  time.Time `gorm:"not null;index" json:"expires_at"`
-	CreatedAt  time.Time `json:"created_at"`
-	AuthCodeID *uint     `gorm:"index" json:"auth_code_id,omitempty"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Token       string    `gorm:"size:128;uniqueIndex;not null" json:"token"`
+	ClientID    string    `gorm:"size:64;not null;index" json:"client_id"`
+	UserID      uint      `gorm:"not null;index" json:"user_id"`
+	TenantID    uint      `gorm:"not null;index" json:"tenant_id"`
+	AppID       uint      `gorm:"not null;index" json:"app_id"`
+	SubjectType string    `gorm:"size:16;not null;default:'user';index" json:"subject_type"`
+	Scopes      string    `gorm:"type:text" json:"scopes"`
+	Claims      string    `gorm:"type:text" json:"claims,omitempty"`
+	ExpiresAt   time.Time `gorm:"not null;index" json:"expires_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	AuthCodeID  *uint     `gorm:"index" json:"auth_code_id,omitempty"`
 
 	// Token Exchange (RFC 8693) actor context — populated when this token was
 	// created via a token-exchange grant.
@@ -33,6 +34,11 @@ type OAuthAccessToken struct {
 	App    App         `gorm:"foreignKey:AppID" json:"app,omitempty"`
 	Client OAuthClient `gorm:"foreignKey:ClientID;references:ClientID" json:"client,omitempty"`
 }
+
+const (
+	OAuthSubjectUser = "user"
+	OAuthSubjectApp  = "app"
+)
 
 // OAuthRefreshToken OAuth2刷新令牌
 type OAuthRefreshToken struct {

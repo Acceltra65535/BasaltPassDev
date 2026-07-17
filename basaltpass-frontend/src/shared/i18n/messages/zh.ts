@@ -532,12 +532,21 @@ const en = {
       description: 'Manage your funds and transactions',
       stats: {
         currentBalance: 'Current balance',
+        totalUsd: '总资产',
         monthlyIncome: 'Monthly income',
         monthlyExpense: 'Monthly expense',
       },
       overview: {
+        totalUsd: '按美元计价的总资产',
+        accountCount: '{{count}} 个钱包账户',
         currentBalanceWithCode: 'Current balance ({{code}})',
         lastUpdated: 'Last updated: {{time}}',
+      },
+      accounts: {
+        title: '账户',
+        empty: '暂无钱包账户',
+        noRate: '未配置美元汇率',
+        unknown: '未知账户',
       },
       quickActions: {
         title: '快捷操作',
@@ -555,6 +564,7 @@ const en = {
       },
       recentTransactions: {
         title: 'Recent Transactions',
+        titleWithCode: '最近交易（{{code}}）',
         viewAll: 'View all',
         empty: 'No recent transactions',
         status: {
@@ -659,51 +669,35 @@ const en = {
       },
       giftCard: {
         title: 'Gift Card Redeem',
-        codeLabel: 'Card Code',
-        codePlaceholder: 'e.g. GC-XXXXX-XXXXX',
-        submit: 'Redeem Now',
       },
       errors: {
         title: 'Recharge failed',
         disabled: 'Wallet recharge is not available yet',
         invalidAmount: 'Please enter a valid recharge amount',
         selectCurrency: 'Please select recharge currency',
+        selectPaymentCurrency: '请选择付款货币',
+        exchangeRateMissing: '当前充值币种没有配置汇率',
         rechargeFailed: 'Recharge failed, please retry',
-        giftCodeRequired: 'Please enter Gift Card code',
-        giftRedeemFailed: 'Gift Card redemption failed',
-      },
-      success: {
-        title: 'Recharge successful!',
-        redirecting: 'Redirecting to wallet page...',
       },
       form: {
         title: 'Recharge Information',
         currencyLabel: 'Select currency',
+        paymentCurrencyLabel: '付款货币',
+        paymentCurrencyPlaceholder: '请选择付款货币',
         amountLabel: 'Recharge Amount {{currency}}',
         amountPlaceholder: '0.00',
         quickAmountLabel: 'Quick amount',
-        methodLabel: 'Payment method',
+        paymentEstimateTitle: '付款金额',
+        paymentEstimate: '{{target}} 需要支付 {{payment}}',
+        exchangeRateHint: '金额根据系统配置的内部汇率计算。',
         submitWithAmount: 'Recharge {{symbol}}{{amount}} {{code}}',
-      },
-      paymentMethods: {
-        alipay: {
-          name: 'Alipay',
-          description: 'QR payment',
-        },
-        wechat: {
-          name: 'WeChat Pay',
-          description: 'QR payment',
-        },
-        bank: {
-          name: 'Bank Card',
-          description: 'Online payment',
-        },
+        continueToCheckout: '进入收银台',
       },
       guide: {
         title: 'Recharge Notes',
         items: {
           realtime: 'Recharge amount is credited to wallet balance in real time',
-          methods: 'Supports Alipay, WeChat Pay, bank card and more',
+          methods: '在收银台选择付款方式',
           limit: 'Single recharge limit: ¥50 - ¥50,000',
           fee: 'Recharge is free of charge',
         },
@@ -715,6 +709,45 @@ const en = {
           password: 'Do not share payment credentials',
           support: 'Contact support promptly if issues occur',
         },
+      },
+    },
+    appRecharge: {
+      header: {
+        title: '{{app}} 充值',
+        appFallback: '应用',
+        description: '为这个应用使用的钱包币种充值',
+      },
+      form: {
+        title: '应用钱包充值',
+        currencyLabel: '应用币种',
+      },
+      guide: {
+        title: '应用专属收银台',
+        body: '此页面只显示 {{app}} 关联的钱包币种。',
+        currencyCount: '此应用当前可充值 {{count}} 个币种。',
+      },
+      success: {
+        title: '付款成功',
+        description: '{{app}} 的充值已经到账。',
+        redirecting: '{{seconds}} 秒后返回 {{host}}。',
+        noReturnUrl: '没有配置应用返回地址，你可以返回钱包查看余额。',
+        pendingTitle: '正在确认付款',
+        pendingDescription: '我们正在向支付渠道确认这笔充值，请稍后刷新。',
+        actions: {
+          retry: '重新确认',
+          returnNow: '立即返回应用',
+          wallet: '查看钱包',
+        },
+        errors: {
+          missingSession: '缺少支付会话。',
+          notComplete: '支付渠道还没有确认这笔付款。',
+          reconcileFailed: '确认充值失败，请稍后重试。',
+        },
+      },
+      empty: '这个应用还没有配置钱包币种。',
+      errors: {
+        loadFailed: '加载应用充值配置失败',
+        noCurrency: '请选择应用币种',
       },
     },
     walletWithdraw: {
@@ -1298,6 +1331,7 @@ const en = {
         noDescription: 'No description',
       },
       actions: {
+        wallet: '团队钱包',
         manageMembers: 'Manage members',
         inviteMembers: 'Invite members',
         manageInvitations: 'Manage invitations',
@@ -1318,6 +1352,23 @@ const en = {
         cancel: 'Cancel',
         confirmDelete: 'Confirm delete',
         confirmLeave: 'Confirm leave',
+      },
+    },
+    teamWallet: {
+      title: '{{team}}的钱包',
+      description: '查看归属于该团队的资产余额和交易明细。',
+      backToTeam: '返回团队',
+      readOnly: '只读',
+      empty: '该团队还没有钱包账户。',
+      errors: {
+        title: '钱包不可用',
+        invalidTeam: '团队 ID 无效',
+        loadFailed: '无法加载团队钱包',
+        historyFailed: '无法加载钱包交易记录',
+      },
+      transactions: {
+        title: '交易记录',
+        empty: '该账户暂无交易记录。',
       },
     },
     teamIndex: {
@@ -2227,6 +2278,14 @@ const en = {
       grantSelectedPermissions: 'Grant Selected Permissions ({{count}})',
       assignRoles: 'Assign Roles',
       assignSelectedRoles: 'Assign Selected Roles ({{count}})',
+      effectiveTitle: '当前有效授权',
+      effectiveDescription: '只读展示显式分配与 Tenant 动态映射合并后的结果。',
+      effectiveRoles: '有效角色（{{count}}）',
+      effectivePermissions: '有效权限（{{count}}）',
+      sourceExplicit: '显式分配',
+      sourceMapping: '{{source}} · 映射 #{{mapping}}',
+      manageMappings: '管理映射',
+      ineligible: '用户当前不符合运行时授权条件，因此不返回任何权限：{{reason}}',
     },
     success: {
       permissionGranted: 'Permission granted successfully',
@@ -3603,6 +3662,16 @@ const en = {
           description: 'Define and categorize permissions',
           badge: 'Permission Setup',
         },
+        manifestManagement: {
+          title: 'RBAC 自动导入',
+          description: '审核应用自动提交的 RBAC 配置',
+          badge: '审批与回滚',
+        },
+        grantMapping: {
+          title: 'Tenant → App 映射',
+          description: '将租户角色和权限映射为应用授权',
+          badge: '动态授权',
+        },
       },
     },
     quickStart: {
@@ -3642,6 +3711,75 @@ const en = {
     logs: {
       loadFailed: 'Failed to load app details:',
       copyFailed: 'Copy failed:',
+    },
+  },
+  tenantAppGrantMappings: {
+    title: 'Tenant → App 授权映射',
+    description: '根据用户当前的租户角色和权限动态获得应用角色或权限，不创建用户继承分配记录。',
+    back: '返回应用',
+    dynamicNotice: '映射会在每次授权查询时动态计算；租户角色变更、过期、停用或删除会立即生效。',
+    empty: '该应用尚未配置任何授权映射。',
+    affected: '当前影响 {{count}} 个已授权用户',
+    validity: '生效时间：{{from}} 至 {{until}}',
+    sourceTypes: { membership_role: '租户成员身份', tenant_role: 'Tenant RBAC 角色', tenant_permission: '有效 Tenant 权限' },
+    targetTypes: { app_role: '应用角色', app_permission: '应用权限' },
+    status: { enabled: '已启用', disabled: '已停用' },
+    actions: { create: '新建映射', edit: '编辑', delete: '删除', enable: '启用', disable: '停用', preview: '预览影响', save: '保存', cancel: '取消' },
+    editor: {
+      createTitle: '新建授权映射', editTitle: '编辑授权映射', sourceType: '租户来源类型', source: '租户来源',
+      targetType: '应用目标类型', target: '应用目标', select: '请选择…', validFrom: '开始时间（可选）', validUntil: '结束时间（可选）',
+      enabled: '启用该映射', previewResult: '当前有 {{count}} 个已授权应用用户符合该策略。',
+    },
+    confirm: { delete: '确定删除 {{source}} 到 {{target}} 的映射吗？继承授权将立即消失。' },
+    errors: { load: '加载授权映射失败', preview: '预览映射影响失败', save: '保存授权映射失败', delete: '删除授权映射失败', validity: '结束时间必须晚于开始时间。' },
+  },
+  tenantRBACManifests: {
+    title: 'RBAC 自动导入',
+    description: '审核并发布 {{app}} 自动提交的纯 RBAC 配置',
+    back: '返回应用',
+    refresh: '刷新',
+    integration: {
+      title: '应用提交接口',
+      description: '已认证应用只能通过专用 scope 提交草案；OAuth 配置和用户授权字段会被拒绝。',
+    },
+    manifests: {
+      title: '配置提交记录',
+      emptyTitle: '尚未收到配置',
+      emptyDescription: '应用提交 RBAC manifest 后，会在这里等待管理员审核。',
+      revision: '应用版本 {{revision}}',
+      blocked: '存在阻断',
+      blockedTitle: '当前配置暂时无法发布',
+      blockedDescription: '它尝试删除被用户授权或 Tenant → App 映射引用的角色或权限。请先移除引用，或让应用提交兼容配置。',
+      noChanges: '该配置不会改变当前生效的 RBAC。',
+      permissions: '个权限',
+      roles: '个角色',
+    },
+    status: { pending: '待审核', approved: '已发布', rejected: '已拒绝', superseded: '已被新版本替代' },
+    diff: {
+      permissionsAdded: '新增权限', permissionsUpdated: '更新权限', permissionsRemoved: '删除权限',
+      rolesAdded: '新增角色', rolesUpdated: '更新角色', rolesRemoved: '删除角色',
+      rolePermissionsAdded: '新增角色授权', rolePermissionsRemoved: '移除角色授权',
+      assignedRolesAffected: '受影响的已分配或映射角色', removalBlocks: '删除阻断项',
+    },
+    revisions: {
+      title: '已发布版本历史', empty: '尚无已发布版本', active: '当前生效',
+      baseline: '初始基线', manifest: '配置发布', rollback: '回滚版本',
+      safetyTitle: '回滚安全保护',
+      safetyDescription: '回滚会创建新的不可变版本；如果需要删除被用户授权或 Tenant → App 映射引用的角色或权限，回滚将被拒绝。',
+    },
+    actions: { approve: '批准并发布', reject: '拒绝', rollback: '回滚到此版本' },
+    confirm: {
+      approve: '确认批准应用版本 {{revision}} 并原子发布此 RBAC 配置吗？',
+      reject: '确认拒绝应用版本 {{revision}} 吗？',
+      rollback: '确认根据版本 #{{revision}} 创建一个新的生效版本吗？',
+    },
+    success: {
+      approved: '应用版本 {{revision}} 已成功发布。', rejected: '应用版本 {{revision}} 已拒绝。',
+      rolledBack: '已回滚到版本 #{{revision}} 的配置快照。',
+    },
+    errors: {
+      load: '加载 RBAC 配置失败', approve: '批准配置失败', reject: '拒绝配置失败',
+      rollback: '回滚版本失败', blocked: '该配置会删除仍被引用的角色或权限，因此不能发布。',
     },
   },
   adminDashboard: {

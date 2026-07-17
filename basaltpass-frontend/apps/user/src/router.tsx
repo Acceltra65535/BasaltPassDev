@@ -33,6 +33,7 @@ import Withdraw from '../../../src/features/user/wallet/Withdraw'
 import History from '../../../src/features/user/wallet/History'
 import RedeemGiftCard from '../../../src/features/user/wallet/RedeemGiftCard'
 import Payment from '../../../src/features/user/payment/Payment'
+import Cashier from '../../../src/features/user/payment/Cashier'
 
 import SecuritySettings from '../../../src/features/user/security/SecuritySettings'
 import TwoFA from '../../../src/features/user/security/TwoFA'
@@ -41,9 +42,11 @@ import LoginHistory from '../../../src/features/user/security/LoginHistory'
 
 import UserAppsIndex from '../../../src/features/user/apps/Index'
 import UserAppDetail from '../../../src/features/user/apps/Detail'
+import AppRecharge from '../../../src/features/user/apps/AppRecharge'
 
 import SubscriptionIndex from '../../../src/features/user/subscription/Index'
 import ProductsPage from '../../../src/features/user/subscription/Products'
+import ProductDetailPage from '../../../src/features/user/subscription/ProductDetail'
 import SubscriptionCheckout from '../../../src/features/user/subscription/Checkout'
 
 import OrderConfirm from '../../../src/features/user/order/OrderConfirm'
@@ -195,6 +198,7 @@ export default function AppRouter() {
       <Route path="/wallet/history" element={<ProtectedRoute requiresTenant><History /></ProtectedRoute>} />
       <Route path="/wallet/gift-cards/redeem" element={<ProtectedRoute requiresTenant><RedeemGiftCard /></ProtectedRoute>} />
       <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
+      <Route path="/checkout" element={<ProtectedRoute><Cashier /></ProtectedRoute>} />
 
       {/* Security */}
       <Route path="/security" element={<ProtectedRoute><SecuritySettings /></ProtectedRoute>} />
@@ -205,9 +209,13 @@ export default function AppRouter() {
       {/* Apps */}
       <Route path="/my-apps" element={<ProtectedRoute><UserAppsIndex /></ProtectedRoute>} />
       <Route path="/my-apps/:id" element={<ProtectedRoute><UserAppDetail /></ProtectedRoute>} />
+      <Route path="/apps/recharge" element={<ProtectedRoute requiresTenant><AppRecharge /></ProtectedRoute>} />
+      <Route path="/apps/:id/recharge" element={<ProtectedRoute requiresTenant><AppRecharge /></ProtectedRoute>} />
 
       {/* Subscriptions */}
       <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
+      <Route path="/products/code/:productCode" element={<ProtectedRoute><ProductDetailPage /></ProtectedRoute>} />
+      <Route path="/products/:productId" element={<ProtectedRoute><ProductDetailPage /></ProtectedRoute>} />
       <Route path="/subscriptions" element={<ProtectedRoute><SubscriptionIndex /></ProtectedRoute>} />
       <Route path="/subscriptions/checkout" element={<ProtectedRoute><SubscriptionCheckout /></ProtectedRoute>} />
 

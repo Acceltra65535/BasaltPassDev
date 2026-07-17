@@ -532,12 +532,21 @@ const en = {
       description: 'Manage your funds and transactions',
       stats: {
         currentBalance: 'Current balance',
+        totalUsd: 'Total assets',
         monthlyIncome: 'Monthly income',
         monthlyExpense: 'Monthly expense',
       },
       overview: {
+        totalUsd: 'Total assets in USD',
+        accountCount: '{{count}} wallet accounts',
         currentBalanceWithCode: 'Current balance ({{code}})',
         lastUpdated: 'Last updated: {{time}}',
+      },
+      accounts: {
+        title: 'Accounts',
+        empty: 'No wallet accounts yet',
+        noRate: 'No USD rate configured',
+        unknown: 'Unknown account',
       },
       quickActions: {
         title: 'Quick Actions',
@@ -555,6 +564,7 @@ const en = {
       },
       recentTransactions: {
         title: 'Recent Transactions',
+        titleWithCode: 'Recent Transactions ({{code}})',
         viewAll: 'View all',
         empty: 'No recent transactions',
         status: {
@@ -659,51 +669,35 @@ const en = {
       },
       giftCard: {
         title: 'Gift Card Redeem',
-        codeLabel: 'Card Code',
-        codePlaceholder: 'e.g. GC-XXXXX-XXXXX',
-        submit: 'Redeem Now',
       },
       errors: {
         title: 'Recharge failed',
         disabled: 'Wallet recharge is not available yet',
         invalidAmount: 'Please enter a valid recharge amount',
         selectCurrency: 'Please select recharge currency',
+        selectPaymentCurrency: 'Please select payment currency',
+        exchangeRateMissing: 'Exchange rate is not configured for this recharge',
         rechargeFailed: 'Recharge failed, please retry',
-        giftCodeRequired: 'Please enter Gift Card code',
-        giftRedeemFailed: 'Gift Card redemption failed',
-      },
-      success: {
-        title: 'Recharge successful!',
-        redirecting: 'Redirecting to wallet page...',
       },
       form: {
         title: 'Recharge Information',
         currencyLabel: 'Select currency',
+        paymentCurrencyLabel: 'Payment currency',
+        paymentCurrencyPlaceholder: 'Select payment currency',
         amountLabel: 'Recharge Amount {{currency}}',
         amountPlaceholder: '0.00',
         quickAmountLabel: 'Quick amount',
-        methodLabel: 'Payment method',
+        paymentEstimateTitle: 'Payment amount',
+        paymentEstimate: '{{target}} will cost {{payment}}',
+        exchangeRateHint: 'Calculated from the configured internal exchange rate.',
         submitWithAmount: 'Recharge {{symbol}}{{amount}} {{code}}',
-      },
-      paymentMethods: {
-        alipay: {
-          name: 'Alipay',
-          description: 'QR payment',
-        },
-        wechat: {
-          name: 'WeChat Pay',
-          description: 'QR payment',
-        },
-        bank: {
-          name: 'Bank Card',
-          description: 'Online payment',
-        },
+        continueToCheckout: 'Continue to checkout',
       },
       guide: {
         title: 'Recharge Notes',
         items: {
           realtime: 'Recharge amount is credited to wallet balance in real time',
-          methods: 'Supports Alipay, WeChat Pay, bank card and more',
+          methods: 'Choose a payment method in checkout',
           limit: 'Single recharge limit: ¥50 - ¥50,000',
           fee: 'Recharge is free of charge',
         },
@@ -715,6 +709,45 @@ const en = {
           password: 'Do not share payment credentials',
           support: 'Contact support promptly if issues occur',
         },
+      },
+    },
+    appRecharge: {
+      header: {
+        title: '{{app}} Top-up',
+        appFallback: 'App',
+        description: 'Top up a wallet currency used by this app',
+      },
+      form: {
+        title: 'App wallet top-up',
+        currencyLabel: 'App currency',
+      },
+      guide: {
+        title: 'App-specific checkout',
+        body: 'This page only shows wallet currencies linked to {{app}}.',
+        currencyCount: '{{count}} currencies are available for this app.',
+      },
+      success: {
+        title: 'Payment successful',
+        description: '{{app}} top-up has been credited.',
+        redirecting: 'Returning to {{host}} in {{seconds}} seconds.',
+        noReturnUrl: 'No app return URL was configured. You can view the updated balance in your wallet.',
+        pendingTitle: 'Confirming payment',
+        pendingDescription: 'We are confirming this top-up with the payment provider. Please refresh shortly.',
+        actions: {
+          retry: 'Confirm again',
+          returnNow: 'Return to app now',
+          wallet: 'View wallet',
+        },
+        errors: {
+          missingSession: 'Payment session is missing.',
+          notComplete: 'The payment provider has not confirmed this payment yet.',
+          reconcileFailed: 'Failed to confirm this top-up. Please retry shortly.',
+        },
+      },
+      empty: 'This app has no wallet currency configured yet.',
+      errors: {
+        loadFailed: 'Failed to load app recharge configuration',
+        noCurrency: 'Please select an app currency',
       },
     },
     walletWithdraw: {
@@ -1298,6 +1331,7 @@ const en = {
         noDescription: 'No description',
       },
       actions: {
+        wallet: 'Team wallet',
         manageMembers: 'Manage members',
         inviteMembers: 'Invite members',
         manageInvitations: 'Manage invitations',
@@ -1318,6 +1352,23 @@ const en = {
         cancel: 'Cancel',
         confirmDelete: 'Confirm delete',
         confirmLeave: 'Confirm leave',
+      },
+    },
+    teamWallet: {
+      title: '{{team}} wallet',
+      description: 'View balances and transaction details owned by this team.',
+      backToTeam: 'Back to team',
+      readOnly: 'Read only',
+      empty: 'This team does not have any wallet accounts yet.',
+      errors: {
+        title: 'Wallet unavailable',
+        invalidTeam: 'Invalid team ID',
+        loadFailed: 'Failed to load team wallets',
+        historyFailed: 'Failed to load wallet transactions',
+      },
+      transactions: {
+        title: 'Transactions',
+        empty: 'No transactions for this account.',
       },
     },
     teamIndex: {
@@ -2226,6 +2277,14 @@ const en = {
       grantSelectedPermissions: 'Grant Selected Permissions ({{count}})',
       assignRoles: 'Assign Roles',
       assignSelectedRoles: 'Assign Selected Roles ({{count}})',
+      effectiveTitle: 'Effective authorization',
+      effectiveDescription: 'Read-only union of explicit assignments and current tenant mappings.',
+      effectiveRoles: 'Effective roles ({{count}})',
+      effectivePermissions: 'Effective permissions ({{count}})',
+      sourceExplicit: 'Explicit assignment',
+      sourceMapping: '{{source}} · mapping #{{mapping}}',
+      manageMappings: 'Manage mappings',
+      ineligible: 'No runtime grants are returned because the user is not eligible: {{reason}}',
     },
     success: {
       permissionGranted: 'Permission granted successfully',
@@ -3602,6 +3661,16 @@ const en = {
           description: 'Define and categorize permissions',
           badge: 'Permission Setup',
         },
+        manifestManagement: {
+          title: 'Automatic RBAC Import',
+          description: 'Review app-submitted RBAC manifests',
+          badge: 'Review & Rollback',
+        },
+        grantMapping: {
+          title: 'Tenant → App Mapping',
+          description: 'Map tenant roles and permissions to app grants',
+          badge: 'Dynamic grants',
+        },
       },
     },
     quickStart: {
@@ -3641,6 +3710,75 @@ const en = {
     logs: {
       loadFailed: 'Failed to load app details:',
       copyFailed: 'Copy failed:',
+    },
+  },
+  tenantAppGrantMappings: {
+    title: 'Tenant → App Grant Mappings',
+    description: 'Automatically derive app roles and permissions from current tenant access without creating user assignment records.',
+    back: 'Back to app',
+    dynamicNotice: 'Mappings are evaluated on every authorization query. Tenant role changes, expiry, disabling, and deletion take effect immediately.',
+    empty: 'No mapping policy has been configured for this app.',
+    affected: '{{count}} authorized users affected',
+    validity: 'Valid from {{from}} until {{until}}',
+    sourceTypes: { membership_role: 'Tenant membership role', tenant_role: 'Tenant RBAC role', tenant_permission: 'Effective tenant permission' },
+    targetTypes: { app_role: 'App role', app_permission: 'App permission' },
+    status: { enabled: 'Enabled', disabled: 'Disabled' },
+    actions: { create: 'Create mapping', edit: 'Edit', delete: 'Delete', enable: 'Enable', disable: 'Disable', preview: 'Preview impact', save: 'Save', cancel: 'Cancel' },
+    editor: {
+      createTitle: 'Create grant mapping', editTitle: 'Edit grant mapping', sourceType: 'Tenant source type', source: 'Tenant source',
+      targetType: 'App target type', target: 'App target', select: 'Select…', validFrom: 'Valid from (optional)', validUntil: 'Valid until (optional)',
+      enabled: 'Enable this mapping', previewResult: '{{count}} currently authorized app users match this policy.',
+    },
+    confirm: { delete: 'Delete the mapping from {{source}} to {{target}}? Inherited access will disappear immediately.' },
+    errors: { load: 'Failed to load grant mappings', preview: 'Failed to preview mapping impact', save: 'Failed to save grant mapping', delete: 'Failed to delete grant mapping', validity: 'Valid until must be later than valid from.' },
+  },
+  tenantRBACManifests: {
+    title: 'Automatic RBAC Import',
+    description: 'Review and publish RBAC-only manifests submitted by {{app}}',
+    back: 'Back to app',
+    refresh: 'Refresh',
+    integration: {
+      title: 'App submission endpoint',
+      description: 'The authenticated app can only submit a draft with the dedicated scope. OAuth settings and user assignments are rejected.',
+    },
+    manifests: {
+      title: 'Submitted manifests',
+      emptyTitle: 'No manifest submitted',
+      emptyDescription: 'After the app submits its RBAC manifest, it will appear here for review.',
+      revision: 'App revision {{revision}}',
+      blocked: 'Blocked',
+      blockedTitle: 'This manifest cannot be published yet',
+      blockedDescription: 'It removes a role or permission referenced by user assignments or Tenant → App mappings. Remove the reference or submit a compatible manifest.',
+      noChanges: 'This manifest does not change the effective RBAC configuration.',
+      permissions: 'permissions',
+      roles: 'roles',
+    },
+    status: { pending: 'Pending review', approved: 'Published', rejected: 'Rejected', superseded: 'Superseded' },
+    diff: {
+      permissionsAdded: 'Permissions added', permissionsUpdated: 'Permissions updated', permissionsRemoved: 'Permissions removed',
+      rolesAdded: 'Roles added', rolesUpdated: 'Roles updated', rolesRemoved: 'Roles removed',
+      rolePermissionsAdded: 'Role grants added', rolePermissionsRemoved: 'Role grants removed',
+      assignedRolesAffected: 'Assigned or mapped roles affected', removalBlocks: 'Removal blockers',
+    },
+    revisions: {
+      title: 'Published revision history', empty: 'No published revision yet', active: 'Active',
+      baseline: 'Baseline', manifest: 'Manifest', rollback: 'Rollback',
+      safetyTitle: 'Rollback safety',
+      safetyDescription: 'Rollback creates a new immutable revision. It is refused if it would delete a role or permission referenced by user assignments or Tenant → App mappings.',
+    },
+    actions: { approve: 'Approve and publish', reject: 'Reject', rollback: 'Rollback to this revision' },
+    confirm: {
+      approve: 'Approve app revision {{revision}} and atomically publish this RBAC configuration?',
+      reject: 'Reject app revision {{revision}}?',
+      rollback: 'Create a new active revision from revision #{{revision}}?',
+    },
+    success: {
+      approved: 'App revision {{revision}} was published.', rejected: 'App revision {{revision}} was rejected.',
+      rolledBack: 'Rolled back to the snapshot from revision #{{revision}}.',
+    },
+    errors: {
+      load: 'Failed to load RBAC manifests', approve: 'Failed to approve the manifest', reject: 'Failed to reject the manifest',
+      rollback: 'Failed to roll back the revision', blocked: 'This manifest would remove referenced RBAC entities and cannot be published.',
     },
   },
   adminDashboard: {

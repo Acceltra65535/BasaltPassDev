@@ -28,6 +28,11 @@ func RegisterS2SRoutes(v1 fiber.Router) {
 	group.Get("/users/:id/role-codes", middleware.ClientScopeMiddleware(sc.S2SRBACRead), s2sHandler.GetUserRoleCodesHandler)
 	group.Get("/users/:id/permissions", middleware.ClientScopeMiddleware(sc.S2SRBACRead), s2sHandler.GetUserPermissionsHandler)
 
+	// RBAC manifest control plane: the authenticated app may submit and poll
+	// only its own drafts. Publishing remains tenant-admin only.
+	group.Post("/rbac/manifests", middleware.ClientScopeMiddleware(sc.S2SRBACManifestSubmit), s2sHandler.SubmitRBACManifestHandler)
+	group.Get("/rbac/manifests/:id", middleware.ClientScopeMiddleware(sc.S2SRBACManifestSubmit), s2sHandler.GetOwnRBACManifestHandler)
+
 	// 团队
 	group.Get("/teams", middleware.ClientScopeMiddleware(sc.S2STeamRead), s2sHandler.ListTeamsHandler)
 	group.Post("/teams", middleware.ClientScopeMiddleware(sc.S2STeamWrite), s2sHandler.CreateTeamHandler)
@@ -37,6 +42,8 @@ func RegisterS2SRoutes(v1 fiber.Router) {
 	// 钱包数据（需要 currency 参数）
 	group.Get("/users/:id/wallets", middleware.ClientScopeMiddleware(sc.S2SWalletRead), s2sHandler.GetUserWalletHandler)
 	group.Post("/users/:id/wallets/adjust", middleware.ClientScopeMiddleware(sc.S2SWalletWrite), s2sHandler.AdjustUserWalletHandler)
+	group.Get("/wallets/:owner_type/:owner_id", middleware.ClientScopeMiddleware(sc.S2SWalletRead), s2sHandler.GetOwnerWalletHandler)
+	group.Post("/wallets/:owner_type/:owner_id/adjust", middleware.ClientScopeMiddleware(sc.S2SWalletWrite), s2sHandler.AdjustOwnerWalletHandler)
 
 	// 用户消息（通知）与商品拥有
 	group.Get("/users/:id/messages", middleware.ClientScopeMiddleware(sc.S2SMessagesRead), s2sHandler.GetUserMessagesHandler)

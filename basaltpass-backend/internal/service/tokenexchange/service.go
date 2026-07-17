@@ -111,13 +111,16 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 		return nil, ErrNoTrustRelation
 	}
 
-	// Step 5: Verify user has authorized the target app
-	var appUserCount int64
-	if err := db.Model(&model.AppUser{}).
-		Where("app_id = ? AND user_id = ? AND status = ?", targetApp.ID, userID, model.AppUserStatusActive).
-		Count(&appUserCount).Error; err != nil || appUserCount == 0 {
-		s.logExchange(tenantID, userID, clientID, clientAppID, targetApp.ID, trust.ID, req.Scope, "", 0, "denied", "user not authorized for target app", ip)
-		return nil, ErrUserNotAuthorized
+	// User subjects require user consent. App service subjects are authorized by
+	// the app-to-app trust relation itself and do not impersonate a user.
+	if subjectToken.SubjectType != model.OAuthSubjectApp {
+		var appUserCount int64
+		if err := db.Model(&model.AppUser{}).
+			Where("app_id = ? AND user_id = ? AND status = ?", targetApp.ID, userID, model.AppUserStatusActive).
+			Count(&appUserCount).Error; err != nil || appUserCount == 0 {
+			s.logExchange(tenantID, userID, clientID, clientAppID, targetApp.ID, trust.ID, req.Scope, "", 0, "denied", "user not authorized for target app", ip)
+			return nil, ErrUserNotAuthorized
+		}
 	}
 
 	// Step 6: Narrow scope
@@ -156,11 +159,15 @@ func (s *Service) Exchange(clientID string, clientAppID uint, clientTenantID uin
 		UserID:        userID,
 		TenantID:      tenantID,
 		AppID:         targetApp.ID,
+		SubjectType:   subjectToken.SubjectType,
 		Scopes:        grantedScopeStr,
 		ExpiresAt:     time.Now().Add(time.Duration(ttl) * time.Second),
 		ActorClientID: clientID,
 		ActorAppID:    clientAppID,
 		IsExchanged:   true,
+	}
+	if accessToken.SubjectType == "" {
+		accessToken.SubjectType = model.OAuthSubjectUser
 	}
 	if err := db.Create(accessToken).Error; err != nil {
 		return nil, err

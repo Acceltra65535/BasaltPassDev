@@ -1,8 +1,7 @@
-import { useState } from 'react'
-import { recharge } from '@api/user/wallet'
-import { userGiftCardApi } from '@api/user/giftCard'
-import { Currency } from '@api/user/currency'
+import { useEffect, useMemo, useState } from 'react'
+import { Currency, CurrencyRate, getCurrencies, getCurrencyRates } from '@api/user/currency'
 import { useNavigate } from 'react-router-dom'
+import { paymentAPI } from '@api/subscription/payment/payment'
 import Layout from '@features/user/components/Layout'
 import CurrencySelector from '@features/user/components/CurrencySelector'
 import { PInput, PButton, PPageHeader, PCard, PAlert } from '@ui'
@@ -12,37 +11,9 @@ import { useI18n } from '@shared/i18n'
 import { 
   ArrowUpIcon,
   CreditCardIcon,
-  QrCodeIcon,
   BanknotesIcon,
-  CheckCircleIcon,
+  GiftIcon,
 } from '@heroicons/react/24/outline'
-
-const paymentMethods = [
-  {
-    id: 'alipay',
-    name: 'Alipay',
-    icon: QrCodeIcon,
-    description: 'Scan to pay',
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-100'
-  },
-  {
-    id: 'wechat',
-    name: 'WeChat Pay',
-    icon: QrCodeIcon,
-    description: 'Scan to pay',
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-100'
-  },
-  {
-    id: 'bank',
-    name: 'Bank Card',
-    icon: CreditCardIcon,
-    description: 'Online payment',
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-100'
-  }
-]
 
 const quickAmounts = [50, 100, 200, 500, 1000, 2000]
 
@@ -68,6 +39,62 @@ const formatAmount = (amount: number, currency: Currency): string => {
   return amount.toFixed(Math.min(currency.decimal_places, 8))
 }
 
+const getAmountInputConstraints = (currency: Currency | null) => {
+  if (!currency) return { min: '0.01', step: '0.01' }
+  const decimals = Math.max(0, currency.decimal_places || 0)
+  if (decimals === 0) return { min: '1', step: '1' }
+  return {
+    min: (1 / Math.pow(10, decimals)).toFixed(decimals),
+    step: (1 / Math.pow(10, decimals)).toFixed(decimals),
+  }
+}
+
+const fromSmallestUnit = (value: number, currency: Currency): number =>
+  value / Math.pow(10, currency.decimal_places)
+
+const calculatePaymentAmount = (
+  targetAmount: number,
+  targetCurrency: Currency | null,
+  paymentCurrency: Currency | null,
+  rates: CurrencyRate[],
+) => {
+  if (!targetCurrency || !paymentCurrency || !targetAmount || targetAmount <= 0) return null
+  const rate = resolveExchangeRate(targetCurrency, paymentCurrency, rates)
+  if (!rate || rate <= 0) return null
+  const amount = targetAmount * rate
+  return {
+    amount,
+    smallestUnit: Math.max(1, Math.ceil(amount * Math.pow(10, paymentCurrency.decimal_places) - 1e-9)),
+    rate,
+  }
+}
+
+const resolveExchangeRate = (
+  targetCurrency: Currency,
+  paymentCurrency: Currency,
+  rates: CurrencyRate[],
+): number | null => {
+  if (targetCurrency.code === paymentCurrency.code) return 1
+  const exact = rates.find((rate) =>
+    rate.base_currency_code === targetCurrency.code &&
+    rate.quote_currency_code === paymentCurrency.code &&
+    rate.is_active !== false &&
+    Number(rate.rate) > 0
+  )
+  if (exact) return Number(exact.rate)
+  const inverse = rates.find((rate) =>
+    rate.base_currency_code === paymentCurrency.code &&
+    rate.quote_currency_code === targetCurrency.code &&
+    rate.is_active !== false &&
+    Number(rate.rate) > 0
+  )
+  if (inverse) return 1 / Number(inverse.rate)
+  const targetRate = Number(targetCurrency.exchange_rate_usd || 0)
+  const paymentRate = Number(paymentCurrency.exchange_rate_usd || 0)
+  if (targetRate > 0 && paymentRate > 0) return targetRate / paymentRate
+  return null
+}
+
 export default function Recharge() {
   const { t } = useI18n()
   const { walletRechargeWithdrawEnabled } = useConfig()
@@ -75,12 +102,43 @@ export default function Recharge() {
   const navigate = useNavigate()
   const [amount, setAmount] = useState('')
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null)
-  const [selectedMethod, setSelectedMethod] = useState('alipay')
+  const [paymentCurrencies, setPaymentCurrencies] = useState<Currency[]>([])
+  const [currencyRates, setCurrencyRates] = useState<CurrencyRate[]>([])
+  const [paymentCurrency, setPaymentCurrency] = useState<Currency | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [giftCode, setGiftCode] = useState('')
-  const [giftRedeeming, setGiftRedeeming] = useState(false)
+  const targetAmount = Number(amount)
+  const requiresPaymentCurrency = !!selectedCurrency && selectedCurrency.type !== 'fiat'
+  const estimatedPayment = useMemo(
+    () => calculatePaymentAmount(targetAmount, selectedCurrency, paymentCurrency, currencyRates),
+    [currencyRates, targetAmount, selectedCurrency, paymentCurrency],
+  )
+  const amountInputConstraints = getAmountInputConstraints(selectedCurrency)
+
+  useEffect(() => {
+    Promise.all([getCurrencies(), getCurrencyRates()])
+      .then(([currenciesResponse, ratesResponse]) => {
+        const currencies = currenciesResponse.data.filter((currency) => currency.type === 'fiat' && currency.payment_enabled)
+        setPaymentCurrencies(currencies)
+        setCurrencyRates(ratesResponse.data)
+      })
+      .catch(() => {
+        setPaymentCurrencies([])
+        setCurrencyRates([])
+      })
+  }, [])
+
+  useEffect(() => {
+    if (!selectedCurrency) return
+    const matchingPaymentCurrency = paymentCurrencies.find((currency) => currency.code === selectedCurrency.code)
+    if (selectedCurrency.type === 'fiat' && matchingPaymentCurrency) {
+      setPaymentCurrency(matchingPaymentCurrency)
+      return
+    }
+    if (!paymentCurrency && paymentCurrencies.length > 0) {
+      setPaymentCurrency(paymentCurrencies.find((currency) => currency.code === 'USD') || paymentCurrencies[0])
+    }
+  }, [paymentCurrencies, paymentCurrency, selectedCurrency])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,20 +157,50 @@ export default function Recharge() {
       setError(t('pages.walletRecharge.errors.selectCurrency'))
       return
     }
+    if (!paymentCurrency) {
+      setError(t('pages.walletRecharge.errors.selectPaymentCurrency'))
+      return
+    }
+    if (!estimatedPayment) {
+      setError(t('pages.walletRecharge.errors.exchangeRateMissing'))
+      return
+    }
 
     setIsLoading(true)
     setError('')
     
     try {
-      // 
       const decimals = selectedCurrency.decimal_places
       const amountInSmallestUnit = Math.round(Number(amount) * Math.pow(10, decimals))
-      
-      await recharge(selectedCurrency.code, amountInSmallestUnit)
-      setSuccess(true)
-      setTimeout(() => {
-        navigate(ROUTES.user.wallet)
-      }, 2000)
+      const chargeCurrency = paymentCurrency.code
+      const chargeAmount = estimatedPayment.smallestUnit
+
+      const intentResponse = await paymentAPI.createPaymentIntent({
+        amount: chargeAmount,
+        currency: chargeCurrency,
+        description: `Top up ${amount} ${selectedCurrency.code}`,
+        payment_method_types: ['card'],
+        confirmation_method: 'automatic',
+        capture_method: 'automatic',
+        metadata: {
+          source: 'wallet_recharge',
+          checkout_kind: 'top_up',
+          wallet_currency: selectedCurrency.code,
+          target_wallet_currency: selectedCurrency.code,
+          target_wallet_amount: String(amountInSmallestUnit),
+          charge_currency: chargeCurrency,
+          charge_amount: String(chargeAmount),
+        },
+      })
+
+      const sessionResponse = await paymentAPI.createPaymentSession({
+        payment_intent_id: intentResponse.payment_intent.ID,
+        success_url: `${window.location.origin}${ROUTES.user.wallet}?topup=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${window.location.origin}${ROUTES.user.walletRecharge}?topup=canceled`,
+        user_email: '',
+      })
+
+      navigate(`/checkout?kind=top_up&session=${encodeURIComponent(sessionResponse.session.StripeSessionID)}`)
     } catch (e: any) {
       setError(e.response?.data?.error || t('pages.walletRecharge.errors.rechargeFailed'))
     } finally {
@@ -130,41 +218,6 @@ export default function Recharge() {
     setError('')
   }
 
-  const handleRedeemGiftCard = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!giftCode.trim()) {
-      setError(t('pages.walletRecharge.errors.giftCodeRequired'))
-      return
-    }
-    setGiftRedeeming(true)
-    setError('')
-    try {
-      await userGiftCardApi.redeem(giftCode.trim())
-      setSuccess(true)
-      setTimeout(() => {
-        navigate(ROUTES.user.wallet)
-      }, 2000)
-    } catch (e: any) {
-      setError(e.response?.data?.error || t('pages.walletRecharge.errors.giftRedeemFailed'))
-    } finally {
-      setGiftRedeeming(false)
-    }
-  }
-
-  if (success) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <CheckCircleIcon className="mx-auto h-16 w-16 text-green-600 mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('pages.walletRecharge.success.title')}</h2>
-            <p className="text-gray-600">{t('pages.walletRecharge.success.redirecting')}</p>
-          </div>
-        </div>
-      </Layout>
-    )
-  }
-
   return (
     <Layout>
       <div className="space-y-6">
@@ -180,26 +233,18 @@ export default function Recharge() {
           <PAlert variant="warning" message={t('pages.walletRecharge.notice.disabled')} />
         )}
 
-        <PCard padding="none" className={walletOpsDisabled ? 'opacity-60' : ''}>
-          <div className="px-4 py-5 sm:p-6">
-            <div className="flex items-center mb-4">
-              <CreditCardIcon className="h-6 w-6 text-indigo-600 mr-2" />
-              <h3 className="text-lg font-medium text-gray-900">{t('pages.walletRecharge.giftCard.title')}</h3>
-            </div>
-            <form onSubmit={handleRedeemGiftCard} className={`space-y-4 ${walletOpsDisabled ? 'pointer-events-none' : ''}`}>
-              <PInput
-                id="gift-code"
-                label={t('pages.walletRecharge.giftCard.codeLabel')}
-                value={giftCode}
-                onChange={(e) => setGiftCode(e.target.value.toUpperCase())}
-                placeholder={t('pages.walletRecharge.giftCard.codePlaceholder')}
-              />
-              <PButton type="submit" loading={giftRedeeming} disabled={walletOpsDisabled || !giftCode.trim()}>
-                {t('pages.walletRecharge.giftCard.submit')}
-              </PButton>
-            </form>
-          </div>
-        </PCard>
+        <div className="flex justify-end">
+          <PButton
+            type="button"
+            variant="secondary"
+            onClick={() => navigate(ROUTES.user.walletGiftCardRedeem)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <GiftIcon className="h-5 w-5" />
+              {t('pages.walletRecharge.giftCard.title')}
+            </span>
+          </PButton>
+        </div>
 
         {/*  */}
         {error && (
@@ -223,10 +268,37 @@ export default function Recharge() {
                   </label>
                   <CurrencySelector
                     value={selectedCurrency?.code || ''}
-                    onChange={setSelectedCurrency}
+                    onChange={(currency) => {
+                      setSelectedCurrency(currency)
+                      setError('')
+                    }}
                     className="w-full"
                   />
                 </div>
+
+                {requiresPaymentCurrency && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t('pages.walletRecharge.form.paymentCurrencyLabel')}
+                    </label>
+                    <select
+                      value={paymentCurrency?.code || ''}
+                      onChange={(e) => {
+                        const next = paymentCurrencies.find((currency) => currency.code === e.target.value) || null
+                        setPaymentCurrency(next)
+                        setError('')
+                      }}
+                      className="min-h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">{t('pages.walletRecharge.form.paymentCurrencyPlaceholder')}</option>
+                      {paymentCurrencies.map((currency) => (
+                        <option key={currency.code} value={currency.code}>
+                          {currency.name_cn || currency.name} ({currency.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/*  */}
                 <div>
@@ -237,8 +309,8 @@ export default function Recharge() {
                     value={amount}
                     onChange={(e) => handleAmountChange(e.target.value)}
                     placeholder={t('pages.walletRecharge.form.amountPlaceholder')}
-                    min="0.01"
-                    step={selectedCurrency ? `0.${'0'.repeat(Math.max(0, selectedCurrency.decimal_places - 1))}1` : "0.01"}
+                    min={amountInputConstraints.min}
+                    step={amountInputConstraints.step}
                   />
                 </div>
 
@@ -264,53 +336,31 @@ export default function Recharge() {
                   </div>
                 )}
 
-                {/*  */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    {t('pages.walletRecharge.form.methodLabel')}
-                  </label>
-                  <div className="space-y-3">
-                    {paymentMethods.map((method) => (
-                      <div
-                        key={method.id}
-                        className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
-                          selectedMethod === method.id
-                            ? 'border-indigo-500 bg-indigo-50'
-                            : 'border-gray-300 bg-white hover:bg-gray-50'
-                        }`}
-                        onClick={() => setSelectedMethod(method.id)}
-                      >
-                        <div className="flex items-center">
-                          <div className={`h-10 w-10 ${method.bgColor} rounded-lg flex items-center justify-center mr-3`}>
-                            <method.icon className={`h-6 w-6 ${method.color}`} />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{t(`pages.walletRecharge.paymentMethods.${method.id}.name`)}</p>
-                            <p className="text-sm text-gray-500">{t(`pages.walletRecharge.paymentMethods.${method.id}.description`)}</p>
-                          </div>
-                          {selectedMethod === method.id && (
-                            <div className="h-5 w-5 bg-indigo-600 rounded-full flex items-center justify-center">
-                              <CheckCircleIcon className="h-4 w-4 text-white" />
-                            </div>
-                          )}
-                        </div>
+                {selectedCurrency && paymentCurrency && estimatedPayment && (
+                  <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                    <div className="font-medium">{t('pages.walletRecharge.form.paymentEstimateTitle')}</div>
+                    <div className="mt-1">
+                      {t('pages.walletRecharge.form.paymentEstimate', {
+                        target: `${formatAmount(targetAmount, selectedCurrency)} ${selectedCurrency.code}`,
+                        payment: `${paymentCurrency.symbol}${fromSmallestUnit(estimatedPayment.smallestUnit, paymentCurrency).toFixed(paymentCurrency.decimal_places)} ${paymentCurrency.code}`,
+                      })}
+                    </div>
+                    {requiresPaymentCurrency && (
+                      <div className="mt-1 text-xs text-indigo-700">
+                        {t('pages.walletRecharge.form.exchangeRateHint')}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
+                )}
 
                 {/*  */}
                 <PButton
                   type="submit"
-                  disabled={walletOpsDisabled || !amount || parseFloat(amount) <= 0 || !selectedCurrency}
+                  disabled={walletOpsDisabled || !amount || parseFloat(amount) <= 0 || !selectedCurrency || !paymentCurrency || !estimatedPayment}
                   loading={isLoading}
                   fullWidth
                 >
-                  {t('pages.walletRecharge.form.submitWithAmount', {
-                    symbol: selectedCurrency?.symbol || '',
-                    amount: amount || '0.00',
-                    code: selectedCurrency?.code || '',
-                  })}
+                  {t('pages.walletRecharge.form.continueToCheckout')}
                 </PButton>
               </form>
             </div>

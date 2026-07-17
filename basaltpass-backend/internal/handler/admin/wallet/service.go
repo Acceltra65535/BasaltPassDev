@@ -4,6 +4,7 @@ import (
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
 	"basaltpass-backend/internal/service/currency"
+	walletservice "basaltpass-backend/internal/service/wallet"
 	"errors"
 	"fmt"
 	"strings"
@@ -277,6 +278,57 @@ func (s *AdminWalletService) CreateWalletForTeam(teamID uint, currencyCode strin
 	}
 
 	return &newWallet, nil
+}
+
+// CreateWalletForOwner creates a wallet for any supported tenant-scoped owner.
+func (s *AdminWalletService) CreateWalletForOwner(ownerType model.WalletOwnerType, ownerID uint, currencyCode string, initialBalance float64) (*model.Wallet, error) {
+	if initialBalance < 0 {
+		return nil, errors.New("initial balance must not be negative")
+	}
+	curr, err := currency.GetCurrencyByCode(currencyCode)
+	if err != nil {
+		return nil, fmt.Errorf("invalid currency code: %s", currencyCode)
+	}
+	db := common.DB()
+	owner, err := walletservice.ResolveOwnerRef(db, ownerType, ownerID, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var existing model.Wallet
+	err = db.Where("tenant_id = ? AND owner_type = ? AND owner_id = ? AND currency_id = ?", owner.TenantID, owner.Type, owner.ID, curr.ID).
+		First(&existing).Error
+	if err == nil {
+		return nil, errors.New("wallet already exists for this owner and currency")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	balance := convertToSmallestUnit(initialBalance, curr.DecimalPlaces)
+	walletModel := model.Wallet{
+		TenantID: owner.TenantID, OwnerType: owner.Type, OwnerID: owner.ID,
+		CurrencyID: &curr.ID, Balance: balance,
+	}
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&walletModel).Error; err != nil {
+			return err
+		}
+		if balance == 0 {
+			return nil
+		}
+		return tx.Create(&model.WalletTx{
+			WalletID: walletModel.ID, Type: "admin_deposit", Amount: balance,
+			Status: "success", Reference: "Admin created owner wallet with initial balance",
+		}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := db.Preload("Currency").First(&walletModel, walletModel.ID).Error; err != nil {
+		return nil, err
+	}
+	return &walletModel, nil
 }
 
 // AdjustBalance adjusts wallet balance (tenant operation)
@@ -573,7 +625,7 @@ func (s *AdminWalletService) DeleteWallet(walletID uint, operatorID uint) error 
 		}
 
 		// Delete wallet
-		if err := tx.Delete(&walletModel).Error; err != nil {
+		if err := tx.Unscoped().Delete(&walletModel).Error; err != nil {
 			return err
 		}
 

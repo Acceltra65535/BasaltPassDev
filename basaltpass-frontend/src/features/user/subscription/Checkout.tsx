@@ -58,6 +58,8 @@ const SubscriptionCheckout: React.FC = () => {
         price_id: selectedPrice.id,
         quantity: quantity,
         coupon_code: couponCode || undefined,
+        success_url: `${window.location.origin}${ROUTES.user.subscriptions}?payment=success`,
+        cancel_url: `${window.location.origin}/subscriptions/checkout?payment=canceled`,
       });
 
       setCheckoutResponse(response);
@@ -65,7 +67,8 @@ const SubscriptionCheckout: React.FC = () => {
 
       // ，
       if (response.payment_session) {
-        window.open(subscriptionAPI.getPaymentCheckoutUrl(response.payment_session.stripe_session_id), '_blank');
+        const sessionId = response.payment_session.stripe_session_id || response.payment_session.StripeSessionID;
+        navigate(`/checkout?kind=subscription&session=${encodeURIComponent(sessionId)}`);
       } else {
         // ，
         setStep('success');
@@ -245,7 +248,10 @@ const SubscriptionCheckout: React.FC = () => {
                   {t('pages.userSubscriptionCheckout.result.paymentHint')}
                 </p>
                 <PButton
-                  onClick={() => window.open(subscriptionAPI.getPaymentCheckoutUrl(checkoutResponse.payment_session.stripe_session_id), '_blank')}
+                  onClick={() => {
+                    const sessionId = checkoutResponse.payment_session.stripe_session_id || checkoutResponse.payment_session.StripeSessionID;
+                    navigate(`/checkout?kind=subscription&session=${encodeURIComponent(sessionId)}`);
+                  }}
                   variant="secondary"
                 >
                   {t('pages.userSubscriptionCheckout.result.reopenPayment')}

@@ -165,6 +165,34 @@ func GetPaymentSessionHandler(c *fiber.Ctx) error {
 	return c.JSON(session)
 }
 
+// ReconcileWalletTopUpSessionHandler POST /payment/sessions/:session_id/reconcile-wallet-top-up
+func ReconcileWalletTopUpSessionHandler(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(uint)
+	activeTenantID := resolvePaymentTenantID(c)
+	sessionID := c.Params("session_id")
+
+	session, err := payment2.ReconcileWalletRechargeFromStripe(userID, activeTenantID, sessionID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Payment session not found",
+			})
+		}
+		if errors.Is(err, payment2.ErrTenantStripeNotConfigured) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "当前租户未配置可用的 Stripe Key，请先在租户控制台完成配置",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"session": session,
+	})
+}
+
 // ListPaymentIntentsHandler GET /payment/intents - 获取支付意图列表
 func ListPaymentIntentsHandler(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)

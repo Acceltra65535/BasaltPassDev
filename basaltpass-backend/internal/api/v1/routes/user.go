@@ -43,6 +43,7 @@ func RegisterUserRoutes(v1 fiber.Router) {
 
 	// 用户应用授权管理
 	userGroup.Get("/apps", app_user.GetUserAppsHandler)
+	userGroup.Get("/apps/recharge-config", user.GetAppRechargeConfigHandler)
 	userGroup.Delete("/apps/:app_id", app_user.RevokeUserAppHandler)
 
 	// 用户搜索路由 (需要JWT认证)
@@ -87,6 +88,8 @@ func RegisterUserRoutes(v1 fiber.Router) {
 	teamGroup.Put("/:id", userTeam.UpdateTeamHandler)
 	teamGroup.Delete("/:id", userTeam.DeleteTeamHandler)
 	teamGroup.Get("/:id/members", userTeam.GetTeamMembersHandler)
+	teamGroup.Get("/:id/wallets", userTeam.GetTeamWalletsHandler)
+	teamGroup.Get("/:id/wallets/history", userTeam.GetTeamWalletHistoryHandler)
 	teamGroup.Post("/:id/members", userTeam.AddMemberHandler)
 	teamGroup.Put("/:id/members/:member_id", userTeam.UpdateMemberRoleHandler)
 	teamGroup.Delete("/:id/members/:member_id", userTeam.RemoveMemberHandler)
@@ -106,6 +109,7 @@ func RegisterUserRoutes(v1 fiber.Router) {
 	// 钱包用户系统路由（需要认证）
 	walletGroup := v1.Group("/wallet", middleware.JWTMiddleware())
 	walletGroup.Get("/balance", user.GetWalletBalanceHandler)
+	walletGroup.Get("/accounts", user.GetWalletAccountsHandler)
 	walletGroup.Post("/recharge", user.RechargeWalletHandler)
 	walletGroup.Post("/withdraw", user.WithdrawWalletHandler)
 	walletGroup.Get("/history", user.WalletHistoryHandler)
@@ -117,6 +121,7 @@ func RegisterUserRoutes(v1 fiber.Router) {
 	paymentGroup.Get("/intents", payment.ListPaymentIntentsHandler)
 	paymentGroup.Get("/intents/:id", payment.GetPaymentIntentHandler)
 	paymentGroup.Post("/sessions", payment.CreatePaymentSessionHandler)
+	paymentGroup.Post("/sessions/:session_id/reconcile-wallet-top-up", payment.ReconcileWalletTopUpSessionHandler)
 	paymentGroup.Get("/sessions/:session_id", payment.GetPaymentSessionHandler)
 
 	// 订单系统路由

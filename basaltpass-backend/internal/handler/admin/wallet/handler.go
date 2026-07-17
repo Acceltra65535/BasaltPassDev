@@ -10,18 +10,20 @@ import (
 
 // WalletResponse represents a wallet with computed status field for API response
 type WalletResponse struct {
-	ID         uint        `json:"id"`
-	TenantID   uint        `json:"tenant_id"`
-	UserID     *uint       `json:"user_id"`
-	TeamID     *uint       `json:"team_id"`
-	CurrencyID *uint       `json:"currency_id"`
-	Balance    int64       `json:"balance"`
-	Status     string      `json:"status"` // computed from Freeze field
-	CreatedAt  string      `json:"created_at"`
-	UpdatedAt  string      `json:"updated_at"`
-	Currency   interface{} `json:"currency,omitempty"`
-	User       interface{} `json:"user,omitempty"`
-	Team       interface{} `json:"team,omitempty"`
+	ID         uint                  `json:"id"`
+	TenantID   uint                  `json:"tenant_id"`
+	OwnerType  model.WalletOwnerType `json:"owner_type"`
+	OwnerID    uint                  `json:"owner_id"`
+	UserID     *uint                 `json:"user_id"`
+	TeamID     *uint                 `json:"team_id"`
+	CurrencyID *uint                 `json:"currency_id"`
+	Balance    int64                 `json:"balance"`
+	Status     string                `json:"status"` // computed from Freeze field
+	CreatedAt  string                `json:"created_at"`
+	UpdatedAt  string                `json:"updated_at"`
+	Currency   interface{}           `json:"currency,omitempty"`
+	User       interface{}           `json:"user,omitempty"`
+	Team       interface{}           `json:"team,omitempty"`
 }
 
 // AdminWalletHandler handles tenant wallet operations
@@ -46,6 +48,8 @@ func walletToResponse(wallet model.Wallet) WalletResponse {
 	return WalletResponse{
 		ID:         wallet.ID,
 		TenantID:   wallet.TenantID,
+		OwnerType:  wallet.OwnerType,
+		OwnerID:    wallet.OwnerID,
 		UserID:     wallet.UserID,
 		TeamID:     wallet.TeamID,
 		CurrencyID: wallet.CurrencyID,
@@ -79,10 +83,12 @@ type ListWalletsRequest struct {
 
 // CreateWalletRequest represents the request for creating a wallet
 type CreateWalletRequest struct {
-	UserID         *uint   `json:"user_id"`
-	TeamID         *uint   `json:"team_id"`
-	CurrencyCode   string  `json:"currency_code" validate:"required"`
-	InitialBalance float64 `json:"initial_balance"`
+	OwnerType      model.WalletOwnerType `json:"owner_type"`
+	OwnerID        *uint                 `json:"owner_id"`
+	UserID         *uint                 `json:"user_id"`
+	TeamID         *uint                 `json:"team_id"`
+	CurrencyCode   string                `json:"currency_code" validate:"required"`
+	InitialBalance float64               `json:"initial_balance"`
 }
 
 // AdjustBalanceRequest represents the request for adjusting wallet balance
@@ -205,13 +211,23 @@ func (h *AdminWalletHandler) CreateWallet(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate that either UserID or TeamID is provided, but not both
-	if req.UserID == nil && req.TeamID == nil {
+	usesUnifiedOwner := req.OwnerType != "" || req.OwnerID != nil
+	if usesUnifiedOwner && (req.OwnerType == "" || req.OwnerID == nil || !req.OwnerType.IsValid()) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Either user_id or team_id must be provided",
+			"error": "owner_type and owner_id must identify a user, app, tenant, or team",
 		})
 	}
-	if req.UserID != nil && req.TeamID != nil {
+	if usesUnifiedOwner && (req.UserID != nil || req.TeamID != nil) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "cannot mix owner_type/owner_id with legacy user_id/team_id",
+		})
+	}
+	if !usesUnifiedOwner && req.UserID == nil && req.TeamID == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "owner_type/owner_id, user_id, or team_id must be provided",
+		})
+	}
+	if !usesUnifiedOwner && req.UserID != nil && req.TeamID != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Cannot specify both user_id and team_id",
 		})
@@ -220,7 +236,9 @@ func (h *AdminWalletHandler) CreateWallet(c *fiber.Ctx) error {
 	var wallet *model.Wallet
 	var err error
 
-	if req.UserID != nil {
+	if usesUnifiedOwner {
+		wallet, err = h.service.CreateWalletForOwner(req.OwnerType, *req.OwnerID, req.CurrencyCode, req.InitialBalance)
+	} else if req.UserID != nil {
 		wallet, err = h.service.CreateWalletForUser(*req.UserID, req.CurrencyCode, req.InitialBalance)
 	} else {
 		wallet, err = h.service.CreateWalletForTeam(*req.TeamID, req.CurrencyCode, req.InitialBalance)

@@ -65,7 +65,7 @@ When Harbor credentials are configured, it also publishes:
 git checkout deploy
 git pull --ff-only origin deploy
 git tag beancs-v1.0.0
-git push origin deploy --tags
+git push origin refs/heads/deploy:refs/heads/deploy --tags
 ```
 
 The workflow creates:

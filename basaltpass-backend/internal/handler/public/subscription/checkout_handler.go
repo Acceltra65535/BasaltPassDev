@@ -84,6 +84,8 @@ func QuickCheckoutHandler(c *fiber.Ctx) error {
 		PriceID    uint    `json:"price_id" validate:"required"`
 		Quantity   float64 `json:"quantity,omitempty"`
 		CouponCode *string `json:"coupon_code,omitempty"`
+		SuccessURL string  `json:"success_url,omitempty"`
+		CancelURL  string  `json:"cancel_url,omitempty"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -93,13 +95,22 @@ func QuickCheckoutHandler(c *fiber.Ctx) error {
 	}
 
 	// 构建完整的checkout请求
+	successURL := req.SuccessURL
+	if successURL == "" {
+		successURL = "http://localhost:5101/subscriptions?payment=success"
+	}
+	cancelURL := req.CancelURL
+	if cancelURL == "" {
+		cancelURL = "http://localhost:5101/subscriptions?payment=canceled"
+	}
+
 	checkoutReq := CheckoutRequest{
 		UserID:     userID,
 		PriceID:    req.PriceID,
 		Quantity:   req.Quantity,
 		CouponCode: req.CouponCode,
-		SuccessURL: "http://localhost:5101/subscriptions?payment=success",
-		CancelURL:  "http://localhost:5101/subscriptions?payment=canceled",
+		SuccessURL: successURL,
+		CancelURL:  cancelURL,
 	}
 	if tenantID != nil {
 		checkoutReq.ActiveTenantID = *tenantID

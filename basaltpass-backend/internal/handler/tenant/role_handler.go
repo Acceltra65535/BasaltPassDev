@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // RoleRequest 创建/更新角色请求
@@ -282,6 +283,15 @@ func DeleteTenantRole(c *fiber.Ctx) error {
 	if role.IsSystem {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "系统角色不能删除"})
 	}
+	var mappingCount int64
+	if err := common.DB().Model(&model.TenantAppGrantMapping{}).
+		Where("tenant_id = ? AND source_type = ? AND source_id = ?", tenantID, model.TenantAppGrantSourceTenantRole, roleID).
+		Count(&mappingCount).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "检查角色映射失败"})
+	}
+	if mappingCount > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "该角色正在被 tenant→app 映射引用，无法删除"})
+	}
 
 	// 检查是否有用户正在使用该角色
 	var userCount int64
@@ -297,6 +307,32 @@ func DeleteTenantRole(c *fiber.Ctx) error {
 			tx.Rollback()
 		}
 	}()
+	// Re-lock and re-check inside the delete transaction. Mapping writes lock
+	// the same source row, so a concurrent create/update cannot leave a dangling
+	// source after the checks above.
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ? AND tenant_id = ?", roleID, tenantID).First(&role).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "角色不存在"})
+	}
+	if err := tx.Model(&model.TenantAppGrantMapping{}).
+		Where("tenant_id = ? AND source_type = ? AND source_id = ?", tenantID, model.TenantAppGrantSourceTenantRole, roleID).
+		Count(&mappingCount).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "检查角色映射失败"})
+	}
+	if mappingCount > 0 {
+		tx.Rollback()
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "该角色正在被 tenant→app 映射引用，无法删除"})
+	}
+	if err := tx.Model(&model.TenantUserRbacRole{}).Where("role_id = ?", roleID).Count(&userCount).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "检查角色用户失败"})
+	}
+	if userCount > 0 {
+		tx.Rollback()
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "该角色正在被用户使用，无法删除"})
+	}
 
 	// 删除角色权限关联
 	if err := tx.Where("role_id = ?", roleID).Delete(&model.TenantRbacRolePermission{}).Error; err != nil {

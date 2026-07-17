@@ -3,7 +3,6 @@ package wallet
 import (
 	"basaltpass-backend/internal/service/currency"
 	"errors"
-	"strings"
 
 	"basaltpass-backend/internal/common"
 	"basaltpass-backend/internal/model"
@@ -178,6 +177,24 @@ func GetBalanceByCodeWithTenant(userID uint, tenantID uint, currencyCode string)
 	return GetBalanceWithTenant(userID, curr.ID, tenantID)
 }
 
+// ListUserWalletsWithTenant returns existing wallets for a user in tenant context.
+func ListUserWalletsWithTenant(userID uint, tenantID uint) ([]model.Wallet, error) {
+	db := common.DB()
+	effectiveTenantID, err := resolveEffectiveTenantID(db, userID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	var wallets []model.Wallet
+	if err := db.Preload("Currency").
+		Where("user_id = ? AND tenant_id = ?", userID, effectiveTenantID).
+		Order("currency_id ASC").
+		Find(&wallets).Error; err != nil {
+		return nil, err
+	}
+	return wallets, nil
+}
+
 // Recharge adds amount to balance and creates transaction (mock auto success)
 func Recharge(userID uint, currencyID uint, amount int64) error {
 	return RechargeWithTenant(userID, 0, currencyID, amount)
@@ -238,7 +255,7 @@ func Withdraw(userID uint, currencyID uint, amount int64) error {
 }
 
 func WithdrawWithTenant(userID uint, tenantID uint, currencyID uint, amount int64) error {
-	if !RechargeWithdrawEnabled() {
+	if !WithdrawEnabled() {
 		return ErrWalletRechargeWithdrawDisabled
 	}
 	if amount <= 0 {
@@ -293,66 +310,12 @@ func AdjustByCode(userID uint, currencyCode string, delta int64, txType string, 
 }
 
 func AdjustByCodeWithTenant(userID uint, tenantID uint, currencyCode string, delta int64, txType string, reference string) (model.Wallet, error) {
-	if delta == 0 {
-		return model.Wallet{}, errors.New("amount must not be zero")
-	}
-
-	curr, err := currency.GetCurrencyByCode(currencyCode)
-	if err != nil {
-		return model.Wallet{}, errors.New("invalid currency code")
-	}
-
 	db := common.DB()
 	effectiveTenantID, err := resolveEffectiveTenantID(db, userID, tenantID)
 	if err != nil {
 		return model.Wallet{}, err
 	}
-
-	var updated model.Wallet
-	err = db.Transaction(func(tx *gorm.DB) error {
-		var w model.Wallet
-		if err := tx.Where("user_id = ? AND currency_id = ? AND tenant_id = ?", userID, curr.ID, effectiveTenantID).
-			FirstOrCreate(&w, model.Wallet{TenantID: effectiveTenantID, UserID: &userID, CurrencyID: &curr.ID}).Error; err != nil {
-			return err
-		}
-
-		newBalance := w.Balance + delta
-		if newBalance < 0 {
-			return errors.New("insufficient funds")
-		}
-
-		w.Balance = newBalance
-		if err := tx.Save(&w).Error; err != nil {
-			return err
-		}
-
-		txType = strings.TrimSpace(txType)
-		if txType == "" {
-			if delta > 0 {
-				txType = "adjust_increase"
-			} else {
-				txType = "adjust_decrease"
-			}
-		}
-
-		walletTx := model.WalletTx{
-			WalletID:  w.ID,
-			Type:      txType,
-			Amount:    delta,
-			Status:    "success",
-			Reference: strings.TrimSpace(reference),
-		}
-		if err := tx.Create(&walletTx).Error; err != nil {
-			return err
-		}
-
-		updated = w
-		return nil
-	})
-	if err != nil {
-		return model.Wallet{}, err
-	}
-	return updated, nil
+	return AdjustOwnerByCode(model.WalletOwnerUser, userID, effectiveTenantID, currencyCode, delta, txType, reference)
 }
 
 // History returns last n transactions
@@ -375,7 +338,7 @@ func HistoryWithTenant(userID uint, tenantID uint, currencyID uint, limit int) (
 		return nil, err
 	}
 	var txs []model.WalletTx
-	db.Where("wallet_id = ?", w.ID).Order("created_at desc").Limit(limit).Find(&txs)
+	db.Preload("Wallet.Currency").Where("wallet_id = ?", w.ID).Order("created_at desc").Limit(limit).Find(&txs)
 	return txs, nil
 }
 
@@ -420,7 +383,8 @@ func HistoryAllByUserWithTenant(userID uint, tenantID uint, limit int) ([]model.
 	}
 
 	var txs []model.WalletTx
-	if err := db.Where("wallet_id IN ?", walletIDs).
+	if err := db.Preload("Wallet.Currency").
+		Where("wallet_id IN ?", walletIDs).
 		Order("created_at desc").
 		Limit(limit).
 		Find(&txs).Error; err != nil {

@@ -139,6 +139,7 @@ func defaultItems() map[string]SettingItem {
 			"s2s.user.read",
 			"s2s.user.write",
 			"s2s.rbac.read",
+			"s2s.rbac.manifest.submit",
 			"s2s.team.read",
 			"s2s.team.write",
 			"s2s.wallet.read",
@@ -203,10 +204,12 @@ func defaultItems() map[string]SettingItem {
 		"jwt.audience":            {Value: "", Category: "jwt", Description: "JWT 受众（aud）"},
 
 		// Maintenance & Features
-		"maintenance.enabled":               {Value: false, Category: "maintenance", Description: "维护模式：启用后仅管理员可访问"},
-		"maintenance.message":               {Value: "系统维护中，请稍后访问。", Category: "maintenance", Description: "维护模式提示信息"},
-		"features.registration_invite_only": {Value: false, Category: "features", Description: "仅限邀请注册"},
-		"features.beta_features":            {Value: []string{}, Category: "features", Description: "开启的 Beta 功能列表"},
+		"maintenance.enabled":                       {Value: false, Category: "maintenance", Description: "维护模式：启用后仅管理员可访问"},
+		"maintenance.message":                       {Value: "系统维护中，请稍后访问。", Category: "maintenance", Description: "维护模式提示信息"},
+		"features.registration_invite_only":         {Value: false, Category: "features", Description: "仅限邀请注册"},
+		"features.wallet_recharge_withdraw_enabled": {Value: true, Category: "features", Description: "是否开放用户钱包充值；充值必须通过统一收银台完成"},
+		"features.wallet_withdraw_enabled":          {Value: false, Category: "features", Description: "是否开放用户钱包提现"},
+		"features.beta_features":                    {Value: []string{}, Category: "features", Description: "开启的 Beta 功能列表"},
 
 		// Analytics
 		"analytics.enabled":     {Value: false, Category: "analytics", Description: "是否启用统计分析"},
