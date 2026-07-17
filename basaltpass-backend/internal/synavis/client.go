@@ -1,41 +1,43 @@
-// Package synavis provides a lightweight HTTP client for the Synavis Core OCaml billing engine.
+// Package synavis provides a lightweight client for the Synavis Core OCaml billing engine.
 //
-// Phase 1 (in-memory + HTTP integration):
-// - After a Stripe payment succeeds, call NotifyFundsReceived to mirror the credit event to OCaml.
-// - All functions are fire-and-forget: if the engine is unreachable, only a warning is logged.
+// Phase 3 (Strimzi / Kafka integration):
+// - After a Stripe payment succeeds, call NotifyFundsReceived to mirror the credit event to OCaml via Kafka.
+// - All functions are fire-and-forget: if Kafka is unreachable, only a warning is logged.
 // - Idempotency is enforced by the OCaml engine using stripe_payment_id as the dedup key.
 package synavis
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
+	"strings"
+	"sync"
 	"time"
+
+	"github.com/segmentio/kafka-go"
 )
 
-// Client is a minimal HTTP client for the Synavis Core engine.
+// Client is a minimal Kafka client for the Synavis Core engine.
 type Client struct {
-	baseURL    string
-	httpClient *http.Client
+	brokers        string
+	timeoutSeconds float64
+
+	mu     sync.Mutex
+	writer *kafka.Writer
 }
 
-// New creates a Client. baseURL should be the engine base URL (e.g. "http://localhost:10622").
-// timeoutSeconds controls how long to wait before giving up.
-func New(baseURL string, timeoutSeconds float64) *Client {
-	if baseURL == "" {
-		baseURL = "http://localhost:10622"
+// New creates a Client. brokers should be a comma-separated list of Kafka broker addresses.
+func New(brokers string, timeoutSeconds float64) *Client {
+	if brokers == "" {
+		brokers = "localhost:9092"
 	}
 	if timeoutSeconds <= 0 {
 		timeoutSeconds = 5.0
 	}
 	return &Client{
-		baseURL: baseURL,
-		httpClient: &http.Client{
-			Timeout: time.Duration(timeoutSeconds * float64(time.Second)),
-		},
+		brokers:        brokers,
+		timeoutSeconds: timeoutSeconds,
 	}
 }
 
@@ -48,41 +50,48 @@ type FundsReceivedPayload struct {
 	StripePaymentID string `json:"stripe_payment_id"`
 }
 
-// postEvent serialises the payload as a [variant, payload] JSON array and POSTs it.
-func (c *Client) postEvent(ctx context.Context, variant string, payload any) error {
+func (c *Client) getWriter() *kafka.Writer {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.writer == nil {
+		brokerList := strings.Split(c.brokers, ",")
+		c.writer = &kafka.Writer{
+			Addr:                   kafka.TCP(brokerList...),
+			Topic:                  "synavis-events",
+			Balancer:               &kafka.LeastBytes{},
+			BatchTimeout:           10 * time.Millisecond,
+			WriteTimeout:           time.Duration(c.timeoutSeconds * float64(time.Second)),
+			RequiredAcks:           kafka.RequireOne,
+			AllowAutoTopicCreation: true,
+		}
+	}
+
+	return c.writer
+}
+
+// publishEvent serialises the payload as a [variant, payload] JSON array and publishes it to Kafka.
+func (c *Client) publishEvent(ctx context.Context, variant string, payload any) error {
 	body, err := json.Marshal([]any{variant, payload})
 	if err != nil {
 		return fmt.Errorf("synavis: marshal error: %w", err)
 	}
 
-	url := c.baseURL + "/api/b1/events"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("synavis: build request error: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+	w := c.getWriter()
 
-	resp, err := c.httpClient.Do(req)
+	err = w.WriteMessages(ctx,
+		kafka.Message{
+			Value: body,
+		},
+	)
 	if err != nil {
-		return fmt.Errorf("synavis: request failed: %w", err)
+		return fmt.Errorf("synavis: publish failed: %w", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		return nil
-	}
-	return fmt.Errorf("synavis: engine returned status %d", resp.StatusCode)
+	return nil
 }
 
-// NotifyFundsReceived mirrors a successful Stripe payment to the OCaml ledger.
-// This is fire-and-forget: the error is only logged, never returned to the caller.
-//
-// Parameters:
-//   - userID:          BasaltPass user ID (string form)
-//   - tenantID:        Tenant ID associated with the payment
-//   - amountSmallest:  Amount in the smallest currency unit (e.g. cents × 1_000_000 for microcredits)
-//   - stripePaymentID: Stripe payment_intent ID, used for idempotency by the OCaml engine
-//   - currency:        ISO-4217 code, e.g. "USD"
+// NotifyFundsReceived mirrors a successful Stripe payment to the OCaml ledger via Kafka.
 func (c *Client) NotifyFundsReceived(
 	userID string,
 	tenantID string,
@@ -94,10 +103,10 @@ func (c *Client) NotifyFundsReceived(
 		currency = "USD"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), c.httpClient.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.timeoutSeconds*float64(time.Second)))
 	defer cancel()
 
-	err := c.postEvent(ctx, "FundsReceived", FundsReceivedPayload{
+	err := c.publishEvent(ctx, "FundsReceived", FundsReceivedPayload{
 		UserID:          userID,
 		TenantID:        tenantID,
 		Amount:          amountSmallest,
@@ -105,11 +114,10 @@ func (c *Client) NotifyFundsReceived(
 		StripePaymentID: stripePaymentID,
 	})
 	if err != nil {
-		// Only warn – the OCaml mirror must never break BasaltPass payment flows.
-		log.Printf("[synavis] WARN: FundsReceived event mirror failed (user=%s stripe=%s): %v",
+		log.Printf("[synavis] WARN: FundsReceived Kafka publish failed (user=%s stripe=%s): %v",
 			userID, stripePaymentID, err)
 	} else {
-		log.Printf("[synavis] INFO: FundsReceived mirrored (user=%s stripe=%s amount=%d %s)",
+		log.Printf("[synavis] INFO: FundsReceived published to Kafka (user=%s stripe=%s amount=%d %s)",
 			userID, stripePaymentID, amountSmallest, currency)
 	}
 }

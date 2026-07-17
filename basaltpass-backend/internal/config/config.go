@@ -105,6 +105,8 @@ type Config struct {
 	Synavis struct {
 		// BaseURL is the base URL of the OCaml billing engine, e.g. "http://localhost:10622"
 		BaseURL string `mapstructure:"base_url"`
+		// KafkaBrokers is the Strimzi/Kafka brokers for Phase 3 asynchronous billing event mirror
+		KafkaBrokers string `mapstructure:"kafka_brokers"`
 		// TimeoutSeconds is the HTTP client timeout when posting billing events.
 		TimeoutSeconds float64 `mapstructure:"timeout_seconds"`
 	} `mapstructure:"synavis"`
@@ -150,6 +152,7 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("database.dsn", "") // 显式设置默认值，以确保 Viper 能从环境变量 BASALTPASS_DATABASE_DSN Unmarshal
 	// Synavis Core 默认配置（开发环境）
 	v.SetDefault("synavis.base_url", "http://localhost:10622")
+	v.SetDefault("synavis.kafka_brokers", "localhost:9092")
 	v.SetDefault("synavis.timeout_seconds", 5.0)
 	v.SetDefault("cors.allow_origins", []string{
 		"http://localhost:5101",

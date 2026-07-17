@@ -14,6 +14,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/google/uuid v1.6.0
+	github.com/segmentio/kafka-go v0.4.47
 	github.com/nyaruka/phonenumbers v1.6.6
 	github.com/pquerna/otp v1.5.0
 	github.com/spf13/viper v1.19.0

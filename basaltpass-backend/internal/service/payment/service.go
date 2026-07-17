@@ -28,7 +28,7 @@ import (
 // synavisClient returns a lazily-constructed Synavis Core client using current config.
 func synavisClient() *synavis.Client {
 	cfg := config.Get()
-	return synavis.New(cfg.Synavis.BaseURL, cfg.Synavis.TimeoutSeconds)
+	return synavis.New(cfg.Synavis.AMQURL, cfg.Synavis.TimeoutSeconds)
 }
 
 // CreatePaymentIntentRequest 创建支付意图请求
