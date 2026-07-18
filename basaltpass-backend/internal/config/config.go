@@ -100,6 +100,8 @@ type Config struct {
 		// Example: https://auth.example.com/api/v1
 		Issuer string `mapstructure:"issuer"`
 	} `mapstructure:"oidc"`
+
+
 }
 
 var cfg Config
@@ -140,6 +142,7 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("database.driver", "sqlite")
 	v.SetDefault("database.path", "basaltpass.db")
 	v.SetDefault("database.dsn", "") // 显式设置默认值，以确保 Viper 能从环境变量 BASALTPASS_DATABASE_DSN Unmarshal
+
 	v.SetDefault("cors.allow_origins", []string{
 		"http://localhost:5101",
 		"http://127.0.0.1:5101",

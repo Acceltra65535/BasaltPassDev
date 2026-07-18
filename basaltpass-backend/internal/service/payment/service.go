@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"basaltpass-backend/internal/common"
+	"basaltpass-backend/internal/config"
 	"basaltpass-backend/internal/model"
 	currencyservice "basaltpass-backend/internal/service/currency"
 	"basaltpass-backend/internal/utils"
@@ -25,6 +26,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+
 
 // CreatePaymentIntentRequest 创建支付意图请求
 type CreatePaymentIntentRequest struct {
@@ -589,6 +592,7 @@ func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObjec
 			if _, err := wallet.AdjustByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount, "recharge", "stripe_checkout:"+session.StripeSessionID); err != nil {
 				return fmt.Errorf("failed to update wallet: %w", err)
 			}
+
 		}
 
 		if err := processSubscriptionPaymentWebhook(stripeSessionID, true); err != nil {
@@ -1118,6 +1122,7 @@ func SimulatePayment(sessionID string, success bool) (*MockStripeResponse, error
 			if _, err := wallet.AdjustByCodeWithTenant(session.UserID, tenantID, targetCurrency, targetAmount, "recharge", "stripe_checkout:"+session.StripeSessionID); err != nil {
 				return nil, fmt.Errorf("failed to update wallet: %w", err)
 			}
+
 		}
 	}
 

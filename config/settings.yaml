@@ -446,3 +446,15 @@ settings:
         value: 5
         category: webhooks
         description: Webhook 调用超时时间（秒）
+    synavis.base_url:
+        value: http://localhost:10622
+        category: synavis
+        description: Synavis Core OCaml 引擎基础 URL
+    synavis.kafka_brokers:
+        value: localhost:9092
+        category: synavis
+        description: Synavis Core Kafka 集群地址 (Strimzi)
+    synavis.timeout_seconds:
+        value: 5.0
+        category: synavis
+        description: Synavis Core 调用超时时间
