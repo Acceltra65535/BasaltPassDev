@@ -2,7 +2,6 @@ package payment
 
 import (
 	"basaltpass-backend/internal/service/wallet"
-	"basaltpass-backend/internal/synavis"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -25,11 +24,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// synavisClient returns a lazily-constructed Synavis Core client using current config.
-func synavisClient() *synavis.Client {
-	cfg := config.Get()
-	return synavis.New(cfg.Synavis.KafkaBrokers, cfg.Synavis.TimeoutSeconds)
-}
+
 
 // CreatePaymentIntentRequest 创建支付意图请求
 type CreatePaymentIntentRequest struct {
@@ -522,13 +517,7 @@ func processStripeCheckoutSessionEvent(tx *gorm.DB, eventType string, eventObjec
 			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, session.Currency, session.Amount); err != nil {
 				return fmt.Errorf("failed to update wallet: %w", err)
 			}
-			// ── Synavis Core 镜像（Phase 1：异步火后不管） ──
-			userIDStr := fmt.Sprintf("%d", session.UserID)
-			tenantIDStr := fmt.Sprintf("%d", tenantID)
-			stripePaymentID := session.PaymentIntent.StripePaymentIntentID
-			amount := session.Amount
-			go synavisClient().NotifyFundsReceived(userIDStr, tenantIDStr, amount, stripePaymentID, session.Currency)
-			// ───────────────────────────────
+
 		}
 
 		if err := processSubscriptionPaymentWebhook(stripeSessionID, true); err != nil {
@@ -1031,13 +1020,7 @@ func SimulatePayment(sessionID string, success bool) (*MockStripeResponse, error
 			if err := wallet.RechargeByCodeWithTenant(session.UserID, tenantID, session.Currency, session.Amount); err != nil {
 				return nil, fmt.Errorf("failed to update wallet: %w", err)
 			}
-			// ── Synavis Core 镜像（Phase 1：异步火后不管） ──
-			userIDStr := fmt.Sprintf("%d", session.UserID)
-			tenantIDStr := fmt.Sprintf("%d", tenantID)
-			stripePaymentID := session.PaymentIntent.StripePaymentIntentID
-			amount := session.Amount
-			go synavisClient().NotifyFundsReceived(userIDStr, tenantIDStr, amount, stripePaymentID, session.Currency)
-			// ───────────────────────────────
+
 		}
 	}
 
